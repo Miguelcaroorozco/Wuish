@@ -1,0 +1,6 @@
+{
+  "name": "WUISH Enterprise Ecosystem",
+  "description": "Plataforma empresarial de WUISH con autenticación corporativa, dashboard de cliente en tiempo real, cotizador estratégico y panel administrativo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
