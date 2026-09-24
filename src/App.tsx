@@ -26,8 +26,19 @@ const MainAppContent: React.FC = () => {
 
   // Default to landing view if not authenticated, or client portal/admin if active
   const [currentView, setCurrentView] = useState<ViewMode>(() => {
-    return isAuthenticated ? (currentRole === 'admin' ? 'admin' : 'portal') : 'landing';
+    return isAuthenticated ? (currentRole === 'admin' || currentRole === 'administrador' ? 'admin' : 'portal') : 'landing';
   });
+
+  // Guard: redirigir a auth si intenta acceder a vistas privadas sin estar autenticado
+  const navigateTo = (view: ViewMode) => {
+    if ((view === 'portal' || view === 'admin') && !isAuthenticated) {
+      setCurrentView('auth');
+    } else if (view === 'admin' && isAuthenticated && currentRole !== 'admin' && currentRole !== 'administrador') {
+      setCurrentView('portal'); // usuario normal no puede ir al admin
+    } else {
+      setCurrentView(view);
+    }
+  };
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -39,7 +50,7 @@ const MainAppContent: React.FC = () => {
       <HeaderNav
         currentView={currentView}
         onSelectView={(v) => {
-          setCurrentView(v);
+          navigateTo(v);
           scrollToTop();
         }}
       />
@@ -66,9 +77,9 @@ const MainAppContent: React.FC = () => {
         {currentView === 'auth' && (
           <div className="py-6 px-4 flex-1 flex items-center justify-center">
             <AuthScreen
-              onSuccessAuth={() => {
-                // Redirect according to role
-                if (currentRole === 'admin') {
+              onSuccessAuth={(role) => {
+                // Redirect according to role returned directly from the API
+                if (role === 'admin' || role === 'administrador') {
                   setCurrentView('admin');
                 } else {
                   setCurrentView('portal');
@@ -178,23 +189,12 @@ const MainAppContent: React.FC = () => {
               <li>
                 <button
                   onClick={() => {
-                    setCurrentView('portal');
+                    navigateTo('portal');
                     scrollToTop();
                   }}
                   className="hover:text-[#ffd56d] transition cursor-pointer"
                 >
                   Portal Ejecutivo de Clientes
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => {
-                    setCurrentView('admin');
-                    scrollToTop();
-                  }}
-                  className="hover:text-[#ffd56d] transition cursor-pointer"
-                >
-                  Panel Administrativo Master
                 </button>
               </li>
               <li>

@@ -22,10 +22,15 @@ import {
 
 interface AuthScreenProps {
   onSuccess?: () => void;
+  onSuccessAuth?: (role: string) => void;
   isModal?: boolean;
 }
 
-export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, isModal = false }) => {
+export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth, isModal = false }) => {
+  const handleSuccess = (role: string) => {
+    if (onSuccess) onSuccess();
+    if (onSuccessAuth) onSuccessAuth(role);
+  };
   const { login, register, resetPassword } = useAuth();
   const { showToast } = useToast();
 
@@ -41,11 +46,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, isModal = fal
   // Register form state
   const [regFirstName, setRegFirstName] = useState('');
   const [regLastName, setRegLastName] = useState('');
-  const [regDocType, setRegDocType] = useState('RUC');
+  const [regDocType, setRegDocType] = useState('CC');
   const [regDocNumber, setRegDocNumber] = useState('');
   const [regPhone, setRegPhone] = useState('');
   const [regEmail, setRegEmail] = useState('');
-  const [regCompany, setRegCompany] = useState('');
+  const [regBirthDate, setRegBirthDate] = useState('');
   const [regPwd, setRegPwd] = useState('');
   const [regConfirmPwd, setRegConfirmPwd] = useState('');
   const [showRegPwd, setShowRegPwd] = useState(false);
@@ -65,10 +70,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, isModal = fal
 
     setIsSubmitting(true);
     try {
-      const res = await login(loginUser, loginPwd, rememberMe);
+      const res = await login(loginUser, loginPwd);
       if (res.success) {
         showToast('Acceso Concedido', res.message, 'success');
-        if (onSuccess) onSuccess();
+        handleSuccess(res.role || 'usuario');
       } else {
         showToast('Acceso Denegado', res.message, 'error');
       }
@@ -97,22 +102,24 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, isModal = fal
     setIsSubmitting(true);
     try {
       const res = await register({
-        firstName: regFirstName,
-        lastName: regLastName,
-        docType: regDocType,
-        docNumber: regDocNumber,
-        phone: regPhone,
-        email: regEmail,
-        company: regCompany || `${regLastName} Holdings`,
+        nombres: regFirstName,
+        apellidos: regLastName,
+        tipo_documento: regDocType,
+        numero_cedula: regDocNumber,
+        telefono: regPhone,
+        correo: regEmail,
+        fecha_nacimiento: regBirthDate,
         password: regPwd,
       });
 
       if (res.success) {
         showToast('Registro Exitoso', res.message, 'success');
-        if (onSuccess) onSuccess();
+        handleSuccess(res.role || 'usuario');
+      } else {
+        showToast('Error de Registro', res.message, 'error');
       }
-    } catch {
-      showToast('Error de Registro', 'No se pudo completar el registro corporativo', 'error');
+    } catch (err: any) {
+      showToast('Error de Registro', err.message || 'No se pudo completar el registro', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -406,10 +413,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, isModal = fal
                         onChange={(e) => setRegDocType(e.target.value)}
                         className="w-full bg-[#0e0e10] text-[#e5e1e4] px-3 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs cursor-pointer"
                       >
-                        <option value="RUC">RUC / Tax ID</option>
-                        <option value="DNI">DNI / Cédula</option>
-                        <option value="CE">Carné Extranjería</option>
+                        <option value="CC">Cédula de Ciudadanía</option>
+                        <option value="CE">Cédula de Extranjería</option>
+                        <option value="TI">Tarjeta de Identidad</option>
                         <option value="PAS">Pasaporte</option>
+                        <option value="NIT">NIT</option>
                       </select>
                     </div>
                     <div className="sm:col-span-7 space-y-1">
@@ -460,15 +468,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, isModal = fal
                     </div>
                   </div>
 
-                  {/* Company Name */}
+                  {/* Fecha de Nacimiento */}
                   <div className="space-y-1">
-                    <label className="block text-xs font-medium text-[#e5e1e4]" htmlFor="reg-company">Razón Social / Empresa</label>
+                    <label className="block text-xs font-medium text-[#e5e1e4]" htmlFor="reg-birthdate">Fecha de Nacimiento *</label>
                     <input
-                      id="reg-company"
-                      type="text"
-                      value={regCompany}
-                      onChange={(e) => setRegCompany(e.target.value)}
-                      placeholder="Nombre comercial o razón social"
+                      id="reg-birthdate"
+                      type="date"
+                      required
+                      value={regBirthDate}
+                      onChange={(e) => setRegBirthDate(e.target.value)}
                       className="w-full bg-[#0e0e10] text-[#e5e1e4] placeholder:text-[#9a907c]/70 px-3.5 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
                     />
                   </div>

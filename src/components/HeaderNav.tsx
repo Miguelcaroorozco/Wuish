@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { WuishLogo } from './WuishLogo';
@@ -14,7 +14,6 @@ import {
   Sparkles,
   KeyRound
 } from 'lucide-react';
-import { UserRole } from '../types';
 
 interface HeaderNavProps {
   currentView: 'landing' | 'portal' | 'admin' | 'cotizador' | 'planes' | 'auth';
@@ -22,23 +21,19 @@ interface HeaderNavProps {
 }
 
 export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onSelectView }) => {
-  const { user, isAuthenticated, currentRole, switchRole, logout } = useAuth();
+  const { user, isAuthenticated, currentRole, logout } = useAuth();
   const { showToast } = useToast();
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
-  const handleRoleChange = (role: UserRole) => {
-    switchRole(role);
-    if (role === 'admin') {
+  const handleRoleChange = (role: string) => {
+    if (role === 'administrador') {
       onSelectView('admin');
-      showToast('Perfil de Administrador', 'Modo administrador activado.');
-    } else if (role === 'client') {
-      onSelectView('portal');
-      showToast('Perfil de Cliente', 'Modo cliente activado.');
+      showToast('Perfil de Administrador', 'Vista de administrador.');
     } else {
       onSelectView('portal');
-      showToast('Perfil de Consultoría', 'Modo consultoría activado.');
+      showToast('Perfil de Cliente', 'Vista de cliente.');
     }
   };
 
@@ -70,27 +65,33 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onSelectView 
               Inicio
             </button>
 
-            <button
-              onClick={() => onSelectView('portal')}
-              className={`px-3.5 py-2 rounded-lg transition-all cursor-pointer ${
-                currentView === 'portal'
-                  ? 'bg-[#2a2a2c] text-[#ffd56d] font-semibold border border-[#ffd56d]/30 shadow-sm'
-                  : 'text-[#d1c5af] hover:text-white hover:bg-white/5'
-              }`}
-            >
-              Dashboard Cliente
-            </button>
+            {/* Solo visible para usuarios autenticados */}
+            {isAuthenticated && (
+              <button
+                onClick={() => onSelectView('portal')}
+                className={`px-3.5 py-2 rounded-lg transition-all cursor-pointer ${
+                  currentView === 'portal'
+                    ? 'bg-[#2a2a2c] text-[#ffd56d] font-semibold border border-[#ffd56d]/30 shadow-sm'
+                    : 'text-[#d1c5af] hover:text-white hover:bg-white/5'
+                }`}
+              >
+                Mi Dashboard
+              </button>
+            )}
 
-            <button
-              onClick={() => onSelectView('admin')}
-              className={`px-3.5 py-2 rounded-lg transition-all cursor-pointer ${
-                currentView === 'admin'
-                  ? 'bg-[#2a2a2c] text-[#ffd56d] font-semibold border border-[#ffd56d]/30 shadow-sm'
-                  : 'text-[#d1c5af] hover:text-white hover:bg-white/5'
-              }`}
-            >
-              Panel Admin
-            </button>
+            {/* Solo visible para administradores */}
+            {isAuthenticated && (currentRole === 'admin' || currentRole === 'administrador') && (
+              <button
+                onClick={() => onSelectView('admin')}
+                className={`px-3.5 py-2 rounded-lg transition-all cursor-pointer ${
+                  currentView === 'admin'
+                    ? 'bg-[#2a2a2c] text-[#ffd56d] font-semibold border border-[#ffd56d]/30 shadow-sm'
+                    : 'text-[#d1c5af] hover:text-white hover:bg-white/5'
+                }`}
+              >
+                Panel Admin
+              </button>
+            )}
 
             <button
               onClick={() => onSelectView('cotizador')}
@@ -100,7 +101,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onSelectView 
                   : 'text-[#d1c5af] hover:text-white hover:bg-white/5'
               }`}
             >
-              Cotizador
+              Cotización
             </button>
 
             <button
@@ -114,61 +115,33 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onSelectView 
               Planes
             </button>
 
-            <button
-              onClick={() => onSelectView('auth')}
-              className={`px-3 py-1.5 rounded-lg transition-all text-[11px] font-semibold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer ${
-                currentView === 'auth'
-                  ? 'bg-[#ffd56d] text-[#3e2e00]'
-                  : 'bg-[#1c1b1d] text-[#ffd56d] border border-[#ffd56d]/30 hover:bg-[#2a2a2c]'
-              }`}
-            >
-              <KeyRound className="w-3.5 h-3.5" />
-              <span>Autenticación</span>
-            </button>
+            {/* AutenticaciÃ³n: solo si NO estÃ¡ autenticado */}
+            {!isAuthenticated && (
+              <button
+                onClick={() => onSelectView('auth')}
+                className={`px-3 py-1.5 rounded-lg transition-all text-[11px] font-semibold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer ${
+                  currentView === 'auth'
+                    ? 'bg-[#ffd56d] text-[#3e2e00]'
+                    : 'bg-[#1c1b1d] text-[#ffd56d] border border-[#ffd56d]/30 hover:bg-[#2a2a2c]'
+                }`}
+              >
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>Ingresar</span>
+              </button>
+            )}
           </nav>
         </div>
 
         {/* Right: Role Switcher & User Profile Controls */}
         <div className="flex items-center gap-3 sm:gap-4">
           
-          {/* Role Switcher Pill (Exact to Image 3) */}
-          <div className="hidden md:flex items-center p-1 bg-[#0e0e10] border border-white/10 rounded-full text-[11px] font-semibold">
-            <button
-              type="button"
-              onClick={() => handleRoleChange('client')}
-              className={`px-3.5 py-1 rounded-full transition-all cursor-pointer ${
-                currentRole === 'client'
-                  ? 'bg-[#ffd56d] text-[#3e2e00] shadow-sm font-bold'
-                  : 'text-[#d1c5af] hover:text-white hover:bg-[#1c1b1d]'
-              }`}
-            >
-              Client
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleRoleChange('admin')}
-              className={`px-3.5 py-1 rounded-full transition-all cursor-pointer ${
-                currentRole === 'admin'
-                  ? 'bg-[#ffd56d] text-[#3e2e00] shadow-sm font-bold'
-                  : 'text-[#d1c5af] hover:text-white hover:bg-[#1c1b1d]'
-              }`}
-            >
-              Admin
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleRoleChange('consultant')}
-              className={`px-3.5 py-1 rounded-full transition-all cursor-pointer ${
-                currentRole === 'consultant'
-                  ? 'bg-[#ffd56d] text-[#3e2e00] shadow-sm font-bold'
-                  : 'text-[#d1c5af] hover:text-white hover:bg-[#1c1b1d]'
-              }`}
-            >
-              Consultant
-            </button>
-          </div>
+          {/* Role badge Ã¢â‚¬â€ solo si estÃ¡ autenticado */}
+          {isAuthenticated && (
+            <div className="hidden md:flex items-center px-3 py-1.5 bg-[#0e0e10] border border-white/10 rounded-full text-[11px] font-semibold text-[#d1c5af] gap-1.5">
+              <span className={`w-2 h-2 rounded-full ${currentRole === 'admin' || currentRole === 'administrador' ? 'bg-[#ffd56d]' : 'bg-emerald-400'}`} />
+              <span className="capitalize">{currentRole === 'admin' || currentRole === 'administrador' ? 'Admin' : 'Cliente'}</span>
+            </div>
+          )}
 
           {/* Notifications Trigger */}
           <div className="relative">
@@ -189,7 +162,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onSelectView 
               <div className="absolute right-0 mt-2 w-80 rounded-2xl bg-[#1c1b1d] border border-[#ffd56d]/30 shadow-2xl p-4 z-50 animate-in fade-in slide-in-from-top-2">
                 <div className="flex items-center justify-between pb-3 border-b border-white/5">
                   <span className="text-xs font-bold uppercase tracking-wider text-white font-display">Notificaciones</span>
-                  <span className="text-[10px] text-[#ffd56d] cursor-pointer" onClick={() => showToast('Leídas', 'Todas las notificaciones marcadas')}>Marcar leídas</span>
+                  <span className="text-[10px] text-[#ffd56d] cursor-pointer" onClick={() => showToast('LeÃ­Â­das', 'Todas las notificaciones marcadas')}>Marcar leÃ­Â­das</span>
                 </div>
                 <div className="py-2 space-y-2 text-xs">
                   {notifications.length === 0 ? (
@@ -267,43 +240,49 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onSelectView 
                       className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#201f21] hover:text-white transition flex items-center gap-2 cursor-pointer"
                     >
                       <Briefcase className="w-4 h-4 text-[#ffd56d]" />
-                      <span>Dashboard Ejecutivo</span>
+                      <span>Mi Dashboard</span>
                     </button>
 
+                    {/* Ajustes de usuario Ã¢â‚¬â€ navega al dashboard tab de ajustes */}
                     <button
                       onClick={() => {
-                        onSelectView('admin');
+                        onSelectView('portal');
                         setShowProfileMenu(false);
+                        // Dispara evento para abrir tab Ajustes en el dashboard
+                        window.dispatchEvent(new CustomEvent('wuish:openDashboardTab', { detail: 'ajustes' }));
                       }}
                       className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#201f21] hover:text-white transition flex items-center gap-2 cursor-pointer"
                     >
-                      <Shield className="w-4 h-4 text-[#ffd56d]" />
-                      <span>Panel Directivo</span>
+                      <Sliders className="w-4 h-4 text-[#ffd56d]" />
+                      <span>Ajustes de Cuenta</span>
                     </button>
 
-                    <button
-                      onClick={() => {
-                        onSelectView('auth');
-                        setShowProfileMenu(false);
-                      }}
-                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#201f21] hover:text-white transition flex items-center gap-2 cursor-pointer"
-                    >
-                      <KeyRound className="w-4 h-4 text-[#ffd56d]" />
-                      <span>Cambiar de Usuario</span>
-                    </button>
+                    {/* Panel Admin Ã¢â‚¬â€ solo admins */}
+                    {(currentRole === 'admin' || currentRole === 'administrador') && (
+                      <button
+                        onClick={() => {
+                          onSelectView('admin');
+                          setShowProfileMenu(false);
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#201f21] hover:text-white transition flex items-center gap-2 cursor-pointer"
+                      >
+                        <Shield className="w-4 h-4 text-[#ffd56d]" />
+                        <span>Panel Administrativo</span>
+                      </button>
+                    )}
 
                     <div className="border-t border-white/5 my-1 pt-1">
                       <button
                         onClick={() => {
                           logout();
                           setShowProfileMenu(false);
-                          showToast('Sesión Cerrada', 'Has salido del ecosistema corporativo.');
+                          showToast('SesiÃ³n Cerrada', 'Has salido del ecosistema corporativo.');
                           onSelectView('auth');
                         }}
                         className="w-full text-left px-3 py-2 rounded-lg text-rose-400 hover:bg-rose-500/10 transition flex items-center gap-2 cursor-pointer"
                       >
                         <LogOut className="w-4 h-4" />
-                        <span>Cerrar Sesión</span>
+                        <span>Cerrar SesiÃ³n</span>
                       </button>
                     </div>
                   </div>
@@ -315,7 +294,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onSelectView 
               onClick={() => onSelectView('auth')}
               className="px-4 py-2 rounded-xl bg-[#ffd56d] text-[#3e2e00] text-xs font-bold uppercase tracking-wider hover:bg-[#ffdf97] transition shadow"
             >
-              Iniciar Sesión
+              Iniciar SesiÃ³n
             </button>
           )}
 
@@ -323,30 +302,34 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onSelectView 
       </div>
 
       {/* Mobile Secondary Nav Bar */}
-      <div className="xl:hidden flex items-center justify-between px-4 py-2 bg-[#131315] border-t border-white/5 text-xs overflow-x-auto space-x-2">
+      <div className="xl:hidden flex items-center gap-1 px-3 py-2 bg-[#131315] border-t border-white/5 text-xs overflow-x-auto">
         <button
           onClick={() => onSelectView('landing')}
           className={`px-3 py-1 rounded whitespace-nowrap ${currentView === 'landing' ? 'bg-[#ffd56d] text-[#3e2e00] font-bold' : 'text-zinc-400'}`}
         >
           Inicio
         </button>
-        <button
-          onClick={() => onSelectView('portal')}
-          className={`px-3 py-1 rounded whitespace-nowrap ${currentView === 'portal' ? 'bg-[#ffd56d] text-[#3e2e00] font-bold' : 'text-zinc-400'}`}
-        >
-          Dashboard Cliente
-        </button>
-        <button
-          onClick={() => onSelectView('admin')}
-          className={`px-3 py-1 rounded whitespace-nowrap ${currentView === 'admin' ? 'bg-[#ffd56d] text-[#3e2e00] font-bold' : 'text-zinc-400'}`}
-        >
-          Panel Admin
-        </button>
+        {isAuthenticated && (
+          <button
+            onClick={() => onSelectView('portal')}
+            className={`px-3 py-1 rounded whitespace-nowrap ${currentView === 'portal' ? 'bg-[#ffd56d] text-[#3e2e00] font-bold' : 'text-zinc-400'}`}
+          >
+            Dashboard
+          </button>
+        )}
+        {isAuthenticated && (currentRole === 'admin' || currentRole === 'administrador') && (
+          <button
+            onClick={() => onSelectView('admin')}
+            className={`px-3 py-1 rounded whitespace-nowrap ${currentView === 'admin' ? 'bg-[#ffd56d] text-[#3e2e00] font-bold' : 'text-zinc-400'}`}
+          >
+            Admin
+          </button>
+        )}
         <button
           onClick={() => onSelectView('cotizador')}
           className={`px-3 py-1 rounded whitespace-nowrap ${currentView === 'cotizador' ? 'bg-[#ffd56d] text-[#3e2e00] font-bold' : 'text-zinc-400'}`}
         >
-          Cotizador
+          Cotización
         </button>
         <button
           onClick={() => onSelectView('planes')}
@@ -354,12 +337,14 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onSelectView 
         >
           Planes
         </button>
-        <button
-          onClick={() => onSelectView('auth')}
-          className={`px-3 py-1 rounded whitespace-nowrap ${currentView === 'auth' ? 'bg-[#ffd56d] text-[#3e2e00] font-bold' : 'text-zinc-400'}`}
-        >
-          Autenticación
-        </button>
+        {!isAuthenticated && (
+          <button
+            onClick={() => onSelectView('auth')}
+            className={`px-3 py-1 rounded whitespace-nowrap ${currentView === 'auth' ? 'bg-[#ffd56d] text-[#3e2e00] font-bold' : 'text-zinc-400'}`}
+          >
+            Ingresar
+          </button>
+        )}
       </div>
     </header>
   );

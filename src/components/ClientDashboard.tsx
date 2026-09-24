@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { Solicitud, ChatMessage } from '../types';
+import { solicitudesApi, mensajesApi, usuariosApi } from '../lib/api';
+import { ChatMessage } from '../types';
 import {
   FolderKanban,
   Wallet,
@@ -21,8 +22,20 @@ import {
   Calculator,
   Headphones,
   Check,
-  ChevronRight
+  ChevronRight,
+  LayoutDashboard,
+  ClipboardList,
+  MessageSquare,
+  CreditCard,
+  Settings,
+  User,
+  Phone,
+  Save,
+  RefreshCw,
+  Tag
 } from 'lucide-react';
+
+type DashboardTab = 'resumen' | 'solicitudes' | 'mensajes' | 'cotizacion' | 'ajustes';
 
 interface ClientDashboardProps {
   onNavigateToCotizador?: () => void;
@@ -36,64 +49,83 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const { user } = useAuth();
   const { showToast } = useToast();
 
+  const [activeTab, setActiveTab] = useState<DashboardTab>('resumen');
   const [filterStatus, setFilterStatus] = useState<string>('Todas');
-  const [solicitudes, setSolicitudes] = useState<Solicitud[]>(() => {
-    try {
-      const saved = localStorage.getItem('wuish_solicitudes_v1');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [solicitudes, setSolicitudes] = useState<any[]>([]);
   
   // Roadmap Sprint Status
   const [sprintApproved, setSprintApproved] = useState(false);
-  const [activeStageIndex, setActiveStageIndex] = useState(2); // Step 3 "Crear" active
+  const [activeStageIndex, setActiveStageIndex] = useState(2);
 
   // Chat State
-  const [messages, setMessages] = useState<ChatMessage[]>(() => {
-    try {
-      const saved = localStorage.getItem('wuish_messages_v1');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [messages, setMessages] = useState<any[]>([]);
   const [chatInput, setChatInput] = useState('');
 
   // Modals state
   const [showNewReqModal, setShowNewReqModal] = useState(false);
   const [showChangelogModal, setShowChangelogModal] = useState(false);
   const [newReqTitle, setNewReqTitle] = useState('');
-  const [newReqPlan, setNewReqPlan] = useState('Optimización & Escala');
+  const [newReqType, setNewReqType] = useState('cotizacion');
   const [newReqDesc, setNewReqDesc] = useState('');
+
+  // Ajustes state
+  const [ajustesNombres, setAjustesNombres] = useState(user?.nombres || '');
+  const [ajustesApellidos, setAjustesApellidos] = useState(user?.apellidos || '');
+  const [ajustesTelefono, setAjustesTelefono] = useState(user?.telefono || '');
+  const [ajustesSaving, setAjustesSaving] = useState(false);
+
+  // Cotización embedded tab state
+  const [cotizadorSubview, setCotizadorSubview] = useState<'planes' | 'cotizador'>('planes');
+
+
+  // Load data from API and listen for custom events
+  useEffect(() => {
+    loadData();
+    // Listen for HeaderNav's "Ajustes de Cuenta" click
+    const handler = (e: Event) => {
+      const tab = (e as CustomEvent).detail as DashboardTab;
+      if (tab) setActiveTab(tab);
+    };
+    window.addEventListener('wuish:openDashboardTab', handler);
+    return () => window.removeEventListener('wuish:openDashboardTab', handler);
+  }, []);
+
+
+
+  const loadData = async () => {
+    try {
+      const [solData, msgData] = await Promise.allSettled([
+        solicitudesApi.getMine(),
+        mensajesApi.getMine(),
+      ]);
+      if (solData.status === 'fulfilled') setSolicitudes(solData.value);
+      if (msgData.status === 'fulfilled') setMessages(msgData.value);
+    } catch (err) {
+      console.error('Error loading dashboard data:', err);
+    }
+  };
 
   // Filter requests
   const filteredSolicitudes = solicitudes.filter((item) => {
     if (filterStatus === 'Todas') return true;
-    return item.status === filterStatus;
+    return item.estado === filterStatus;
   });
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
 
-    const userMsg: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      sender: user?.name || 'Cliente',
-      role: user?.title || 'Director',
-      text: chatInput,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isMe: true
-    };
-
-    setMessages((prev) => {
-      const updated = [...prev, userMsg];
-      localStorage.setItem('wuish_messages_v1', JSON.stringify(updated));
-      return updated;
-    });
-    setChatInput('');
-    showToast('Mensaje Enviado', 'Su mensaje ha sido remitido al canal de atención.', 'info');
+    try {
+      const newMsg = await mensajesApi.send({
+        contenido: chatInput,
+        asunto: 'Mensaje desde dashboard',
+      });
+      setMessages((prev) => [newMsg, ...prev]);
+      setChatInput('');
+      showToast('Mensaje Enviado', 'Su mensaje ha sido enviado al equipo.', 'info');
+    } catch (err: any) {
+      showToast('Error', err.message || 'No se pudo enviar el mensaje', 'error');
+    }
   };
 
   const handleApproveSprint = () => {
@@ -101,36 +133,72 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
     showToast('Sprint Aprobado', 'Se ha emitido el certificado de conformidad técnica.', 'success');
   };
 
-  const handleCreateRequest = (e: React.FormEvent) => {
+  const handleCreateRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newReqTitle.trim()) return;
 
-    const newCode = `#SOL-${Math.floor(7000 + Math.random() * 2900)}`;
-    const newReq: Solicitud = {
-      id: `sol-${Date.now()}`,
-      code: newCode,
-      title: newReqTitle,
-      subtitle: newReqDesc || 'Requerimiento prioritario ingresado desde el portal',
-      date: 'Hoy',
-      plan: newReqPlan,
-      status: 'En Revisión',
-      assignedTo: 'Mesa Técnica WUISH',
-      budget: '$2,400 USD'
-    };
+    try {
+      const newSol = await solicitudesApi.create({
+        tipo: newReqType,
+        descripcion: `${newReqTitle}${newReqDesc ? ' — ' + newReqDesc : ''}`,
+      });
+      setSolicitudes((prev) => [newSol, ...prev]);
+      setShowNewReqModal(false);
+      setNewReqTitle('');
+      setNewReqDesc('');
+      showToast('Solicitud Creada', 'Tu solicitud ha sido registrada exitosamente.', 'success');
+    } catch (err: any) {
+      showToast('Error', err.message || 'No se pudo crear la solicitud', 'error');
+    }
+  };
 
-    setSolicitudes((prev) => {
-      const updated = [newReq, ...prev];
-      localStorage.setItem('wuish_solicitudes_v1', JSON.stringify(updated));
-      return updated;
-    });
-    setShowNewReqModal(false);
-    setNewReqTitle('');
-    setNewReqDesc('');
-    showToast('Solicitud Registrada', `Ticket ${newCode} asignado al equipo técnico para evaluación.`, 'success');
+  const handleSaveAjustes = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAjustesSaving(true);
+    try {
+      await usuariosApi.updateMe({
+        nombres: ajustesNombres,
+        apellidos: ajustesApellidos,
+        telefono: ajustesTelefono,
+      });
+      showToast('Ajustes guardados', 'Tu información de perfil fue actualizada.', 'success');
+    } catch (err: any) {
+      showToast('Error', err.message || 'No se pudo actualizar el perfil.', 'error');
+    } finally {
+      setAjustesSaving(false);
+    }
   };
 
   return (
     <div className="w-full max-w-[1560px] mx-auto p-4 sm:p-6 lg:p-10 space-y-6 animate-in fade-in duration-300">
+
+      {/* ===== TAB NAVIGATION BAR ===== */}
+      <div className="flex items-center gap-1 bg-[#1c1b1d] border border-white/5 rounded-xl p-1 overflow-x-auto">
+        {([
+          { id: 'resumen', label: 'Resumen', icon: LayoutDashboard },
+          { id: 'solicitudes', label: 'Solicitudes', icon: ClipboardList },
+          { id: 'mensajes', label: 'Mensajes', icon: MessageSquare },
+          { id: 'cotizacion', label: 'Planes & Cotización', icon: CreditCard },
+          { id: 'ajustes', label: 'Ajustes de Cuenta', icon: Settings },
+        ] as { id: DashboardTab; label: string; icon: any }[]).map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setActiveTab(id)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+              activeTab === id
+                ? 'bg-[#ffd56d] text-[#3e2e00] shadow-sm'
+                : 'text-[#d1c5af] hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Icon className="w-3.5 h-3.5" />
+            <span>{label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* ===== TAB: RESUMEN ===== */}
+      {activeTab === 'resumen' && (
+        <div className="space-y-6">
       
       {/* 1. TOP GREETING BANNER (Exact match to Image 3) */}
       <div className="relative rounded-2xl bg-[#1c1b1d] border border-white/5 p-6 sm:p-8 shadow-xl overflow-hidden">
@@ -151,14 +219,14 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
 
             <div>
               <h1 className="text-3xl sm:text-4xl font-extrabold text-[#e5e1e4] font-display tracking-tight">
-                Hola, {user?.name || 'Usuario'}
+                Hola, {user?.nombres || 'Usuario'}
               </h1>
               <p className="text-sm text-[#d1c5af] mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-                {user?.title && <span className="text-white font-medium">{user.title}</span>}
-                {user?.title && user?.company && <span className="text-[#9a907c]">—</span>}
-                {user?.company && <span className="text-[#ffd56d] font-medium">{user.company}</span>}
+                {user?.rol && <span className="text-white font-medium">{user.rol}</span>}
+                {user?.rol && user?.correo && <span className="text-[#9a907c]">—</span>}
+                {user?.correo && <span className="text-[#ffd56d] font-medium">{user.correo}</span>}
                 <span className="text-[#9a907c]">•</span>
-                <span className="text-zinc-300">SLA Garantizado ({user?.sla || '100%'})</span>
+                <span className="text-zinc-300">SLA Garantizado (100%)</span>
               </p>
             </div>
           </div>
@@ -207,7 +275,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
           <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-xs text-[#d1c5af]">
             <span className="flex items-center gap-1 text-[#ffd56d]">
               <span className="w-1.5 h-1.5 rounded-full bg-[#ffd56d]" />
-              {solicitudes.filter((s) => s.status !== 'Finalizada').length} en curso
+              {solicitudes.filter((s) => s.estado !== 'finalizada').length} en curso
             </span>
             <span className="text-[#9a907c]">Portal Wuish</span>
           </div>
@@ -222,7 +290,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                 <span className="text-3xl font-extrabold text-[#ffd56d] font-display">
                   {solicitudes.length > 0
                     ? `$${solicitudes.reduce((acc, s) => {
-                        const num = parseInt((s.budget || '').replace(/[^0-9]/g, '')) || 0;
+                        const num = s.plan?.precio ? parseFloat(s.plan.precio) : 0;
                         return acc + num;
                       }, 0).toLocaleString()}`
                     : '$0'}
@@ -272,7 +340,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
               <span className="text-xs text-[#9a907c] font-medium block">Estado Global SLA</span>
               <div className="flex items-baseline gap-2 mt-1">
                 <span className="text-3xl font-extrabold text-emerald-400 font-display">
-                  {user?.sla || '100%'}
+                  100%
                 </span>
                 <span className="text-xs text-emerald-400/80">Activo</span>
               </div>
@@ -565,39 +633,39 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                     <tr
                       key={item.id}
                       className="hover:bg-[#201f21]/70 transition-colors group cursor-pointer"
-                      onClick={() => showToast(`Detalle ${item.code}`, `${item.title} — Asignado a: ${item.assignedTo || 'Mesa Técnica'}`)}
+                      onClick={() => showToast(`Solicitud`, `${item.tipo} — ${item.descripcion || 'Sin descripción'}`)}
                     >
                       <td className="py-4 pr-4 font-mono font-bold text-[#ffd56d]">
-                        {item.code}
+                        #{item.id?.slice(0, 8)}
                       </td>
                       <td className="py-4 pr-4">
                         <div className="font-semibold text-white text-sm group-hover:text-[#ffd56d] transition-colors">
-                          {item.title}
+                          {item.tipo}
                         </div>
                         <div className="text-[11px] text-[#9a907c] mt-0.5">
-                          {item.subtitle}
+                          {item.descripcion || 'Sin descripción'}
                         </div>
                       </td>
                       <td className="py-4 pr-4 text-[#d1c5af] whitespace-nowrap">
-                        {item.date}
+                        {new Date(item.created_at).toLocaleDateString('es-CO')}
                       </td>
                       <td className="py-4 pr-4">
                         <span className="px-2.5 py-1 rounded bg-[#201f21] border border-white/5 text-zinc-300 font-medium">
-                          {item.plan}
+                          {item.plan?.nombre || '—'}
                         </span>
                       </td>
                       <td className="py-4 text-right whitespace-nowrap">
                         <span
                           className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold ${
-                            item.status === 'En Proceso'
+                            item.estado === 'en_proceso'
                               ? 'bg-[#ffd56d]/15 text-[#ffd56d] border border-[#ffd56d]/30'
-                              : item.status === 'En Revisión'
+                              : item.estado === 'en_revision' || item.estado === 'pendiente'
                               ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
                               : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
                           }`}
                         >
                           <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                          {item.status}
+                          {item.estado}
                         </span>
                       </td>
                     </tr>
@@ -852,17 +920,18 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-[#e5e1e4] mb-1">
-                    Plan / Nivel *
+                    Tipo de Solicitud *
                   </label>
                   <select
-                    value={newReqPlan}
-                    onChange={(e) => setNewReqPlan(e.target.value)}
+                    value={newReqType}
+                    onChange={(e) => setNewReqType(e.target.value)}
                     className="w-full bg-[#0e0e10] text-[#e5e1e4] px-3 py-2.5 rounded-xl border border-white/10 text-xs focus:outline-none focus:border-[#ffd56d]"
                   >
-                    <option value="Elite Scale">Elite Scale</option>
-                    <option value="Growth Horizon">Growth Horizon</option>
-                    <option value="Enterprise Custom">Enterprise Custom</option>
-                    <option value="Digitalización Rápida">Digitalización Rápida</option>
+                    <option value="cotizacion">Cotización</option>
+                    <option value="soporte">Soporte Técnico</option>
+                    <option value="desarrollo">Desarrollo</option>
+                    <option value="consultoria">Consultoría</option>
+                    <option value="otro">Otro</option>
                   </select>
                 </div>
 
@@ -961,6 +1030,268 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                 Cerrar Visor
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+
+      </div>
+      )}
+
+
+      {/* ===== TAB: SOLICITUDES ===== */}
+      {activeTab === 'solicitudes' && (
+        <div className="space-y-4 animate-in fade-in duration-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-bold text-white font-display">Solicitudes & Sugerencias</h2>
+              <p className="text-xs text-[#9a907c] mt-0.5">Gestiona tus cotizaciones y solicitudes de servicio.</p>
+            </div>
+            <button
+              onClick={() => setShowNewReqModal(true)}
+              className="px-4 py-2.5 rounded-xl bg-[#ffd56d] text-[#3e2e00] font-bold text-xs flex items-center gap-2 cursor-pointer hover:bg-[#ffdf97] transition shadow-sm"
+            >
+              <PlusCircle className="w-4 h-4" />
+              Nueva Solicitud
+            </button>
+          </div>
+
+          {/* Filtro de estado */}
+          <div className="flex gap-2 flex-wrap">
+            {['Todas', 'pendiente', 'en_revision', 'aprobada', 'finalizada', 'rechazada'].map((estado) => (
+              <button
+                key={estado}
+                onClick={() => setFilterStatus(estado)}
+                className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition cursor-pointer capitalize ${
+                  filterStatus === estado
+                    ? 'bg-[#ffd56d] text-[#3e2e00]'
+                    : 'bg-[#1c1b1d] text-[#9a907c] border border-white/10 hover:text-white'
+                }`}
+              >
+                {estado === 'Todas' ? 'Todas' : estado.replace('_', ' ')}
+              </button>
+            ))}
+          </div>
+
+          {filteredSolicitudes.length === 0 ? (
+            <div className="rounded-2xl bg-[#1c1b1d] border border-white/5 p-12 text-center">
+              <ClipboardList className="w-10 h-10 text-[#353437] mx-auto mb-3" />
+              <p className="text-sm text-[#9a907c]">No hay solicitudes {filterStatus !== 'Todas' ? `con estado "${filterStatus}"` : 'registradas'}.</p>
+              <button
+                onClick={() => setShowNewReqModal(true)}
+                className="mt-4 px-4 py-2 rounded-xl bg-[#ffd56d] text-[#3e2e00] font-bold text-xs cursor-pointer hover:bg-[#ffdf97]"
+              >
+                Crear primera solicitud
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredSolicitudes.map((sol) => (
+                <div key={sol.id} className="p-4 rounded-xl bg-[#1c1b1d] border border-white/5 hover:border-[#ffd56d]/20 transition-all flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                        sol.estado === 'aprobada' ? 'bg-emerald-500/20 text-emerald-400' :
+                        sol.estado === 'pendiente' ? 'bg-yellow-500/20 text-yellow-400' :
+                        sol.estado === 'rechazada' ? 'bg-red-500/20 text-red-400' :
+                        sol.estado === 'finalizada' ? 'bg-blue-500/20 text-blue-400' :
+                        'bg-[#353437] text-[#9a907c]'
+                      }`}>
+                        {sol.estado?.replace('_', ' ') || 'pendiente'}
+                      </span>
+                      <span className="text-[10px] text-[#9a907c] font-mono">{sol.tipo}</span>
+                    </div>
+                    <p className="text-sm text-[#e5e1e4] font-medium truncate">{sol.descripcion || 'Sin descripción'}</p>
+                    <p className="text-[11px] text-[#9a907c] mt-0.5">{new Date(sol.created_at).toLocaleDateString('es-CO')}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== TAB: MENSAJES ===== */}
+      {activeTab === 'mensajes' && (
+        <div className="space-y-4 animate-in fade-in duration-200">
+          <div>
+            <h2 className="text-xl font-bold text-white font-display">Buzón de Mensajes</h2>
+            <p className="text-xs text-[#9a907c] mt-0.5">Comunicación directa con el equipo WUISH.</p>
+          </div>
+
+          {/* Chat feed */}
+          <div className="rounded-2xl bg-[#1c1b1d] border border-white/5 flex flex-col" style={{ minHeight: '420px' }}>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-80">
+              {messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-40 text-[#9a907c]">
+                  <MessageSquare className="w-8 h-8 mb-2 opacity-30" />
+                  <p className="text-xs">No hay mensajes aún. Inicia la conversación.</p>
+                </div>
+              ) : (
+                [...messages].reverse().map((msg: any) => (
+                  <div key={msg.id} className={`flex gap-3 ${msg.remitente_id === 'system' ? 'flex-row-reverse' : ''}`}>
+                    <div className="w-8 h-8 rounded-full bg-[#353437] flex items-center justify-center text-[#ffd56d] text-xs font-bold shrink-0">
+                      {msg.remitente_id === 'system' ? 'W' : (user?.nombres?.charAt(0) || 'U')}
+                    </div>
+                    <div className="max-w-[75%]">
+                      <div className={`px-4 py-2.5 rounded-2xl text-xs ${
+                        msg.remitente_id === 'system'
+                          ? 'bg-[#353437] text-[#d1c5af] rounded-tr-sm'
+                          : 'bg-[#ffd56d]/10 border border-[#ffd56d]/20 text-[#e5e1e4] rounded-tl-sm'
+                      }`}>
+                        {msg.contenido}
+                      </div>
+                      <p className="text-[10px] text-[#9a907c] mt-1 px-1">{new Date(msg.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="border-t border-white/5 p-4">
+              <form onSubmit={handleSendMessage} className="flex gap-3">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Escribe tu mensaje al equipo WUISH..."
+                  className="flex-1 bg-[#0e0e10] text-[#e5e1e4] placeholder:text-[#9a907c]/60 px-4 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
+                />
+                <button
+                  type="submit"
+                  className="px-4 py-2.5 rounded-xl bg-[#ffd56d] text-[#3e2e00] font-bold text-xs flex items-center gap-2 cursor-pointer hover:bg-[#ffdf97] transition"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== TAB: PLANES & COTIZACIÓN ===== */}
+      {activeTab === 'cotizacion' && (
+        <div className="space-y-4 animate-in fade-in duration-200">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setCotizadorSubview('planes')}
+              className={`px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${cotizadorSubview === 'planes' ? 'bg-[#ffd56d] text-[#3e2e00]' : 'bg-[#1c1b1d] text-[#9a907c] border border-white/10 hover:text-white'}`}
+            >
+              Ver Planes
+            </button>
+            <button
+              onClick={() => setCotizadorSubview('cotizador')}
+              className={`px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${cotizadorSubview === 'cotizador' ? 'bg-[#ffd56d] text-[#3e2e00]' : 'bg-[#1c1b1d] text-[#9a907c] border border-white/10 hover:text-white'}`}
+            >
+              Cotizador
+            </button>
+          </div>
+          <div className="rounded-2xl bg-[#1c1b1d] border border-white/5 p-6 text-center">
+            {cotizadorSubview === 'planes' ? (
+              <div>
+                <CreditCard className="w-10 h-10 text-[#ffd56d] mx-auto mb-3" />
+                <h3 className="text-white font-bold mb-2">Planes Disponibles</h3>
+                <p className="text-xs text-[#9a907c] mb-4">Explora los planes y servicios WUISH disponibles para tu organización.</p>
+                <button
+                  onClick={() => onNavigateToCotizador && onNavigateToCotizador()}
+                  className="px-5 py-2.5 rounded-xl bg-[#ffd56d] text-[#3e2e00] font-bold text-xs cursor-pointer hover:bg-[#ffdf97] transition"
+                >
+                  Ver Planes Completos
+                </button>
+              </div>
+            ) : (
+              <div>
+                <Calculator className="w-10 h-10 text-[#ffd56d] mx-auto mb-3" />
+                <h3 className="text-white font-bold mb-2">Cotizador Inteligente</h3>
+                <p className="text-xs text-[#9a907c] mb-4">Genera una cotización personalizada para tu proyecto.</p>
+                <button
+                  onClick={() => onNavigateToCotizador && onNavigateToCotizador()}
+                  className="px-5 py-2.5 rounded-xl bg-[#ffd56d] text-[#3e2e00] font-bold text-xs cursor-pointer hover:bg-[#ffdf97] transition"
+                >
+                  Abrir Cotizador
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ===== TAB: AJUSTES DE CUENTA ===== */}
+      {activeTab === 'ajustes' && (
+        <div className="space-y-4 animate-in fade-in duration-200 max-w-2xl">
+          <div>
+            <h2 className="text-xl font-bold text-white font-display">Ajustes de Cuenta</h2>
+            <p className="text-xs text-[#9a907c] mt-0.5">Modifica tu información de registro y datos de contacto.</p>
+          </div>
+
+          <div className="rounded-2xl bg-[#1c1b1d] border border-white/5 p-6 sm:p-8 space-y-6">
+            {/* Info de solo lectura */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-[#9a907c] uppercase tracking-wider">Correo Corporativo</label>
+                <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#0e0e10] border border-white/5 text-xs text-[#9a907c]">
+                  <User className="w-4 h-4" />
+                  <span>{user?.correo}</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-[#9a907c] uppercase tracking-wider">Tipo de Documento</label>
+                <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#0e0e10] border border-white/5 text-xs text-[#9a907c]">
+                  <Tag className="w-4 h-4" />
+                  <span>{user?.tipo_documento} — {user?.numero_cedula}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-white/5" />
+
+            {/* Formulario editable */}
+            <form onSubmit={handleSaveAjustes} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-[#e5e1e4]">Nombres</label>
+                  <input
+                    type="text"
+                    value={ajustesNombres}
+                    onChange={(e) => setAjustesNombres(e.target.value)}
+                    placeholder="Tus nombres"
+                    className="w-full bg-[#0e0e10] text-[#e5e1e4] placeholder:text-[#9a907c]/60 px-3.5 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-[#e5e1e4]">Apellidos</label>
+                  <input
+                    type="text"
+                    value={ajustesApellidos}
+                    onChange={(e) => setAjustesApellidos(e.target.value)}
+                    placeholder="Tus apellidos"
+                    className="w-full bg-[#0e0e10] text-[#e5e1e4] placeholder:text-[#9a907c]/60 px-3.5 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-[#e5e1e4]">Teléfono / WhatsApp</label>
+                <div className="relative flex items-center">
+                  <Phone className="absolute left-3.5 w-4 h-4 text-[#9a907c] pointer-events-none" />
+                  <input
+                    type="tel"
+                    value={ajustesTelefono}
+                    onChange={(e) => setAjustesTelefono(e.target.value)}
+                    placeholder="+57 300 000 0000"
+                    className="w-full bg-[#0e0e10] text-[#e5e1e4] placeholder:text-[#9a907c]/60 pl-10 pr-4 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  disabled={ajustesSaving}
+                  className="px-6 py-2.5 rounded-xl bg-[#ffd56d] text-[#3e2e00] font-bold text-xs cursor-pointer hover:bg-[#ffdf97] transition flex items-center gap-2 disabled:opacity-50"
+                >
+                  {ajustesSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  {ajustesSaving ? 'Guardando...' : 'Guardar Cambios'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

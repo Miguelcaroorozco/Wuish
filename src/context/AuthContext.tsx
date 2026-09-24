@@ -1,120 +1,139 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, UserRole } from '../types';
+import { authApi, setToken, removeToken, getToken } from '../lib/api';
+
+export type UserRole = 'usuario' | 'admin' | 'administrador';
+
+export interface AuthUser {
+  id: string;
+  nombres: string;
+  apellidos: string;
+  numero_cedula: string;
+  tipo_documento: string;
+  fecha_nacimiento: string;
+  telefono: string | null;
+  correo: string;
+  rol: string;
+  created_at: string;
+  updated_at: string;
+}
 
 interface AuthContextType {
-  user: User | null;
+  user: AuthUser | null;
   isAuthenticated: boolean;
-  currentRole: UserRole;
-  login: (email: string, password?: string, remember?: boolean) => Promise<{ success: boolean; message: string }>;
+  currentRole: string;
+  loading: boolean;
+  login: (correo: string, password: string) => Promise<{ success: boolean; message: string; role: string }>;
   register: (data: {
-    firstName: string;
-    lastName: string;
-    docType: string;
-    docNumber: string;
-    phone: string;
-    email: string;
-    company?: string;
-    password?: string;
-  }) => Promise<{ success: boolean; message: string }>;
+    nombres: string;
+    apellidos: string;
+    numero_cedula: string;
+    tipo_documento: string;
+    fecha_nacimiento: string;
+    telefono?: string;
+    correo: string;
+    password: string;
+  }) => Promise<{ success: boolean; message: string; role: string }>;
   logout: () => void;
-  switchRole: (role: UserRole) => void;
   resetPassword: (email: string) => Promise<{ success: boolean; message: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'wuish_auth_user_v1';
+const USER_STORAGE_KEY = 'wuish_auth_user_v2';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return null;
-      }
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    try {
+      const saved = localStorage.getItem(USER_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
     }
-    return null;
   });
+  const [loading, setLoading] = useState(false);
 
+  // Persist user to localStorage
   useEffect(() => {
     if (user) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
     } else {
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(USER_STORAGE_KEY);
     }
   }, [user]);
 
-  const currentRole: UserRole = user ? user.role : 'client';
+  // On mount, verify the existing token is still valid
+  useEffect(() => {
+    const token = getToken();
+    if (token && user) {
+      authApi.getProfile()
+        .then((profileUser) => {
+          setUser(profileUser);
+        })
+        .catch(() => {
+          // Token expired or invalid — clear state
+          setUser(null);
+          removeToken();
+          localStorage.removeItem(USER_STORAGE_KEY);
+        });
+    }
+  }, []);
 
-  const login = async (email: string, _password?: string, _remember?: boolean) => {
-    const cleanEmail = email.trim().toLowerCase();
-    
-    // Authenticate with user's provided credentials
-    const extractedName = cleanEmail.split('@')[0].replace(/[._-]/g, ' ');
-    const formattedName = extractedName.charAt(0).toUpperCase() + extractedName.slice(1);
+  const currentRole: string = user?.rol || 'usuario';
 
-    // Determine initial role based on admin email convention or standard client
-    const role: UserRole = cleanEmail.includes('admin') ? 'admin' : 'client';
-
-    const sessionUser: User = {
-      id: `user-${Date.now()}`,
-      name: formattedName || 'Usuario Corporativo',
-      email: cleanEmail,
-      company: 'Organización Corporativa',
-      role,
-      title: role === 'admin' ? 'Administrador de Cuenta' : 'Director',
-      accountId: `ACC-${Math.floor(1000 + Math.random() * 9000)}`,
-      sla: '100%',
-    };
-
-    setUser(sessionUser);
-    return { success: true, message: `Sesión iniciada correctamente para ${cleanEmail}.` };
+  const login = async (correo: string, password: string) => {
+    setLoading(true);
+    try {
+      const res = await authApi.login(correo, password);
+      if (res.success) {
+        setToken(res.token);
+        setUser(res.user);
+        return { success: true, message: res.message, role: res.user?.rol || 'usuario' };
+      }
+      return { success: false, message: 'Error de autenticación', role: 'usuario' };
+    } catch (error: any) {
+      return { success: false, message: error.message || 'Error al verificar las credenciales', role: 'usuario' };
+    } finally {
+      setLoading(false);
+    }
   };
 
   const register = async (data: {
-    firstName: string;
-    lastName: string;
-    docType: string;
-    docNumber: string;
-    phone: string;
-    email: string;
-    company?: string;
-    password?: string;
+    nombres: string;
+    apellidos: string;
+    numero_cedula: string;
+    tipo_documento: string;
+    fecha_nacimiento: string;
+    telefono?: string;
+    correo: string;
+    password: string;
   }) => {
-    const fullName = `${data.firstName} ${data.lastName}`.trim();
-    const newUser: User = {
-      id: `user-${Date.now()}`,
-      name: fullName,
-      email: data.email.trim().toLowerCase(),
-      company: data.company?.trim() || '',
-      role: 'client',
-      title: 'Director',
-      accountId: `ACC-${data.docType}-${data.docNumber ? data.docNumber.slice(-4) : Math.floor(1000 + Math.random() * 9000)}`,
-      sla: '100%',
-      phone: data.phone?.trim() || '',
-      docType: data.docType,
-      docNumber: data.docNumber?.trim() || '',
-    };
-
-    setUser(newUser);
-    return { success: true, message: `¡Registro exitoso! Cuenta corporativa activada para ${newUser.name}.` };
+    setLoading(true);
+    try {
+      const res = await authApi.register(data);
+      if (res.success) {
+        setToken(res.token);
+        setUser(res.user);
+        return { success: true, message: res.message, role: res.user?.rol || 'usuario' };
+      }
+      return { success: false, message: 'Error de registro', role: 'usuario' };
+    } catch (error: any) {
+      return { success: false, message: error.message || 'No se pudo completar el registro', role: 'usuario' };
+    } finally {
+      setLoading(false);
+    }
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem(STORAGE_KEY);
-  };
-
-  const switchRole = (role: UserRole) => {
-    setUser((prev) => (prev ? { ...prev, role } : null));
+    removeToken();
+    localStorage.removeItem(USER_STORAGE_KEY);
   };
 
   const resetPassword = async (email: string) => {
+    // TODO: Implement real password reset endpoint
     return {
       success: true,
-      message: `Se ha emitido un enlace de restablecimiento seguro a ${email}.`
+      message: `Se ha enviado un enlace de restablecimiento a ${email}.`,
     };
   };
 
@@ -124,10 +143,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         isAuthenticated: !!user,
         currentRole,
+        loading,
         login,
         register,
         logout,
-        switchRole,
         resetPassword,
       }}
     >

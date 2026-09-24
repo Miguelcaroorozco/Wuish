@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { solicitudesApi } from '../lib/api';
 import {
   Megaphone,
   Film,
@@ -139,7 +140,7 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
   const calculatedMin = Math.round(baseSubtotal * totalMultiplier);
   const calculatedMax = Math.round(calculatedMin * 1.38);
 
-  const handleSubmitDossier = (e: React.FormEvent) => {
+  const handleSubmitDossier = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedIds.length === 0) {
       showToast('Selección Requerida', 'Debes marcar al menos un módulo o servicio', 'error');
@@ -147,41 +148,44 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
     }
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      const serviceNames = selectedServices.map((s) => s.name).join(', ');
+      const desc = `Cotización: ${serviceNames}. Reto: ${challenge.trim() || 'No especificado'}. Rango proyectado: $${calculatedMin.toLocaleString()} - $${calculatedMax.toLocaleString()} USD. Contacto: ${name} (${email}, ${phone}, Empresa: ${company}, Identificación: ${taxId})`;
 
-      // Save real quotation to local storage for AdminPanel
-      try {
-        const newQuotation = {
-          id: `quote-${Date.now()}`,
-          client: company.trim() || name.trim() || 'Cliente Sin Nombre',
-          email: email.trim() || 'contacto@empresa.com',
-          services: selectedServices.map((s) => s.name).join(', '),
-          budget: `$${calculatedMin.toLocaleString()} USD`,
-          status: 'En revisión',
-          assigned: 'Por Asignar'
-        };
-        const existingQuotes = JSON.parse(localStorage.getItem('wuish_cotizaciones_v1') || '[]');
-        localStorage.setItem('wuish_cotizaciones_v1', JSON.stringify([newQuotation, ...existingQuotes]));
-
-        // Also save as a real solicitud for ClientDashboard
-        const newCode = `#SOL-${Math.floor(7000 + Math.random() * 2900)}`;
-        const newSolicitud = {
-          id: `sol-${Date.now()}`,
-          code: newCode,
-          title: selectedServices.map((s) => s.name).slice(0, 2).join(' & ') || 'Proyecto Estratégico',
-          subtitle: challenge.trim() || `Presupuesto estimado: $${calculatedMin.toLocaleString()} USD`,
-          date: 'Hoy',
-          plan: selectedServices.length > 2 ? 'Optimización & Escala' : 'Crecimiento Digital',
-          status: 'En Revisión',
-          assignedTo: 'Mesa Técnica WUISH',
-          budget: `$${calculatedMin.toLocaleString()} USD`
-        };
-        const existingSols = JSON.parse(localStorage.getItem('wuish_solicitudes_v1') || '[]');
-        localStorage.setItem('wuish_solicitudes_v1', JSON.stringify([newSolicitud, ...existingSols]));
-      } catch (err) {
-        console.error('Error guardando cotización:', err);
+      if (user) {
+        await solicitudesApi.create({
+          tipo: 'cotizacion',
+          descripcion: desc,
+        });
       }
+
+      // Save real quotation to local storage for instant offline viewing/compatibility
+      const newQuotation = {
+        id: `quote-${Date.now()}`,
+        client: company.trim() || name.trim() || 'Cliente Sin Nombre',
+        email: email.trim() || 'contacto@empresa.com',
+        services: serviceNames,
+        budget: `$${calculatedMin.toLocaleString()} USD`,
+        status: 'En revisión',
+        assigned: 'Por Asignar'
+      };
+      const existingQuotes = JSON.parse(localStorage.getItem('wuish_cotizaciones_v1') || '[]');
+      localStorage.setItem('wuish_cotizaciones_v1', JSON.stringify([newQuotation, ...existingQuotes]));
+
+      const newCode = `#SOL-${Math.floor(7000 + Math.random() * 2900)}`;
+      const newSolicitud = {
+        id: `sol-${Date.now()}`,
+        code: newCode,
+        title: selectedServices.map((s) => s.name).slice(0, 2).join(' & ') || 'Proyecto Estratégico',
+        subtitle: challenge.trim() || `Presupuesto estimado: $${calculatedMin.toLocaleString()} USD`,
+        date: 'Hoy',
+        plan: selectedServices.length > 2 ? 'Optimización & Escala' : 'Crecimiento Digital',
+        status: 'En Revisión',
+        assignedTo: 'Mesa Técnica WUISH',
+        budget: `$${calculatedMin.toLocaleString()} USD`
+      };
+      const existingSols = JSON.parse(localStorage.getItem('wuish_solicitudes_v1') || '[]');
+      localStorage.setItem('wuish_solicitudes_v1', JSON.stringify([newSolicitud, ...existingSols]));
 
       showToast(
         'Expediente Corporativo Creado',
@@ -189,7 +193,12 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
         'success'
       );
       if (onSuccessSubmit) onSuccessSubmit();
-    }, 1100);
+    } catch (err: any) {
+      console.error('Error guardando cotización:', err);
+      showToast('Error', err.message || 'Error al procesar la cotización', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
