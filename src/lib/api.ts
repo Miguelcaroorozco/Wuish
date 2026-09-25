@@ -159,11 +159,13 @@ export const solicitudesApi = {
       body: JSON.stringify(data),
     }),
 
-  updateEstado: (id: string, data: { estado: string; motivo?: string; admin_asignado_id?: string }) =>
-    request<any>(`/solicitudes/${id}/estado`, {
+  updateEstado: (id: string, data: { estado: string; motivo?: string; admin_asignado_id?: string } | string) => {
+    const body = typeof data === 'string' ? { estado: data } : data;
+    return request<any>(`/solicitudes/${id}/estado`, {
       method: 'PUT',
-      body: JSON.stringify(data),
-    }),
+      body: JSON.stringify(body),
+    });
+  },
 
   addAjuste: (id: string, descripcion_ajuste: string) =>
     request<any>(`/solicitudes/${id}/ajustes`, {
@@ -181,9 +183,11 @@ export const mensajesApi = {
 
   getAll: () => request<any[]>('/mensajes/all'),
 
+  getByUser: (usuarioId: string) => request<any[]>(`/mensajes/usuario/${usuarioId}`),
+
   getUnreadCount: () => request<number>('/mensajes/unread-count'),
 
-  send: (data: { solicitud_id?: string; asunto?: string; contenido: string }) =>
+  send: (data: { solicitud_id?: string; asunto?: string; contenido: string; usuario_id?: string }) =>
     request<any>('/mensajes', {
       method: 'POST',
       body: JSON.stringify(data),

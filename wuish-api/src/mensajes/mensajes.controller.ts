@@ -36,12 +36,30 @@ export class MensajesController {
   @Post()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Enviar mensaje' })
-  create(@Request() req, @Body() data: { solicitud_id?: string; asunto?: string; contenido: string }) {
+  @ApiOperation({ summary: 'Enviar mensaje o responder como admin' })
+  create(
+    @Request() req,
+    @Body() data: { solicitud_id?: string; asunto?: string; contenido: string; usuario_id?: string },
+  ) {
+    const isAdmin = req.user.rol === 'admin' || req.user.rol === 'administrador';
+    const targetUserId = (isAdmin && data.usuario_id) ? data.usuario_id : req.user.sub;
+    const esAdmin = isAdmin && !!data.usuario_id;
+
     return this.mensajesService.create({
-      usuario_id: req.user.sub,
-      ...data,
+      usuario_id: targetUserId,
+      solicitud_id: data.solicitud_id,
+      asunto: data.asunto,
+      contenido: data.contenido,
+      es_admin: esAdmin,
     });
+  }
+
+  @Get('usuario/:usuarioId')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Listar mensajes de un usuario específico (admin)' })
+  findByTargetUsuario(@Param('usuarioId') usuarioId: string) {
+    return this.mensajesService.findByUsuario(usuarioId);
   }
 
   @Put(':id/leer')

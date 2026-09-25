@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider, useToast } from './context/ToastContext';
-import { HeaderNav } from './components/HeaderNav';
+import { HeaderNav, DashboardTab } from './components/HeaderNav';
 import { LandingView } from './components/LandingView';
 import { AuthScreen } from './components/AuthScreen';
 import { ClientDashboard } from './components/ClientDashboard';
@@ -9,32 +9,24 @@ import { AdminPanel } from './components/AdminPanel';
 import { CotizadorView } from './components/CotizadorView';
 import { PlanesView } from './components/PlanesView';
 import { WuishLogo } from './components/WuishLogo';
-import {
-  MessageSquare,
-  Calculator,
-  Shield,
-  ArrowUp,
-  Lock,
-  Globe
-} from 'lucide-react';
+import { Calculator, Shield, ArrowUp, Lock } from 'lucide-react';
 
 type ViewMode = 'landing' | 'portal' | 'admin' | 'cotizador' | 'planes' | 'auth';
 
 const MainAppContent: React.FC = () => {
   const { isAuthenticated, currentRole } = useAuth();
   const { showToast } = useToast();
+  const [dashboardTab, setDashboardTab] = useState<DashboardTab>('resumen');
 
-  // Default to landing view if not authenticated, or client portal/admin if active
   const [currentView, setCurrentView] = useState<ViewMode>(() => {
     return isAuthenticated ? (currentRole === 'admin' || currentRole === 'administrador' ? 'admin' : 'portal') : 'landing';
   });
 
-  // Guard: redirigir a auth si intenta acceder a vistas privadas sin estar autenticado
   const navigateTo = (view: ViewMode) => {
     if ((view === 'portal' || view === 'admin') && !isAuthenticated) {
       setCurrentView('auth');
     } else if (view === 'admin' && isAuthenticated && currentRole !== 'admin' && currentRole !== 'administrador') {
-      setCurrentView('portal'); // usuario normal no puede ir al admin
+      setCurrentView('portal');
     } else {
       setCurrentView(view);
     }
@@ -46,31 +38,22 @@ const MainAppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#131315] text-[#e5e1e4] flex flex-col selection:bg-[#ffd56d] selection:text-[#3e2e00]">
-      {/* Top Navbar */}
       <HeaderNav
         currentView={currentView}
+        activeDashboardTab={dashboardTab}
+        onSelectDashboardTab={setDashboardTab}
         onSelectView={(v) => {
           navigateTo(v);
           scrollToTop();
         }}
       />
 
-      {/* Main Dynamic View Content */}
       <main className="flex-1 w-full flex flex-col">
         {currentView === 'landing' && (
           <LandingView
-            onNavigateToCotizador={() => {
-              setCurrentView('cotizador');
-              scrollToTop();
-            }}
-            onNavigateToAuth={() => {
-              setCurrentView('auth');
-              scrollToTop();
-            }}
-            onNavigateToPlanes={() => {
-              setCurrentView('planes');
-              scrollToTop();
-            }}
+            onNavigateToCotizador={() => { setCurrentView('cotizador'); scrollToTop(); }}
+            onNavigateToAuth={() => { setCurrentView('auth'); scrollToTop(); }}
+            onNavigateToPlanes={() => { setCurrentView('planes'); scrollToTop(); }}
           />
         )}
 
@@ -78,12 +61,7 @@ const MainAppContent: React.FC = () => {
           <div className="py-6 px-4 flex-1 flex items-center justify-center">
             <AuthScreen
               onSuccessAuth={(role) => {
-                // Redirect according to role returned directly from the API
-                if (role === 'admin' || role === 'administrador') {
-                  setCurrentView('admin');
-                } else {
-                  setCurrentView('portal');
-                }
+                setCurrentView(role === 'admin' || role === 'administrador' ? 'admin' : 'portal');
                 scrollToTop();
               }}
             />
@@ -92,14 +70,10 @@ const MainAppContent: React.FC = () => {
 
         {currentView === 'portal' && (
           <ClientDashboard
-            onNavigateToCotizador={() => {
-              setCurrentView('cotizador');
-              scrollToTop();
-            }}
-            onNavigateToPlanes={() => {
-              setCurrentView('planes');
-              scrollToTop();
-            }}
+            activeTab={dashboardTab}
+            onTabChange={setDashboardTab}
+            onNavigateToCotizador={() => { setDashboardTab('cotizacion'); scrollToTop(); }}
+            onNavigateToPlanes={() => { setDashboardTab('cotizacion'); scrollToTop(); }}
           />
         )}
 
@@ -107,19 +81,13 @@ const MainAppContent: React.FC = () => {
 
         {currentView === 'cotizador' && (
           <CotizadorView
-            onSuccessSubmit={() => {
-              setCurrentView('portal');
-              scrollToTop();
-            }}
+            onSuccessSubmit={() => { setCurrentView('portal'); scrollToTop(); }}
           />
         )}
 
         {currentView === 'planes' && (
           <PlanesView
-            onSelectPlan={(planId) => {
-              setCurrentView('cotizador');
-              scrollToTop();
-            }}
+            onSelectPlan={() => { setCurrentView('cotizador'); scrollToTop(); }}
           />
         )}
       </main>
@@ -127,10 +95,7 @@ const MainAppContent: React.FC = () => {
       {/* Floating Action Buttons */}
       <aside aria-label="Acciones rápidas" className="fixed bottom-6 right-6 z-40 flex flex-col gap-3">
         <button
-          onClick={() => {
-            setCurrentView('cotizador');
-            scrollToTop();
-          }}
+          onClick={() => { setCurrentView('cotizador'); scrollToTop(); }}
           className="p-3.5 rounded-full bg-[#ffd56d] text-[#3e2e00] shadow-xl hover:bg-[#ffdf97] transition-all hover:scale-110 flex items-center justify-center cursor-pointer group"
           title="Abrir Cotizador Inteligente"
         >
@@ -158,69 +123,27 @@ const MainAppContent: React.FC = () => {
               WUISH Enterprise Suite • Unificamos la visión ejecutiva, el diseño de comunicaciones de alto nivel y el desarrollo de software a medida para empresas en expansión.
             </p>
             <div className="flex items-center gap-4 text-xs text-[#ffd56d]">
-              <span className="flex items-center gap-1.5">
-                <Lock className="w-3.5 h-3.5" />
-                Seguridad Grado Corporativo
-              </span>
+              <span className="flex items-center gap-1.5"><Lock className="w-3.5 h-3.5" /> Seguridad Grado Corporativo</span>
               <span className="text-zinc-600">•</span>
-              <span className="flex items-center gap-1.5">
-                <Shield className="w-3.5 h-3.5" />
-                NDA Digital Certificado
-              </span>
+              <span className="flex items-center gap-1.5"><Shield className="w-3.5 h-3.5" /> NDA Digital Certificado</span>
             </div>
           </div>
 
           <div className="space-y-2 text-xs">
-            <h4 className="font-bold uppercase tracking-wider text-white font-display mb-3">
-              Módulos del Ecosistema
-            </h4>
+            <h4 className="font-bold uppercase tracking-wider text-white font-display mb-3">Módulos del Ecosistema</h4>
             <ul className="space-y-2 text-[#d1c5af]">
-              <li>
-                <button
-                  onClick={() => {
-                    setCurrentView('cotizador');
-                    scrollToTop();
-                  }}
-                  className="hover:text-[#ffd56d] transition cursor-pointer"
-                >
-                  Cotizador Dinámico &amp; Presupuesto
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => {
-                    navigateTo('portal');
-                    scrollToTop();
-                  }}
-                  className="hover:text-[#ffd56d] transition cursor-pointer"
-                >
-                  Portal Ejecutivo de Clientes
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => {
-                    setCurrentView('planes');
-                    scrollToTop();
-                  }}
-                  className="hover:text-[#ffd56d] transition cursor-pointer"
-                >
-                  Matriz de Planes &amp; Soluciones
-                </button>
-              </li>
+              <li><button onClick={() => { setCurrentView('cotizador'); scrollToTop(); }} className="hover:text-[#ffd56d] transition cursor-pointer">Cotizador Dinámico &amp; Presupuesto</button></li>
+              <li><button onClick={() => { navigateTo('portal'); scrollToTop(); }} className="hover:text-[#ffd56d] transition cursor-pointer">Portal Ejecutivo de Clientes</button></li>
+              <li><button onClick={() => { setCurrentView('planes'); scrollToTop(); }} className="hover:text-[#ffd56d] transition cursor-pointer">Matriz de Planes &amp; Soluciones</button></li>
             </ul>
           </div>
 
           <div className="space-y-2 text-xs">
-            <h4 className="font-bold uppercase tracking-wider text-white font-display mb-3">
-              Atención Directa
-            </h4>
+            <h4 className="font-bold uppercase tracking-wider text-white font-display mb-3">Atención Directa</h4>
             <div className="space-y-2 text-[#9a907c]">
-              <p>Mesa de Ayuda Ejecutiva: <span className="text-white font-mono">soporte@wuish.io</span></p>
-              <p>Dirección de Estrategia: <span className="text-white font-mono">partners@wuish.io</span></p>
-              <p className="text-[11px] pt-1 text-[#ffd56d]/90">
-                Horario de Boardroom: Lun - Vie 08:00 a 19:00 (EST)
-              </p>
+              <p>Mesa de Ayuda: <span className="text-white font-mono">soporte@wuish.io</span></p>
+              <p>Dirección Estratégica: <span className="text-white font-mono">partners@wuish.io</span></p>
+              <p className="text-[11px] pt-1 text-[#ffd56d]/90">Horario: Lun - Vie 08:00 a 19:00 (EST)</p>
             </div>
           </div>
         </div>

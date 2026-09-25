@@ -9,9 +9,10 @@ export class MensajesService {
     return this.prisma.mensaje.findMany({
       where: { usuario_id: usuarioId },
       include: {
+        usuario: { select: { id: true, nombres: true, apellidos: true, correo: true } },
         solicitud: { select: { id: true, tipo: true, estado: true } },
       },
-      orderBy: { created_at: 'desc' },
+      orderBy: { created_at: 'asc' },
     });
   }
 
@@ -30,6 +31,7 @@ export class MensajesService {
     solicitud_id?: string;
     asunto?: string;
     contenido: string;
+    es_admin?: boolean;
   }) {
     return this.prisma.mensaje.create({
       data: {
@@ -37,10 +39,11 @@ export class MensajesService {
         solicitud_id: data.solicitud_id || null,
         asunto: data.asunto || null,
         contenido: data.contenido,
+        es_admin: data.es_admin ?? false,
         leido: false,
       },
       include: {
-        usuario: { select: { id: true, nombres: true, apellidos: true } },
+        usuario: { select: { id: true, nombres: true, apellidos: true, correo: true } },
       },
     });
   }

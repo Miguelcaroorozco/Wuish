@@ -4,14 +4,13 @@ import { useToast } from '../context/ToastContext';
 import { planesApi, carritoApi } from '../lib/api';
 import {
   Check,
-  Sparkles,
   Zap,
   Building,
   Rocket,
   ShieldCheck,
   ChevronRight,
   ShoppingCart,
-  Loader2
+  Loader2,
 } from 'lucide-react';
 
 interface PlanesViewProps {
@@ -25,20 +24,11 @@ export const PlanesView: React.FC<PlanesViewProps> = ({ onSelectPlan }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadPlanes();
+    planesApi.getAll()
+      .then(setPlanes)
+      .catch(err => console.error('Error cargando planes:', err))
+      .finally(() => setLoading(false));
   }, []);
-
-  const loadPlanes = async () => {
-    try {
-      const data = await planesApi.getAll();
-      setPlanes(data);
-    } catch (err) {
-      console.error('Error cargando planes:', err);
-      // Fallback to empty - will show empty state
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleAddToCart = async (planId: string, planName: string) => {
     if (!isAuthenticated) {
@@ -55,17 +45,12 @@ export const PlanesView: React.FC<PlanesViewProps> = ({ onSelectPlan }) => {
 
   const formatPrice = (precio: any) => {
     if (!precio) return 'Personalizado';
-    const num = parseFloat(precio);
-    return `$${num.toLocaleString('es-CO')}`;
+    return `$${parseFloat(precio).toLocaleString('es-CO')}`;
   };
 
   const getFeatures = (plan: any): string[] => {
-    if (plan.caracteristicas && Array.isArray(plan.caracteristicas)) {
-      return plan.caracteristicas;
-    }
-    if (plan.caracteristicas && typeof plan.caracteristicas === 'object' && plan.caracteristicas.features) {
-      return plan.caracteristicas.features;
-    }
+    if (Array.isArray(plan.caracteristicas)) return plan.caracteristicas;
+    if (plan.caracteristicas?.features) return plan.caracteristicas.features;
     return [];
   };
 
@@ -78,8 +63,7 @@ export const PlanesView: React.FC<PlanesViewProps> = ({ onSelectPlan }) => {
   }
 
   return (
-    <div className="w-full max-w-[1560px] mx-auto p-4 sm:p-6 lg:p-10 space-y-12 animate-in fade-in duration-300">
-      
+    <div className="w-full max-w-[1560px] mx-auto p-4 sm:p-6 lg:p-10 space-y-12">
       {/* Header */}
       <div className="text-center max-w-3xl mx-auto space-y-3">
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#ffd56d]/15 text-[#ffd56d] text-[11px] font-semibold uppercase tracking-wider font-display border border-[#ffd56d]/30">
@@ -104,8 +88,8 @@ export const PlanesView: React.FC<PlanesViewProps> = ({ onSelectPlan }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 items-stretch">
           {planes.map((p, idx) => {
             const features = getFeatures(p);
-            const isFeatured = idx === Math.floor(planes.length / 2); // Middle plan is featured
-            
+            const isFeatured = idx === Math.floor(planes.length / 2);
+
             return (
               <div
                 key={p.id}
@@ -122,16 +106,10 @@ export const PlanesView: React.FC<PlanesViewProps> = ({ onSelectPlan }) => {
                 )}
 
                 <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] uppercase font-bold text-[#ffd56d] tracking-wider font-display">
-                      {p.tipo_servicio?.nombre || 'Plan'}
-                    </span>
-                  </div>
-
-                  <h2 className="text-xl font-bold text-white mt-1 font-display">
-                    {p.nombre}
-                  </h2>
-
+                  <span className="text-[10px] uppercase font-bold text-[#ffd56d] tracking-wider font-display">
+                    {p.tipo_servicio?.nombre || 'Plan'}
+                  </span>
+                  <h2 className="text-xl font-bold text-white mt-1 font-display">{p.nombre}</h2>
                   <p className="text-xs text-[#9a907c] mt-2 leading-relaxed min-h-[44px]">
                     {p.descripcion || 'Solución integral para tu negocio'}
                   </p>
@@ -187,31 +165,23 @@ export const PlanesView: React.FC<PlanesViewProps> = ({ onSelectPlan }) => {
 
       {/* Trust & Guarantee Box */}
       <div className="p-8 rounded-2xl bg-[#1c1b1d] border border-white/5 grid md:grid-cols-3 gap-6 text-xs">
-        <div className="flex items-start gap-3">
-          <ShieldCheck className="w-6 h-6 text-[#ffd56d] shrink-0" />
-          <div>
-            <h4 className="font-bold text-white text-sm font-display">Contratos Transparentes</h4>
-            <p className="text-[#9a907c] mt-0.5">Sin cláusulas de permanencia abusivas. Renueva mensualmente por satisfacción y metas alcanzadas.</p>
-          </div>
-        </div>
-
-        <div className="flex items-start gap-3">
-          <Zap className="w-6 h-6 text-[#ffd56d] shrink-0" />
-          <div>
-            <h4 className="font-bold text-white text-sm font-display">Onboarding Inmediato</h4>
-            <p className="text-[#9a907c] mt-0.5">Kickoff técnico en menos de 72 horas con asignación directa de Partner y Líder de Proyecto.</p>
-          </div>
-        </div>
-
-        <div className="flex items-start gap-3">
-          <Building className="w-6 h-6 text-[#ffd56d] shrink-0" />
-          <div>
-            <h4 className="font-bold text-white text-sm font-display">Facturación Corporativa</h4>
-            <p className="text-[#9a907c] mt-0.5">Emisión de comprobantes fiscales conforme a regulaciones locales e internacionales.</p>
-          </div>
-        </div>
+        {[
+          { icon: ShieldCheck, title: 'Contratos Transparentes', desc: 'Sin cláusulas de permanencia abusivas. Renueva mensualmente por satisfacción y metas alcanzadas.' },
+          { icon: Zap, title: 'Onboarding Inmediato', desc: 'Kickoff técnico en menos de 72 horas con asignación directa de Partner y Líder de Proyecto.' },
+          { icon: Building, title: 'Facturación Corporativa', desc: 'Emisión de comprobantes fiscales conforme a regulaciones locales e internacionales.' },
+        ].map((item, idx) => {
+          const Icon = item.icon;
+          return (
+            <div key={idx} className="flex items-start gap-3">
+              <Icon className="w-6 h-6 text-[#ffd56d] shrink-0" />
+              <div>
+                <h4 className="font-bold text-white text-sm font-display">{item.title}</h4>
+                <p className="text-[#9a907c] mt-0.5">{item.desc}</p>
+              </div>
+            </div>
+          );
+        })}
       </div>
-
     </div>
   );
 };

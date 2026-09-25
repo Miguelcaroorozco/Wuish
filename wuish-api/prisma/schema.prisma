@@ -146,6 +146,7 @@ model Mensaje {
   solicitud_id String?  @db.Uuid
   asunto       String?  @db.VarChar(150)
   contenido    String   @db.Text
+  es_admin     Boolean  @default(false)
   leido        Boolean  @default(false)
   created_at   DateTime @default(now())
 

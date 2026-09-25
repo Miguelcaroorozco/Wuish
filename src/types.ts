@@ -80,6 +80,7 @@ export interface Mensaje {
   asunto: string | null;
   contenido: string;
   leido: boolean;
+  es_admin?: boolean;
   created_at: string;
   usuario?: Partial<User>;
   solicitud?: Partial<Solicitud>;
@@ -137,36 +138,4 @@ export interface CarritoItem {
   cantidad: number;
   created_at: string;
   plan?: Plan;
-}
-
-// Legacy compatibility types (for components not yet fully migrated)
-export interface ChatMessage {
-  id: string;
-  sender: string;
-  role: string;
-  text: string;
-  time: string;
-  isMe: boolean;
-  avatar?: string;
-}
-
-export interface ServiceModule {
-  id: string;
-  name: string;
-  description: string;
-  basePrice: number;
-  category: 'comunicacion' | 'tecnologia';
-  icon: string;
-}
-
-export interface PlanTier {
-  id: string;
-  name: string;
-  badge: string;
-  price: number | string;
-  unit: string;
-  category: 'digitalizacion' | 'crecimiento' | 'optimizacion' | 'transformacion';
-  description: string;
-  features: string[];
-  isFeatured?: boolean;
 }

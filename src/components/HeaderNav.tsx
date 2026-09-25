@@ -8,55 +8,68 @@ import {
   ChevronDown,
   Shield,
   Briefcase,
-  UserCheck,
-  Globe,
   Sliders,
-  Sparkles,
-  KeyRound
+  KeyRound,
+  LayoutDashboard,
+  ClipboardList,
+  MessageSquare,
+  CreditCard,
+  Settings
 } from 'lucide-react';
+
+export type DashboardTab = 'resumen' | 'solicitudes' | 'mensajes' | 'cotizacion' | 'ajustes';
 
 interface HeaderNavProps {
   currentView: 'landing' | 'portal' | 'admin' | 'cotizador' | 'planes' | 'auth';
   onSelectView: (view: 'landing' | 'portal' | 'admin' | 'cotizador' | 'planes' | 'auth') => void;
+  activeDashboardTab?: DashboardTab;
+  onSelectDashboardTab?: (tab: DashboardTab) => void;
 }
 
-export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onSelectView }) => {
+const DASHBOARD_TABS = [
+  { id: 'resumen', label: 'Resumen', icon: LayoutDashboard },
+  { id: 'solicitudes', label: 'Solicitudes', icon: ClipboardList },
+  { id: 'mensajes', label: 'Mensajes', icon: MessageSquare },
+  { id: 'cotizacion', label: 'Planes & Cotización', icon: CreditCard },
+  { id: 'ajustes', label: 'Ajustes de Cuenta', icon: Settings },
+] as const;
+
+export const HeaderNav: React.FC<HeaderNavProps> = ({
+  currentView,
+  onSelectView,
+  activeDashboardTab = 'resumen',
+  onSelectDashboardTab,
+}) => {
   const { user, isAuthenticated, currentRole, logout } = useAuth();
   const { showToast } = useToast();
+
+  const isAdmin =
+    user?.rol?.toLowerCase() === 'admin' ||
+    user?.rol?.toLowerCase() === 'administrador' ||
+    currentRole?.toLowerCase() === 'admin' ||
+    currentRole?.toLowerCase() === 'administrador';
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
-  const handleRoleChange = (role: string) => {
-    if (role === 'administrador') {
-      onSelectView('admin');
-      showToast('Perfil de Administrador', 'Vista de administrador.');
-    } else {
-      onSelectView('portal');
-      showToast('Perfil de Cliente', 'Vista de cliente.');
-    }
-  };
-
-  const notifications: Array<{ id: string; title: string; time: string; unread: boolean }> = [];
-
   return (
-    <header className="sticky top-0 left-0 right-0 z-40 bg-[#0e0e10]/90 backdrop-blur-xl border-b border-white/10 shadow-[0_1px_16px_rgba(0,0,0,0.5)]">
-      <div className="h-20 w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+    <header className="sticky top-0 left-0 right-0 z-40 bg-[#0e0e10]/95 backdrop-blur-xl border-b border-white/10 shadow-[0_1px_16px_rgba(0,0,0,0.5)]">
+      <div className="h-16 sm:h-20 w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
         
         {/* Left: Brand Logo & Navigation Links */}
-        <div className="flex items-center gap-6 lg:gap-8">
+        <div className="flex items-center gap-4 lg:gap-8 overflow-hidden">
           <div
             onClick={() => onSelectView('landing')}
-            className="cursor-pointer transition-transform hover:scale-[1.02]"
+            className="cursor-pointer transition-transform hover:scale-[1.02] shrink-0"
           >
             <WuishLogo size="md" />
           </div>
 
           {/* Navigation Links */}
-          <nav className="hidden xl:flex items-center gap-1.5 text-xs font-medium">
+          <nav className="flex items-center gap-1.5 text-xs font-medium overflow-x-auto py-1 scrollbar-none">
             <button
               onClick={() => onSelectView('landing')}
-              className={`px-3.5 py-2 rounded-lg transition-all cursor-pointer ${
+              className={`px-3 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
                 currentView === 'landing'
                   ? 'bg-[#2a2a2c] text-[#ffd56d] font-semibold border border-[#ffd56d]/30 shadow-sm'
                   : 'text-[#d1c5af] hover:text-white hover:bg-white/5'
@@ -65,57 +78,45 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onSelectView 
               Inicio
             </button>
 
-            {/* Solo visible para usuarios autenticados */}
             {isAuthenticated && (
-              <button
-                onClick={() => onSelectView('portal')}
-                className={`px-3.5 py-2 rounded-lg transition-all cursor-pointer ${
-                  currentView === 'portal'
-                    ? 'bg-[#2a2a2c] text-[#ffd56d] font-semibold border border-[#ffd56d]/30 shadow-sm'
-                    : 'text-[#d1c5af] hover:text-white hover:bg-white/5'
-                }`}
-              >
-                Mi Dashboard
-              </button>
+              <>
+                {DASHBOARD_TABS.map(({ id, label, icon: Icon }) => {
+                  const isActive = currentView === 'portal' && activeDashboardTab === id;
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => {
+                        onSelectDashboardTab?.(id);
+                        onSelectView('portal');
+                      }}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                        isActive
+                          ? 'bg-[#ffd56d] text-[#3e2e00] font-bold shadow-sm'
+                          : 'text-[#d1c5af] hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      <span>{label}</span>
+                    </button>
+                  );
+                })}
+
+                {isAdmin && (
+                  <button
+                    onClick={() => onSelectView('admin')}
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap font-medium ${
+                      currentView === 'admin'
+                        ? 'bg-[#ffd56d] text-[#3e2e00] font-bold shadow-md ring-1 ring-[#ffd56d]'
+                        : 'text-[#ffd56d] bg-[#ffd56d]/10 border border-[#ffd56d]/30 hover:bg-[#ffd56d]/20 hover:text-white'
+                    }`}
+                  >
+                    <Shield className="w-3.5 h-3.5 text-[#ffd56d]" />
+                    <span>Panel Admin</span>
+                  </button>
+                )}
+              </>
             )}
 
-            {/* Solo visible para administradores */}
-            {isAuthenticated && (currentRole === 'admin' || currentRole === 'administrador') && (
-              <button
-                onClick={() => onSelectView('admin')}
-                className={`px-3.5 py-2 rounded-lg transition-all cursor-pointer ${
-                  currentView === 'admin'
-                    ? 'bg-[#2a2a2c] text-[#ffd56d] font-semibold border border-[#ffd56d]/30 shadow-sm'
-                    : 'text-[#d1c5af] hover:text-white hover:bg-white/5'
-                }`}
-              >
-                Panel Admin
-              </button>
-            )}
-
-            <button
-              onClick={() => onSelectView('cotizador')}
-              className={`px-3.5 py-2 rounded-lg transition-all cursor-pointer ${
-                currentView === 'cotizador'
-                  ? 'bg-[#2a2a2c] text-[#ffd56d] font-semibold border border-[#ffd56d]/30 shadow-sm'
-                  : 'text-[#d1c5af] hover:text-white hover:bg-white/5'
-              }`}
-            >
-              Cotización
-            </button>
-
-            <button
-              onClick={() => onSelectView('planes')}
-              className={`px-3.5 py-2 rounded-lg transition-all cursor-pointer ${
-                currentView === 'planes'
-                  ? 'bg-[#2a2a2c] text-[#ffd56d] font-semibold border border-[#ffd56d]/30 shadow-sm'
-                  : 'text-[#d1c5af] hover:text-white hover:bg-white/5'
-              }`}
-            >
-              Planes
-            </button>
-
-            {/* Autenticación: solo si NO está autenticado */}
             {!isAuthenticated && (
               <button
                 onClick={() => onSelectView('auth')}
@@ -132,61 +133,28 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onSelectView 
           </nav>
         </div>
 
-        {/* Right: Role Switcher & User Profile Controls */}
-        <div className="flex items-center gap-3 sm:gap-4">
+        {/* Right: Notifications & Profile Menu */}
+        <div className="flex items-center gap-3 shrink-0">
           
-          {/* Role badge Ã¢â‚¬â€ solo si estÃ¡ autenticado */}
-          {isAuthenticated && (
-            <div className="hidden md:flex items-center px-3 py-1.5 bg-[#0e0e10] border border-white/10 rounded-full text-[11px] font-semibold text-[#d1c5af] gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${currentRole === 'admin' || currentRole === 'administrador' ? 'bg-[#ffd56d]' : 'bg-emerald-400'}`} />
-              <span className="capitalize">{currentRole === 'admin' || currentRole === 'administrador' ? 'Admin' : 'Cliente'}</span>
-            </div>
-          )}
-
           {/* Notifications Trigger */}
           <div className="relative">
             <button
               type="button"
               onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-2.5 rounded-xl bg-[#1c1b1d] hover:bg-[#2a2a2c] text-[#d1c5af] hover:text-white border border-white/5 transition-colors cursor-pointer"
+              className="p-2.5 rounded-xl bg-[#1c1b1d] hover:bg-[#2a2a2c] text-[#d1c5af] hover:text-white border border-white/5 transition-colors cursor-pointer"
               title="Notificaciones"
             >
               <Bell className="w-4 h-4" />
-              {notifications.some((n) => n.unread) && (
-                <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-[#1c1b1d]" />
-              )}
             </button>
 
-            {/* Notifications Dropdown */}
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 rounded-2xl bg-[#1c1b1d] border border-[#ffd56d]/30 shadow-2xl p-4 z-50 animate-in fade-in slide-in-from-top-2">
-                <div className="flex items-center justify-between pb-3 border-b border-white/5">
+              <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-[#1c1b1d] border border-[#ffd56d]/30 shadow-2xl p-4 z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="flex items-center justify-between pb-2 border-b border-white/5">
                   <span className="text-xs font-bold uppercase tracking-wider text-white font-display">Notificaciones</span>
-                  <span className="text-[10px] text-[#ffd56d] cursor-pointer" onClick={() => showToast('Leídas', 'Todas las notificaciones marcadas')}>Marcar leídas</span>
+                  <span className="text-[10px] text-[#ffd56d] cursor-pointer" onClick={() => showToast('Leídas', 'Todas marcadas como leídas')}>Marcar leídas</span>
                 </div>
-                <div className="py-2 space-y-2 text-xs">
-                  {notifications.length === 0 ? (
-                    <div className="py-4 text-center text-xs text-[#9a907c]">
-                      No tienes notificaciones pendientes.
-                    </div>
-                  ) : (
-                    notifications.map((n) => (
-                      <div
-                        key={n.id}
-                        onClick={() => {
-                          showToast(n.title, 'Redirigiendo a detalle');
-                          setShowNotifications(false);
-                        }}
-                        className="p-2.5 rounded-lg bg-[#201f21] hover:bg-[#2a2a2c] transition-colors cursor-pointer flex items-start justify-between gap-2"
-                      >
-                        <div>
-                          <div className={`font-semibold ${n.unread ? 'text-white' : 'text-zinc-400'}`}>{n.title}</div>
-                          <div className="text-[10px] text-[#9a907c] mt-0.5">{n.time}</div>
-                        </div>
-                        {n.unread && <span className="w-2 h-2 rounded-full bg-[#ffd56d] shrink-0 mt-1" />}
-                      </div>
-                    ))
-                  )}
+                <div className="py-4 text-center text-xs text-[#9a907c]">
+                  No tienes notificaciones pendientes.
                 </div>
               </div>
             )}
@@ -198,37 +166,27 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onSelectView 
               <button
                 type="button"
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="flex items-center gap-2.5 pl-1.5 pr-2 py-1 rounded-xl hover:bg-[#1c1b1d] transition-all cursor-pointer group"
+                className="flex items-center gap-2 pl-1.5 pr-2 py-1 rounded-xl hover:bg-[#1c1b1d] transition-all cursor-pointer group"
               >
-                {user.avatarUrl ? (
-                  <img
-                    src={user.avatarUrl}
-                    alt={user.name}
-                    className="w-8 h-8 rounded-full object-cover ring-1 ring-[#ffd56d]/50 group-hover:ring-[#ffd56d]"
-                  />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-[#ffd56d]/15 border border-[#ffd56d]/40 text-[#ffd56d] font-bold text-xs flex items-center justify-center">
-                    {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                  </div>
-                )}
-                <div className="hidden lg:flex flex-col text-left leading-none">
+                <div className="w-8 h-8 rounded-full bg-[#ffd56d]/15 border border-[#ffd56d]/40 text-[#ffd56d] font-bold text-xs flex items-center justify-center">
+                  {user.nombres ? user.nombres.charAt(0).toUpperCase() : 'U'}
+                </div>
+                <div className="hidden md:flex flex-col text-left leading-none">
                   <span className="text-xs font-semibold text-[#e5e1e4] group-hover:text-white">
-                    {user.name}
+                    {user.nombres} {user.apellidos || ''}
                   </span>
-                  <span className="text-[10px] text-[#ffd56d]/80 font-mono mt-0.5">
-                    {user.title}
+                  <span className="text-[10px] text-[#ffd56d]/80 font-mono mt-0.5 capitalize">
+                    {user.rol || 'Cliente'}
                   </span>
                 </div>
                 <ChevronDown className="w-3.5 h-3.5 text-[#9a907c] group-hover:text-white" />
               </button>
 
-              {/* Profile Dropdown */}
               {showProfileMenu && (
-                <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-[#1c1b1d] border border-[#ffd56d]/30 shadow-2xl p-3 z-50 animate-in fade-in slide-in-from-top-2">
-                  <div className="p-2 border-b border-white/5 pb-3 mb-2">
-                    <div className="text-xs font-bold text-white">{user.name}</div>
-                    <div className="text-[11px] text-[#9a907c] font-mono truncate">{user.email}</div>
-                    <div className="text-[10px] text-[#ffd56d] mt-1 font-semibold">{user.company}</div>
+                <div className="absolute right-0 mt-2 w-60 rounded-2xl bg-[#1c1b1d] border border-[#ffd56d]/30 shadow-2xl p-3 z-50 animate-in fade-in slide-in-from-top-2">
+                  <div className="p-2 border-b border-white/5 pb-2 mb-2">
+                    <div className="text-xs font-bold text-white truncate">{user.nombres} {user.apellidos || ''}</div>
+                    <div className="text-[11px] text-[#9a907c] font-mono truncate">{user.correo}</div>
                   </div>
 
                   <div className="space-y-1 text-xs text-[#d1c5af]">
@@ -243,13 +201,11 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onSelectView 
                       <span>Mi Dashboard</span>
                     </button>
 
-                    {/* Ajustes de usuario Ã¢â‚¬â€ navega al dashboard tab de ajustes */}
                     <button
                       onClick={() => {
                         onSelectView('portal');
+                        onSelectDashboardTab?.('ajustes');
                         setShowProfileMenu(false);
-                        // Dispara evento para abrir tab Ajustes en el dashboard
-                        window.dispatchEvent(new CustomEvent('wuish:openDashboardTab', { detail: 'ajustes' }));
                       }}
                       className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#201f21] hover:text-white transition flex items-center gap-2 cursor-pointer"
                     >
@@ -257,8 +213,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onSelectView 
                       <span>Ajustes de Cuenta</span>
                     </button>
 
-                    {/* Panel Admin Ã¢â‚¬â€ solo admins */}
-                    {(currentRole === 'admin' || currentRole === 'administrador') && (
+                    {isAdmin && (
                       <button
                         onClick={() => {
                           onSelectView('admin');
@@ -276,13 +231,13 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onSelectView 
                         onClick={() => {
                           logout();
                           setShowProfileMenu(false);
-                          showToast('Sesion Cerrada', 'Has salido del ecosistema corporativo.');
+                          showToast('Sesión Cerrada', 'Has salido del ecosistema corporativo.');
                           onSelectView('auth');
                         }}
                         className="w-full text-left px-3 py-2 rounded-lg text-rose-400 hover:bg-rose-500/10 transition flex items-center gap-2 cursor-pointer"
                       >
                         <LogOut className="w-4 h-4" />
-                        <span>Cerrar Sesion</span>
+                        <span>Cerrar Sesión</span>
                       </button>
                     </div>
                   </div>
@@ -294,57 +249,11 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onSelectView 
               onClick={() => onSelectView('auth')}
               className="px-4 py-2 rounded-xl bg-[#ffd56d] text-[#3e2e00] text-xs font-bold uppercase tracking-wider hover:bg-[#ffdf97] transition shadow"
             >
-              Iniciar Sesion
+              Iniciar Sesión
             </button>
           )}
 
         </div>
-      </div>
-
-      {/* Mobile Secondary Nav Bar */}
-      <div className="xl:hidden flex items-center gap-1 px-3 py-2 bg-[#131315] border-t border-white/5 text-xs overflow-x-auto">
-        <button
-          onClick={() => onSelectView('landing')}
-          className={`px-3 py-1 rounded whitespace-nowrap ${currentView === 'landing' ? 'bg-[#ffd56d] text-[#3e2e00] font-bold' : 'text-zinc-400'}`}
-        >
-          Inicio
-        </button>
-        {isAuthenticated && (
-          <button
-            onClick={() => onSelectView('portal')}
-            className={`px-3 py-1 rounded whitespace-nowrap ${currentView === 'portal' ? 'bg-[#ffd56d] text-[#3e2e00] font-bold' : 'text-zinc-400'}`}
-          >
-            Dashboard
-          </button>
-        )}
-        {isAuthenticated && (currentRole === 'admin' || currentRole === 'administrador') && (
-          <button
-            onClick={() => onSelectView('admin')}
-            className={`px-3 py-1 rounded whitespace-nowrap ${currentView === 'admin' ? 'bg-[#ffd56d] text-[#3e2e00] font-bold' : 'text-zinc-400'}`}
-          >
-            Admin
-          </button>
-        )}
-        <button
-          onClick={() => onSelectView('cotizador')}
-          className={`px-3 py-1 rounded whitespace-nowrap ${currentView === 'cotizador' ? 'bg-[#ffd56d] text-[#3e2e00] font-bold' : 'text-zinc-400'}`}
-        >
-          Cotización
-        </button>
-        <button
-          onClick={() => onSelectView('planes')}
-          className={`px-3 py-1 rounded whitespace-nowrap ${currentView === 'planes' ? 'bg-[#ffd56d] text-[#3e2e00] font-bold' : 'text-zinc-400'}`}
-        >
-          Planes
-        </button>
-        {!isAuthenticated && (
-          <button
-            onClick={() => onSelectView('auth')}
-            className={`px-3 py-1 rounded whitespace-nowrap ${currentView === 'auth' ? 'bg-[#ffd56d] text-[#3e2e00] font-bold' : 'text-zinc-400'}`}
-          >
-            Ingresar
-          </button>
-        )}
       </div>
     </header>
   );
