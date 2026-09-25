@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { WuishLogo } from './WuishLogo';
@@ -115,7 +115,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onSelectView 
               Planes
             </button>
 
-            {/* AutenticaciÃ³n: solo si NO estÃ¡ autenticado */}
+            {/* Autenticación: solo si NO está autenticado */}
             {!isAuthenticated && (
               <button
                 onClick={() => onSelectView('auth')}
@@ -162,7 +162,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onSelectView 
               <div className="absolute right-0 mt-2 w-80 rounded-2xl bg-[#1c1b1d] border border-[#ffd56d]/30 shadow-2xl p-4 z-50 animate-in fade-in slide-in-from-top-2">
                 <div className="flex items-center justify-between pb-3 border-b border-white/5">
                   <span className="text-xs font-bold uppercase tracking-wider text-white font-display">Notificaciones</span>
-                  <span className="text-[10px] text-[#ffd56d] cursor-pointer" onClick={() => showToast('LeÃ­Â­das', 'Todas las notificaciones marcadas')}>Marcar leÃ­Â­das</span>
+                  <span className="text-[10px] text-[#ffd56d] cursor-pointer" onClick={() => showToast('Leídas', 'Todas las notificaciones marcadas')}>Marcar leídas</span>
                 </div>
                 <div className="py-2 space-y-2 text-xs">
                   {notifications.length === 0 ? (
@@ -276,13 +276,13 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onSelectView 
                         onClick={() => {
                           logout();
                           setShowProfileMenu(false);
-                          showToast('SesiÃ³n Cerrada', 'Has salido del ecosistema corporativo.');
+                          showToast('Sesion Cerrada', 'Has salido del ecosistema corporativo.');
                           onSelectView('auth');
                         }}
                         className="w-full text-left px-3 py-2 rounded-lg text-rose-400 hover:bg-rose-500/10 transition flex items-center gap-2 cursor-pointer"
                       >
                         <LogOut className="w-4 h-4" />
-                        <span>Cerrar SesiÃ³n</span>
+                        <span>Cerrar Sesion</span>
                       </button>
                     </div>
                   </div>
@@ -294,7 +294,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onSelectView 
               onClick={() => onSelectView('auth')}
               className="px-4 py-2 rounded-xl bg-[#ffd56d] text-[#3e2e00] text-xs font-bold uppercase tracking-wider hover:bg-[#ffdf97] transition shadow"
             >
-              Iniciar SesiÃ³n
+              Iniciar Sesion
             </button>
           )}
 
