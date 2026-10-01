@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider, useToast } from './context/ToastContext';
+import { ContentProvider } from './context/ContentContext';
 import { HeaderNav, DashboardTab } from './components/HeaderNav';
 import { LandingView } from './components/LandingView';
 import { AuthScreen } from './components/AuthScreen';
@@ -24,6 +25,10 @@ const MainAppContent: React.FC = () => {
   });
 
   const navigateTo = (view: ViewMode) => {
+    if (view === 'auth' && isAuthenticated) {
+      setCurrentView(currentRole === 'admin' || currentRole === 'administrador' ? 'admin' : 'portal');
+      return;
+    }
     if ((view === 'portal' || view === 'admin') && !isAuthenticated) {
       setCurrentView('auth');
     } else if (view === 'admin' && isAuthenticated && currentRole !== 'admin' && currentRole !== 'administrador') {
@@ -32,6 +37,12 @@ const MainAppContent: React.FC = () => {
       setCurrentView(view);
     }
   };
+
+  useEffect(() => {
+    if (isAuthenticated && currentView === 'auth') {
+      setCurrentView(currentRole === 'admin' || currentRole === 'administrador' ? 'admin' : 'portal');
+    }
+  }, [isAuthenticated, currentView, currentRole]);
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -59,8 +70,34 @@ const MainAppContent: React.FC = () => {
         {currentView === 'landing' && (
           <LandingView
             onNavigateToCotizador={() => { setCurrentView('cotizador'); scrollToTop(); }}
-            onNavigateToAuth={() => { setCurrentView('auth'); scrollToTop(); }}
-            onNavigateToPlanes={() => { setCurrentView('planes'); scrollToTop(); }}
+            onNavigateToAuth={() => {
+              if (isAuthenticated) {
+                navigateTo(currentRole === 'admin' || currentRole === 'administrador' ? 'admin' : 'portal');
+              } else {
+                navigateTo('auth');
+              }
+              scrollToTop();
+            }}
+            onNavigateToPortal={() => {
+              navigateTo(currentRole === 'admin' || currentRole === 'administrador' ? 'admin' : 'portal');
+              scrollToTop();
+            }}
+            onNavigateToPlanes={() => {
+              if (isAuthenticated) {
+                setDashboardTab('cotizacion');
+                setCotizacionSubview('planes');
+                navigateTo('portal');
+              } else {
+                navigateTo('planes');
+              }
+              scrollToTop();
+            }}
+            onRequireAuthForReview={() => {
+              if (!isAuthenticated) {
+                navigateTo('auth');
+                scrollToTop();
+              }
+            }}
           />
         )}
 
@@ -93,9 +130,26 @@ const MainAppContent: React.FC = () => {
         )}
 
         {currentView === 'planes' && (
-          <PlanesView
-            onSelectPlan={() => { setCurrentView('cotizador'); scrollToTop(); }}
-          />
+          <div className="space-y-4">
+            <div className="max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-10 pt-6">
+              <button
+                onClick={() => {
+                  if (isAuthenticated) {
+                    navigateTo(currentRole === 'admin' || currentRole === 'administrador' ? 'admin' : 'portal');
+                  } else {
+                    navigateTo('landing');
+                  }
+                  scrollToTop();
+                }}
+                className="inline-flex items-center gap-2 text-xs font-semibold text-[#ffd56d] hover:text-[#ffdf97] transition cursor-pointer"
+              >
+                ← Volver {isAuthenticated ? 'al Portal' : 'al Inicio'}
+              </button>
+            </div>
+            <PlanesView
+              onSelectPlan={() => { setCurrentView('cotizador'); scrollToTop(); }}
+            />
+          </div>
         )}
       </main>
 
@@ -141,7 +195,16 @@ const MainAppContent: React.FC = () => {
             <ul className="space-y-2 text-[#d1c5af]">
               <li><button onClick={() => { setCurrentView('cotizador'); scrollToTop(); }} className="hover:text-[#ffd56d] transition cursor-pointer">Cotizador Dinámico &amp; Presupuesto</button></li>
               <li><button onClick={() => { navigateTo('portal'); scrollToTop(); }} className="hover:text-[#ffd56d] transition cursor-pointer">Portal Ejecutivo de Clientes</button></li>
-              <li><button onClick={() => { setCurrentView('planes'); scrollToTop(); }} className="hover:text-[#ffd56d] transition cursor-pointer">Matriz de Planes &amp; Soluciones</button></li>
+              <li><button onClick={() => {
+                if (isAuthenticated) {
+                  setDashboardTab('cotizacion');
+                  setCotizacionSubview('planes');
+                  navigateTo('portal');
+                } else {
+                  navigateTo('planes');
+                }
+                scrollToTop();
+              }} className="hover:text-[#ffd56d] transition cursor-pointer">Matriz de Planes &amp; Soluciones</button></li>
             </ul>
           </div>
 
@@ -172,7 +235,9 @@ export default function App() {
   return (
     <ToastProvider>
       <AuthProvider>
-        <MainAppContent />
+        <ContentProvider>
+          <MainAppContent />
+        </ContentProvider>
       </AuthProvider>
     </ToastProvider>
   );

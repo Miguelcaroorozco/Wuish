@@ -83,3 +83,11 @@ export interface Project {
   link?: string;
   tags: string[];
 }
+
+export interface StatItem {
+  id: string;
+  value: number;
+  suffix: string;
+  label: string;
+}
+

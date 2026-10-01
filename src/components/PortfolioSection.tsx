@@ -76,7 +76,7 @@ export const PortfolioSection: React.FC = () => {
           exit={{ opacity: 0, y: -16 }}
           transition={{ duration: 0.35, ease: EASE }}
         >
-          <Carousel
+          <Carousel<Project>
             items={visible}
             getKey={(p) => p.id}
             perView={{ base: 1, sm: 2, lg: 3 }}

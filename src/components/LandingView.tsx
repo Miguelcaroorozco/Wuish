@@ -13,11 +13,15 @@ import { ProjectPipeline } from './ProjectPipeline';
 import { PortfolioSection } from './PortfolioSection';
 import { TestimonialsSection } from './TestimonialsSection';
 
+import { useAuth } from '../context/AuthContext';
+import { useContent } from '../context/ContentContext';
+
 interface LandingViewProps {
   onNavigateToCotizador: () => void;
   onNavigateToAuth: () => void;
   onNavigateToPlanes: () => void;
   onRequireAuthForReview: () => void;
+  onNavigateToPortal?: () => void;
 }
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -197,7 +201,10 @@ export const LandingView: React.FC<LandingViewProps> = ({
   onNavigateToAuth,
   onNavigateToPlanes,
   onRequireAuthForReview,
+  onNavigateToPortal,
 }) => {
+  const { isAuthenticated } = useAuth();
+  const { stats } = useContent();
   const heroRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
   const heroY = useTransform(scrollYProgress, [0, 1], [0, 140]);
@@ -259,11 +266,18 @@ export const LandingView: React.FC<LandingViewProps> = ({
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.97 }}
-              onClick={() => onNavigateToAuth()}
+              onClick={() => {
+                if (isAuthenticated) {
+                  if (onNavigateToPortal) onNavigateToPortal();
+                  else onNavigateToAuth();
+                } else {
+                  onNavigateToAuth();
+                }
+              }}
               className="w-full sm:w-auto px-8 py-4 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-extrabold text-xs uppercase tracking-wider shadow-xl shadow-[#ffd56d]/20 flex items-center justify-center gap-2 cursor-pointer"
             >
               <Rocket className="w-4 h-4" />
-              Empezar ahora
+              {isAuthenticated ? 'Ir a mi panel' : 'Empezar ahora'}
             </motion.button>
           </motion.div>
         </motion.div>
@@ -295,8 +309,8 @@ export const LandingView: React.FC<LandingViewProps> = ({
         viewport={{ once: true, margin: '-80px' }}
         className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20 grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-10 sm:gap-6"
       >
-        {STATS.map((s) => (
-          <motion.div key={s.label} variants={reveal} className="text-center">
+        {stats.map((s) => (
+          <motion.div key={s.id || s.label} variants={reveal} className="text-center">
             <div className="text-4xl sm:text-5xl font-black font-display text-white">
               <Counter to={s.value} suffix={s.suffix} />
             </div>
@@ -371,10 +385,17 @@ export const LandingView: React.FC<LandingViewProps> = ({
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.97 }}
-              onClick={() => onNavigateToAuth()}
+              onClick={() => {
+                if (isAuthenticated) {
+                  if (onNavigateToPortal) onNavigateToPortal();
+                  else onNavigateToAuth();
+                } else {
+                  onNavigateToAuth();
+                }
+              }}
               className="px-8 py-3.5 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-bold text-xs uppercase tracking-wider shadow-lg cursor-pointer"
             >
-              Crear cuenta
+              {isAuthenticated ? 'Ir a mi panel' : 'Crear cuenta'}
             </motion.button>
             <motion.button
               whileHover={{ scale: 1.05 }}

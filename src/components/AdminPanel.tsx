@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useToast } from '../context/ToastContext';
+import { useContent } from '../context/ContentContext';
 import {
   planesApi,
   tiposServicioApi,
@@ -23,12 +24,28 @@ import {
   FileText,
   TrendingUp,
   MessageSquare,
+  Briefcase,
+  Tag,
+  FolderOpen,
 } from 'lucide-react';
 
 const ESTADOS = ['pendiente', 'en_revision', 'en_proceso', 'aprobada', 'finalizada'] as const;
 
 export const AdminPanel: React.FC = () => {
   const { showToast } = useToast();
+  const {
+    projects,
+    addProject,
+    removeProject,
+    stats,
+    addStat,
+    removeStat,
+    testimonials: contentTestimonials,
+    addTestimonial,
+    approveTestimonial,
+    removeTestimonial,
+  } = useContent();
+
   const [activeTab, setActiveTab] = useState<'solicitudes' | 'mensajes' | 'cms' | 'resultados' | 'comentarios'>('solicitudes');
 
   // Data states
@@ -54,6 +71,45 @@ export const AdminPanel: React.FC = () => {
   const [resultados, setResultados] = useState<any[]>([]);
   const [newRes, setNewRes] = useState({ titulo: '', descripcion: '' });
   const [savingRes, setSavingRes] = useState(false);
+
+  // Nuevo Proyecto (Portafolio del Inicio)
+  const [newProject, setNewProject] = useState<{
+    title: string;
+    client: string;
+    category: 'comunicacion' | 'tecnologia';
+    year: string;
+    description: string;
+    tags: string;
+    imageUrl: string;
+  }>({
+    title: '',
+    client: '',
+    category: 'tecnologia',
+    year: new Date().getFullYear().toString(),
+    description: '',
+    tags: '',
+    imageUrl: '',
+  });
+
+  // Nuevo Testimonio (Formulario Admin)
+  const [showNewTestimonialForm, setShowNewTestimonialForm] = useState(false);
+  const [newTestimonial, setNewTestimonial] = useState({
+    name: '',
+    company: '',
+    rating: 5,
+    text: '',
+  });
+
+  // Nueva Métrica de Inicio
+  const [newStatItem, setNewStatItem] = useState<{
+    value: string;
+    suffix: string;
+    label: string;
+  }>({
+    value: '',
+    suffix: '+',
+    label: '',
+  });
 
   useEffect(() => {
     loadData();
@@ -217,14 +273,125 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
+  const allComentarios = useMemo(() => {
+    const apiIds = new Set(comentarios.map(c => c.id));
+    const fromContent = contentTestimonials.map(t => ({
+      id: t.id,
+      usuario: { nombres: t.name, empresa: t.company },
+      contenido: t.text,
+      calificacion: t.rating,
+      mostrar_en_pagina: t.status === 'approved',
+      isLocal: true,
+    }));
+    return [...comentarios, ...fromContent.filter(f => !apiIds.has(f.id))];
+  }, [comentarios, contentTestimonials]);
+
   const handleToggleComentario = async (id: string, current: boolean) => {
     try {
+      if (id.startsWith('tst-')) {
+        if (current) {
+          removeTestimonial(id);
+          showToast('Testimonio Ocultado', 'Se removió del carrusel de la página de inicio.', 'info');
+        } else {
+          approveTestimonial(id);
+          showToast('Testimonio Publicado', 'Ahora es visible en la página de inicio.', 'success');
+        }
+        return;
+      }
       await comentariosApi.toggleMostrar(id, !current);
       setComentarios(prev => prev.map(c => c.id === id ? { ...c, mostrar_en_pagina: !current } : c));
       showToast('Testimonio', !current ? 'Publicado en la web' : 'Ocultado de la web', 'info');
     } catch (err: any) {
-      showToast('Error', err.message, 'error');
+      showToast('Error', err.message || 'No se pudo actualizar comentario', 'error');
     }
+  };
+
+  const handleCreateProject = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProject.title.trim() || !newProject.client.trim()) {
+      showToast('Campos requeridos', 'Ingresa título y cliente del proyecto', 'error');
+      return;
+    }
+    const tagsArray = newProject.tags
+      .split(',')
+      .map(t => t.trim())
+      .filter(Boolean);
+    addProject({
+      title: newProject.title.trim(),
+      client: newProject.client.trim(),
+      category: newProject.category,
+      year: newProject.year || new Date().getFullYear().toString(),
+      description: newProject.description.trim(),
+      imageUrl: newProject.imageUrl.trim() || undefined,
+      tags: tagsArray.length > 0 ? tagsArray : ['Estrategia', 'Wuish'],
+    });
+    showToast('Proyecto Agregado', `"${newProject.title}" ya es visible en el Portafolio del inicio.`, 'success');
+    setNewProject({
+      title: '',
+      client: '',
+      category: 'tecnologia',
+      year: new Date().getFullYear().toString(),
+      description: '',
+      tags: '',
+      imageUrl: '',
+    });
+  };
+
+  const handleDeleteProject = (id: string, title: string) => {
+    removeProject(id);
+    showToast('Proyecto Eliminado', `"${title}" fue removido del portafolio.`, 'info');
+  };
+
+  const handleDeleteComentario = async (id: string) => {
+    try {
+      if (id.startsWith('tst-')) {
+        removeTestimonial(id);
+      } else {
+        await comentariosApi.delete(id);
+        setComentarios(prev => prev.filter(c => c.id !== id));
+      }
+      showToast('Testimonio Eliminado', 'Se removió el testimonio.', 'info');
+    } catch (err: any) {
+      showToast('Error', err.message || 'No se pudo eliminar el testimonio', 'error');
+    }
+  };
+
+  const handleCreateTestimonial = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTestimonial.name.trim() || !newTestimonial.text.trim()) {
+      showToast('Campos requeridos', 'Ingresa el nombre del cliente y el contenido.', 'error');
+      return;
+    }
+    addTestimonial({
+      name: newTestimonial.name.trim(),
+      company: newTestimonial.company.trim() || 'Cliente Wuish',
+      rating: Number(newTestimonial.rating) || 5,
+      text: newTestimonial.text.trim(),
+    });
+    setNewTestimonial({ name: '', company: '', rating: 5, text: '' });
+    setShowNewTestimonialForm(false);
+    showToast('Testimonio Publicado', 'Se añadió al carrusel de la página de inicio.', 'success');
+  };
+
+  const handleCreateStat = (e: React.FormEvent) => {
+    e.preventDefault();
+    const valNum = parseFloat(newStatItem.value);
+    if (isNaN(valNum) || !newStatItem.label.trim()) {
+      showToast('Dato inválido', 'Ingresa un valor numérico y etiqueta para la métrica', 'error');
+      return;
+    }
+    addStat({
+      value: valNum,
+      suffix: newStatItem.suffix || '',
+      label: newStatItem.label.trim(),
+    });
+    showToast('Métrica Agregada', `"${newStatItem.label}" se agregó a las cifras del inicio.`, 'success');
+    setNewStatItem({ value: '', suffix: '+', label: '' });
+  };
+
+  const handleDeleteStat = (id: string, label: string) => {
+    removeStat(id);
+    showToast('Métrica Eliminada', `"${label}" fue removida del inicio.`, 'info');
   };
 
   const handleCreateResultado = async (e: React.FormEvent) => {
@@ -232,7 +399,7 @@ export const AdminPanel: React.FC = () => {
     if (!newRes.titulo) return;
     setSavingRes(true);
     try {
-      const created = await resultadosApi.create({ ...newRes, mostrar_en_pagina: true });
+      const created = await resultadosApi.create({ ...newRes });
       setResultados(prev => [created, ...prev]);
       setNewRes({ titulo: '', descripcion: '' });
       showToast('Métrica Agregada', 'Publicada en la landing.', 'success');
@@ -287,7 +454,8 @@ export const AdminPanel: React.FC = () => {
     { label: 'Total Solicitudes', val: solicitudes.length, color: 'text-white' },
     { label: 'Pendientes', val: solicitudes.filter(s => s.estado === 'pendiente').length, color: 'text-[#ffd56d]' },
     { label: 'Mensajes Clientes', val: conversations.length, color: 'text-sky-400' },
-    { label: 'Testimonios', val: comentarios.length, color: 'text-emerald-400' },
+    { label: 'Proyectos Inicio', val: projects.length, color: 'text-amber-400' },
+    { label: 'Testimonios', val: allComentarios.length, color: 'text-emerald-400' },
   ];
 
   return (
@@ -302,7 +470,7 @@ export const AdminPanel: React.FC = () => {
             Panel Administrativo Global WUISH
           </h1>
           <p className="text-xs text-[#9a907c] mt-0.5">
-            Gestión centralizada de solicitudes, clientes y contenidos.
+            Gestión centralizada de solicitudes, clientes y contenidos del inicio.
           </p>
         </div>
 
@@ -325,9 +493,9 @@ export const AdminPanel: React.FC = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {kpis.map((k, i) => (
-          <div key={i} className="p-5 rounded-2xl bg-[#1c1b1d] border border-white/5">
+          <div key={i} className="p-4 rounded-2xl bg-[#1c1b1d] border border-white/5">
             <span className="text-[10px] uppercase tracking-wider text-[#9a907c] font-bold font-display block">{k.label}</span>
             <div className={`text-2xl sm:text-3xl font-extrabold mt-1 font-display ${k.color}`}>{k.val}</div>
           </div>
@@ -340,8 +508,8 @@ export const AdminPanel: React.FC = () => {
           { id: 'solicitudes', label: 'Solicitudes', icon: ClipboardList, count: solicitudes.length },
           { id: 'mensajes', label: 'Mensajes de Clientes', icon: MessageSquare, count: conversations.reduce((a, c) => a + c.unreadCount, 0) },
           { id: 'cms', label: 'CMS Institucional', icon: FileText },
-          { id: 'resultados', label: 'Resultados', icon: TrendingUp },
-          { id: 'comentarios', label: 'Testimonios', icon: Star, count: comentarios.length },
+          { id: 'resultados', label: 'Resultados & Portafolio', icon: TrendingUp, count: projects.length },
+          { id: 'comentarios', label: 'Testimonios', icon: Star, count: allComentarios.length },
         ].map((tab: any) => {
           const Icon = tab.icon;
           const active = activeTab === tab.id;
@@ -573,78 +741,362 @@ export const AdminPanel: React.FC = () => {
         </form>
       )}
 
-      {/* TAB: Resultados */}
+      {/* TAB: Resultados & Portafolio */}
       {activeTab === 'resultados' && (
-        <div className="p-6 rounded-2xl bg-[#1c1b1d] border border-white/5 space-y-4">
-          <h3 className="text-lg font-bold text-white font-display">Métricas de Impacto</h3>
-          <form onSubmit={handleCreateResultado} className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-            <input
-              type="text"
-              required
-              value={newRes.titulo}
-              onChange={e => setNewRes({ ...newRes, titulo: e.target.value })}
-              placeholder="Cifra (ej: +340% ROAS)"
-              className="bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
-            />
-            <input
-              type="text"
-              value={newRes.descripcion}
-              onChange={e => setNewRes({ ...newRes, descripcion: e.target.value })}
-              placeholder="Descripción breve..."
-              className="bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
-            />
-            <button
-              type="submit"
-              disabled={savingRes}
-              className="py-2.5 rounded-xl bg-[#ffd56d] text-[#3e2e00] font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-            >
-              <Plus className="w-4 h-4" />
-              <span>{savingRes ? '...' : 'Agregar Métrica'}</span>
-            </button>
-          </form>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
-            {resultados.map(r => (
-              <div key={r.id} className="p-3.5 rounded-xl bg-[#201f21] border border-white/5 flex items-center justify-between text-xs">
-                <div>
-                  <span className="font-bold text-white block">{r.titulo}</span>
-                  <span className="text-[11px] text-[#9a907c] block">{r.descripcion || '—'}</span>
+        <div className="space-y-6">
+          {/* SECCIÓN 1: Portafolio de Proyectos (Inicio) */}
+          <div className="p-6 rounded-2xl bg-[#1c1b1d] border border-white/5 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-white/5">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Briefcase className="w-5 h-5 text-[#ffd56d]" />
+                  <h3 className="text-lg font-bold text-white font-display">Portafolio: "Proyectos en los que participamos"</h3>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#ffd56d]/15 text-[#ffd56d]">
+                    {projects.length} en el inicio
+                  </span>
                 </div>
-                <button onClick={() => handleDeleteResultado(r.id)} className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-500/20 cursor-pointer">
-                  <Trash2 className="w-4 h-4" />
+                <p className="text-xs text-[#9a907c] mt-1">
+                  Administra los casos de éxito y proyectos que se exhiben en el carrusel de la página de inicio.
+                </p>
+              </div>
+            </div>
+
+            {/* Formulario Agregar Proyecto */}
+            <form onSubmit={handleCreateProject} className="p-4 rounded-xl bg-[#171618] border border-white/5 space-y-3 text-xs">
+              <span className="font-bold text-white uppercase tracking-wider block text-[11px]">
+                + Agregar Nuevo Proyecto al Inicio
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div>
+                  <label className="text-[11px] text-zinc-400 block mb-1">Título del Proyecto</label>
+                  <input
+                    type="text"
+                    required
+                    value={newProject.title}
+                    onChange={e => setNewProject({ ...newProject, title: e.target.value })}
+                    placeholder="Ej: Ecosistema Transaccional & Core"
+                    className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-zinc-400 block mb-1">Cliente / Marca</label>
+                  <input
+                    type="text"
+                    required
+                    value={newProject.client}
+                    onChange={e => setNewProject({ ...newProject, client: e.target.value })}
+                    placeholder="Ej: Nexo Capital"
+                    className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-zinc-400 block mb-1">Categoría</label>
+                  <select
+                    value={newProject.category}
+                    onChange={e => setNewProject({ ...newProject, category: e.target.value as any })}
+                    className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+                  >
+                    <option value="tecnologia">Tecnología</option>
+                    <option value="comunicacion">Comunicación</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] text-zinc-400 block mb-1">Año</label>
+                  <input
+                    type="text"
+                    value={newProject.year}
+                    onChange={e => setNewProject({ ...newProject, year: e.target.value })}
+                    placeholder="2026"
+                    className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-[11px] text-zinc-400 block mb-1">Descripción del Logro</label>
+                  <input
+                    type="text"
+                    value={newProject.description}
+                    onChange={e => setNewProject({ ...newProject, description: e.target.value })}
+                    placeholder="Breve explicación de la solución implementada..."
+                    className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-zinc-400 block mb-1">Etiquetas (separadas por coma)</label>
+                  <input
+                    type="text"
+                    value={newProject.tags}
+                    onChange={e => setNewProject({ ...newProject, tags: e.target.value })}
+                    placeholder="Next.js, Cloud, BI"
+                    className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-zinc-400 block mb-1">URL de Portada (Opcional)</label>
+                  <input
+                    type="url"
+                    value={newProject.imageUrl}
+                    onChange={e => setNewProject({ ...newProject, imageUrl: e.target.value })}
+                    placeholder="https://images.unsplash.com/..."
+                    className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Publicar en Portafolio del Inicio</span>
                 </button>
               </div>
-            ))}
+            </form>
+
+            {/* Listado de Proyectos Activos en el Inicio */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {projects.map((p) => (
+                <div key={p.id} className="p-4 rounded-xl bg-[#201f21] border border-white/5 flex flex-col justify-between text-xs space-y-3 group hover:border-[#ffd56d]/30 transition">
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-white/5 text-[#ffd56d]">
+                        {p.category}
+                      </span>
+                      <span className="text-[10px] text-[#9a907c]">{p.client} · {p.year}</span>
+                    </div>
+                    <h4 className="font-bold text-white text-sm mb-1">{p.title}</h4>
+                    <p className="text-[11px] text-[#d1c5af] leading-relaxed line-clamp-2">{p.description}</p>
+                    <div className="flex flex-wrap gap-1 mt-2.5">
+                      {p.tags?.map((t: string, idx: number) => (
+                        <span key={idx} className="px-1.5 py-0.5 rounded bg-white/5 text-[9px] text-[#9a907c]">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[11px]">
+                    <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                      <Eye className="w-3.5 h-3.5" /> Visible en Inicio
+                    </span>
+                    <button
+                      onClick={() => handleDeleteProject(p.id, p.title)}
+                      className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-500/20 transition cursor-pointer flex items-center gap-1"
+                      title="Eliminar proyecto"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Eliminar</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* SECCIÓN 2: Métricas de Impacto (Cifras del Inicio) */}
+          <div className="p-6 rounded-2xl bg-[#1c1b1d] border border-white/5 space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-white/5">
+              <div>
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-[#ffd56d]" />
+                  <h3 className="text-lg font-bold text-white font-display">Métricas de Impacto (Cifras del Inicio)</h3>
+                </div>
+                <p className="text-xs text-[#9a907c] mt-1">
+                  Son los contadores animados que aparecen en la barra estadística de la página de inicio (ej: 120+ Proyectos, 98% Retención).
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateStat} className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+              <input
+                type="number"
+                required
+                value={newStatItem.value}
+                onChange={e => setNewStatItem({ ...newStatItem, value: e.target.value })}
+                placeholder="Valor (ej: 150)"
+                className="bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+              />
+              <input
+                type="text"
+                value={newStatItem.suffix}
+                onChange={e => setNewStatItem({ ...newStatItem, suffix: e.target.value })}
+                placeholder="Sufijo (ej: +, %, x, h)"
+                className="bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+              />
+              <input
+                type="text"
+                required
+                value={newStatItem.label}
+                onChange={e => setNewStatItem({ ...newStatItem, label: e.target.value })}
+                placeholder="Etiqueta (ej: Clientes Satisfechos)"
+                className="bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+              />
+              <button
+                type="submit"
+                className="py-2.5 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow transition"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Agregar Métrica</span>
+              </button>
+            </form>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+              {stats.map(s => (
+                <div key={s.id} className="p-4 rounded-xl bg-[#201f21] border border-white/5 flex items-center justify-between text-xs">
+                  <div>
+                    <span className="text-xl font-black text-white font-display">
+                      {s.value}{s.suffix}
+                    </span>
+                    <span className="text-[11px] text-[#9a907c] block uppercase tracking-wider">{s.label}</span>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteStat(s.id, s.label)}
+                    className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-500/20 cursor-pointer transition"
+                    title="Eliminar métrica"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
-      {/* TAB: Comentarios */}
+      {/* TAB: Comentarios & Testimonios */}
       {activeTab === 'comentarios' && (
-        <div className="p-6 rounded-2xl bg-[#1c1b1d] border border-white/5 space-y-4">
-          <h3 className="text-lg font-bold text-white font-display">Testimonios de Clientes</h3>
+        <div className="p-6 rounded-2xl bg-[#1c1b1d] border border-white/5 space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/5">
+            <div>
+              <h3 className="text-lg font-bold text-white font-display">Testimonios de Clientes</h3>
+              <p className="text-xs text-[#9a907c]">Modera qué testimonios se publican en el carrusel de la página de inicio o agrega nuevas reseñas de clientes.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="px-3 py-1 rounded-full bg-[#ffd56d]/15 text-[#ffd56d] text-xs font-bold">
+                {allComentarios.length} Registrados
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowNewTestimonialForm(!showNewTestimonialForm)}
+                className="px-3.5 py-1.5 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow transition"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{showNewTestimonialForm ? 'Cerrar Formulario' : 'Nuevo Testimonio'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Formulario Crear Testimonio */}
+          {showNewTestimonialForm && (
+            <form onSubmit={handleCreateTestimonial} className="p-4 rounded-xl bg-[#201f21] border border-[#ffd56d]/30 space-y-3 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-white text-xs uppercase tracking-wider text-[#ffd56d]">Nuevo Testimonio Corporativo</span>
+                <button type="button" onClick={() => setShowNewTestimonialForm(false)} className="text-zinc-400 hover:text-white text-xs">✕</button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-[11px] text-zinc-400 block mb-1">Nombre del Cliente / Representante</label>
+                  <input
+                    type="text"
+                    required
+                    value={newTestimonial.name}
+                    onChange={e => setNewTestimonial({ ...newTestimonial, name: e.target.value })}
+                    placeholder="Ej: Mariana Silva"
+                    className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-zinc-400 block mb-1">Empresa o Cargo</label>
+                  <input
+                    type="text"
+                    value={newTestimonial.company}
+                    onChange={e => setNewTestimonial({ ...newTestimonial, company: e.target.value })}
+                    placeholder="Ej: Directora de Operaciones, NovaPay"
+                    className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-zinc-400 block mb-1">Calificación (Estrellas)</label>
+                  <select
+                    value={newTestimonial.rating}
+                    onChange={e => setNewTestimonial({ ...newTestimonial, rating: parseInt(e.target.value) || 5 })}
+                    className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+                  >
+                    <option value={5}>⭐⭐⭐⭐⭐ (5 Estrellas)</option>
+                    <option value={4}>⭐⭐⭐⭐ (4 Estrellas)</option>
+                    <option value={3}>⭐⭐⭐ (3 Estrellas)</option>
+                    <option value={2}>⭐⭐ (2 Estrellas)</option>
+                    <option value={1}>⭐ (1 Estrella)</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-[11px] text-zinc-400 block mb-1">Contenido de la Reseña</label>
+                <textarea
+                  required
+                  rows={2}
+                  value={newTestimonial.text}
+                  onChange={e => setNewTestimonial({ ...newTestimonial, text: e.target.value })}
+                  placeholder="Describe la experiencia de trabajo con Wuish y los resultados obtenidos..."
+                  className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowNewTestimonialForm(false)}
+                  className="px-4 py-2 rounded-xl text-zinc-400 hover:text-white"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-bold cursor-pointer"
+                >
+                  Guardar y Publicar en Inicio
+                </button>
+              </div>
+            </form>
+          )}
+
           <div className="space-y-3">
-            {comentarios.map(c => (
-              <div key={c.id} className="p-4 rounded-xl bg-[#201f21] border border-white/5 flex items-start justify-between gap-4 text-xs">
+            {allComentarios.map(c => (
+              <div key={c.id} className="p-4 rounded-xl bg-[#201f21] border border-white/5 flex items-start justify-between gap-4 text-xs group hover:border-[#ffd56d]/20 transition">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-semibold text-white">{c.usuario?.nombres || 'Anónimo'}</span>
-                    <span className="flex items-center text-[#ffd56d] gap-0.5">
+                    <span className="font-semibold text-white">{c.usuario?.nombres || 'Cliente Wuish'}</span>
+                    {c.usuario?.empresa && (
+                      <span className="text-[10px] text-[#9a907c]">({c.usuario.empresa})</span>
+                    )}
+                    <span className="flex items-center text-[#ffd56d] gap-0.5 ml-2">
                       <Star className="w-3 h-3 fill-current" />
                       {c.calificacion || 5}
                     </span>
                   </div>
                   <p className="text-[#d1c5af]">{c.contenido}</p>
                 </div>
-                <button
-                  onClick={() => handleToggleComentario(c.id, c.mostrar_en_pagina)}
-                  className={`p-2 rounded-lg cursor-pointer ${
-                    c.mostrar_en_pagina ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/5 text-zinc-500'
-                  }`}
-                  title={c.mostrar_en_pagina ? 'Público' : 'Oculto'}
-                >
-                  {c.mostrar_en_pagina ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => handleToggleComentario(c.id, c.mostrar_en_pagina)}
+                    className={`p-2 rounded-lg cursor-pointer transition flex items-center gap-1.5 ${
+                      c.mostrar_en_pagina ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/5 text-zinc-500 hover:text-white'
+                    }`}
+                    title={c.mostrar_en_pagina ? 'Visible en Inicio' : 'Oculto'}
+                  >
+                    {c.mostrar_en_pagina ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    <span className="text-[10px] font-semibold">{c.mostrar_en_pagina ? 'Visible' : 'Oculto'}</span>
+                  </button>
+                  <button
+                    onClick={() => handleDeleteComentario(c.id)}
+                    className="p-2 rounded-lg text-rose-400 hover:bg-rose-500/20 cursor-pointer transition"
+                    title="Eliminar testimonio"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>

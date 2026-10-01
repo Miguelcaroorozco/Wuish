@@ -205,19 +205,8 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
               </>
             )}
 
-            {!isAuthenticated && (
-              <button
-                onClick={() => onSelectView('auth')}
-                className={`px-3 py-1.5 rounded-lg transition-all text-[11px] font-semibold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer ${
-                  currentView === 'auth'
-                    ? 'bg-[#ffd56d] text-[#3e2e00]'
-                    : 'bg-[#1c1b1d] text-[#ffd56d] border border-[#ffd56d]/30 hover:bg-[#2a2a2c]'
-                }`}
-              >
-                <KeyRound className="w-3.5 h-3.5" />
-                <span>Ingresar</span>
-              </button>
-            )}
+
+
           </nav>
         </div>
 
