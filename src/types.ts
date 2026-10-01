@@ -1,126 +1,85 @@
-// ============================
-// Types aligned with PostgreSQL database schema
-// ============================
-
-export type UserRole = 'usuario' | 'admin' | 'administrador';
+export type UserRole = 'client' | 'admin' | 'consultant';
 
 export interface User {
   id: string;
-  nombres: string;
-  apellidos: string;
-  numero_cedula: string;
-  tipo_documento: string;
-  fecha_nacimiento: string;
-  telefono: string | null;
-  correo: string;
-  rol: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface TipoServicio {
-  id: string;
-  nombre: string;
-  descripcion: string | null;
-  planes?: Plan[];
-}
-
-export interface Plan {
-  id: string;
-  tipo_servicio_id: string;
-  nombre: string;
-  descripcion: string | null;
-  precio: number | null;
-  caracteristicas: any;
-  activo: boolean;
-  tipo_servicio?: TipoServicio;
+  name: string;
+  email: string;
+  company: string;
+  role: UserRole;
+  title: string;
+  avatarUrl?: string;
+  tier?: string;
+  accountId?: string;
+  sla?: string;
+  phone?: string;
+  docType?: string;
+  docNumber?: string;
 }
 
 export interface Solicitud {
   id: string;
-  usuario_id: string;
-  tipo: string;
-  estado: string;
-  descripcion: string | null;
-  plan_id: string | null;
-  admin_asignado_id: string | null;
-  fecha_solicitud: string;
-  fecha_limite_borrado: string | null;
-  created_at: string;
-  updated_at: string;
-  usuario?: Partial<User>;
-  plan?: Plan;
-  admin_asignado?: Partial<User>;
-  historial?: SolicitudHistorial[];
-  ajustes?: SolicitudAjuste[];
+  code: string;
+  title: string;
+  subtitle: string;
+  date: string;
+  plan: string;
+  status: 'En Proceso' | 'En Revisión' | 'Aprobada' | 'Finalizada';
+  assignedTo?: string;
+  budget?: string;
 }
 
-export interface SolicitudHistorial {
+export interface ChatMessage {
   id: string;
-  solicitud_id: string;
-  estado_anterior: string | null;
-  estado_nuevo: string;
-  motivo: string | null;
-  changed_at: string;
+  sender: string;
+  role: string;
+  text: string;
+  time: string;
+  isMe: boolean;
+  avatar?: string;
 }
 
-export interface SolicitudAjuste {
+export interface ServiceModule {
   id: string;
-  solicitud_id: string;
-  descripcion_ajuste: string;
-  respondido_por: string;
-  created_at: string;
-  respondidoPor?: Partial<User>;
+  name: string;
+  description: string;
+  basePrice: number;
+  category: 'comunicacion' | 'tecnologia';
+  icon: string;
 }
 
-export interface Mensaje {
+export interface PlanTier {
   id: string;
-  usuario_id: string;
-  solicitud_id: string | null;
-  asunto: string | null;
-  contenido: string;
-  leido: boolean;
-  es_admin?: boolean;
-  created_at: string;
-  usuario?: Partial<User>;
-  solicitud?: Partial<Solicitud>;
+  name: string;
+  badge: string;
+  price: number | string;
+  unit: string;
+  category: 'digitalizacion' | 'crecimiento' | 'optimizacion' | 'transformacion';
+  description: string;
+  features: string[];
+  isFeatured?: boolean;
 }
 
-export interface InfoGeneral {
+export interface Testimonial {
   id: string;
-  seccion: string;
-  contenido: string | null;
-  updated_at: string;
-  updated_by: string | null;
+  userId: string;
+  name: string;
+  company: string;
+  rating: number;
+  text: string;
+  date: string;
+  status: 'pending' | 'approved';
 }
 
+export type ProjectCategory = 'comunicacion' | 'tecnologia';
 
-export interface Comentario {
+export interface Project {
   id: string;
-  usuario_id: string | null;
-  contenido: string;
-  calificacion: number | null;
-  mostrar_en_pagina: boolean;
-  orden: number | null;
-  created_at: string;
-  usuario?: Partial<User>;
-}
-
-export interface Resultado {
-  id: string;
-  titulo: string;
-  descripcion: string | null;
-  imagen_url: string | null;
-  activo: boolean;
-  orden: number | null;
-}
-
-
-export interface CarritoItem {
-  id: string;
-  usuario_id: string;
-  plan_id: string;
-  cantidad: number;
-  created_at: string;
-  plan?: Plan;
+  title: string;
+  client: string;
+  category: ProjectCategory;
+  year: string;
+  description: string;
+  imageUrl?: string;
+  link?: string;
+  tags: string[];
 }
