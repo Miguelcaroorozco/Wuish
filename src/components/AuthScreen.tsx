@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { WuishLogo } from './WuishLogo';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   Mail,
   Lock,
@@ -22,15 +23,17 @@ import {
 
 interface AuthScreenProps {
   onSuccess?: () => void;
+  onSuccessAuth?: () => void;
   isModal?: boolean;
+  initialTab?: 'login' | 'register';
 }
 
-export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, isModal = false }) => {
+export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth, isModal = false, initialTab = 'login' }) => {
   const { login, register, resetPassword } = useAuth();
   const { showToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
-  
+  const [activeTab, setActiveTab] = useState<'login' | 'register'>(initialTab);
+
   // Login form state
   const [loginUser, setLoginUser] = useState('');
   const [loginPwd, setLoginPwd] = useState('');
@@ -68,6 +71,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, isModal = fal
       const res = await login(loginUser, loginPwd, rememberMe);
       if (res.success) {
         showToast('Acceso Concedido', res.message, 'success');
+        if (onSuccessAuth) onSuccessAuth();
         if (onSuccess) onSuccess();
       } else {
         showToast('Acceso Denegado', res.message, 'error');
@@ -109,6 +113,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, isModal = fal
 
       if (res.success) {
         showToast('Registro Exitoso', res.message, 'success');
+        if (onSuccessAuth) onSuccessAuth();
         if (onSuccess) onSuccess();
       }
     } catch {
@@ -128,21 +133,21 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, isModal = fal
   };
 
   return (
-    <div className={`w-full ${isModal ? 'p-0' : 'min-h-[calc(100vh-80px)] p-4 sm:p-6 lg:p-10 flex items-center justify-center'}`}>
+    <div className={`w-full ${isModal ? 'p-0' : 'min-h-[calc(100svh-80px)] p-0 sm:p-6 lg:p-10 flex items-center justify-center'}`}>
       <div className="w-full max-w-[1560px] mx-auto">
         <div className="w-full grid grid-cols-1 lg:grid-cols-12 rounded-2xl bg-[#0e0e10] border border-[#ffd56d]/20 overflow-hidden shadow-2xl relative">
-          
+
           {/* Top Decorative Horizon Line */}
           <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#ffd56d] to-transparent opacity-80 pointer-events-none z-30" />
 
           {/* LEFT PANE: Brand Presence & Transformation Pillars (Exact to Image 1) */}
-          <div className="lg:col-span-6 xl:col-span-7 bg-[#1c1b1d] p-8 sm:p-12 xl:p-16 flex flex-col justify-between relative overflow-hidden">
+          <div className="lg:col-span-6 xl:col-span-7 bg-[#1c1b1d] px-5 py-8 sm:p-12 xl:p-16 flex flex-col justify-between gap-6 relative overflow-hidden">
             {/* Ambient Atmospheric Glows */}
             <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-[#ffd56d]/10 blur-[100px] pointer-events-none" />
             <div className="absolute -bottom-40 right-0 w-[450px] h-[450px] rounded-full bg-[#e5b842]/5 blur-[120px] pointer-events-none" />
 
             {/* Brand Header Section */}
-            <div className="relative z-10 flex flex-col items-center lg:items-start text-center lg:text-left space-y-6">
+            <div className="relative z-10 flex flex-col items-center lg:items-start text-center lg:text-left space-y-4 sm:space-y-6">
               {/* Logo & Geometric Brand Showcase */}
               <div className="w-full flex justify-center lg:justify-start">
                 <WuishLogo size="hero" />
@@ -151,75 +156,22 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, isModal = fal
               {/* Slogan Badge with pulse */}
               <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-lg bg-[#353437]/60 backdrop-blur-md border border-[#ffd56d]/20 shadow-inner">
                 <span className="w-2 h-2 rounded-full bg-[#ffd56d] animate-pulse" />
-                <span className="text-[11px] font-semibold text-[#ffd56d] tracking-[0.2em] uppercase font-display">
+                <span className="text-[10px] sm:text-[11px] font-semibold text-[#ffd56d] tracking-[0.12em] sm:tracking-[0.2em] uppercase font-display">
                   WE UNITE IDEAS, STRATEGY &amp; HORIZONS
                 </span>
               </div>
 
               {/* Dynamic Value Proposition Quote */}
               <div className="pt-2 max-w-xl">
-                <p className="text-xl sm:text-2xl text-[#e5e1e4] leading-snug font-medium font-display">
+                <p className="text-base sm:text-2xl text-[#e5e1e4] leading-snug font-medium font-display">
                   “No te vendemos tecnología ni marketing. Analizamos tu negocio y construimos lo que necesitas para crecer.”
                 </p>
               </div>
             </div>
 
-            {/* Ecosystem Grid: 4 Core Transformation Pillars */}
-            <div className="relative z-10 my-8 sm:my-10">
-              <div className="text-[11px] font-semibold text-[#9a907c] uppercase tracking-widest mb-4 flex items-center gap-2">
-                <span>Ecosistema de Transformación</span>
-                <span className="h-[1px] flex-1 bg-[#353437]" />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                {/* 1. Comunicación */}
-                <div className="p-4 rounded-xl bg-[#201f21]/80 backdrop-blur-md border border-white/5 flex items-start space-x-3.5 group hover:bg-[#2a2a2c] hover:border-[#ffd56d]/30 transition-all duration-200">
-                  <div className="w-9 h-9 rounded-lg bg-[#ffd56d]/10 flex items-center justify-center shrink-0 text-[#ffd56d]">
-                    <Megaphone className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-sm font-semibold text-[#e5e1e4] block">Comunicación</span>
-                    <span className="text-xs text-[#d1c5af]/80 line-clamp-1">Narrativas corporativas de alto impacto y reputación.</span>
-                  </div>
-                </div>
-
-                {/* 2. Tecnología */}
-                <div className="p-4 rounded-xl bg-[#201f21]/80 backdrop-blur-md border border-white/5 flex items-start space-x-3.5 group hover:bg-[#2a2a2c] hover:border-[#ffd56d]/30 transition-all duration-200">
-                  <div className="w-9 h-9 rounded-lg bg-[#ffd56d]/10 flex items-center justify-center shrink-0 text-[#ffd56d]">
-                    <Terminal className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-sm font-semibold text-[#e5e1e4] block">Tecnología</span>
-                    <span className="text-xs text-[#d1c5af]/80 line-clamp-1">Infraestructura escalable y arquitecturas digitales sólidas.</span>
-                  </div>
-                </div>
-
-                {/* 3. Estrategia */}
-                <div className="p-4 rounded-xl bg-[#201f21]/80 backdrop-blur-md border border-white/5 flex items-start space-x-3.5 group hover:bg-[#2a2a2c] hover:border-[#ffd56d]/30 transition-all duration-200">
-                  <div className="w-9 h-9 rounded-lg bg-[#ffd56d]/10 flex items-center justify-center shrink-0 text-[#ffd56d]">
-                    <Compass className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-sm font-semibold text-[#e5e1e4] block">Estrategia</span>
-                    <span className="text-xs text-[#d1c5af]/80 line-clamp-1">Modelos de negocio ágiles orientados a expansión real.</span>
-                  </div>
-                </div>
-
-                {/* 4. Datos & IA */}
-                <div className="p-4 rounded-xl bg-[#201f21]/80 backdrop-blur-md border border-white/5 flex items-start space-x-3.5 group hover:bg-[#2a2a2c] hover:border-[#ffd56d]/30 transition-all duration-200">
-                  <div className="w-9 h-9 rounded-lg bg-[#ffd56d]/10 flex items-center justify-center shrink-0 text-[#ffd56d]">
-                    <BarChart3 className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-sm font-semibold text-[#e5e1e4] block">Datos &amp; IA</span>
-                    <span className="text-xs text-[#d1c5af]/80 line-clamp-1">Analítica predictiva y decisión informada en tiempo real.</span>
-                  </div>
-                </div>
-              </div>
-            </div>
 
             {/* Institutional Footer Signature */}
-            <div className="relative z-10 pt-4 flex items-center justify-between text-xs text-[#9a907c] border-t border-white/5">
+            <div className="relative z-10 pt-4 hidden sm:flex items-center justify-between gap-3 text-xs text-[#9a907c] border-t border-white/5">
               <span className="flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-[#ffd56d]" />
                 Portal Estratégico Institucional
@@ -231,18 +183,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, isModal = fal
           </div>
 
           {/* RIGHT PANE: Dual Tab Authentication Console (Exact to Image 1) */}
-          <div className="lg:col-span-6 xl:col-span-5 bg-[#201f21] p-6 sm:p-10 xl:p-12 flex flex-col justify-center relative">
-            
+          <div className="lg:col-span-6 xl:col-span-5 bg-[#201f21] px-5 py-6 sm:p-10 xl:p-12 flex flex-col justify-center relative">
+
             {/* Tab Switcher Navigation */}
             <div className="w-full bg-[#0e0e10] p-1 rounded-xl mb-7 flex items-center relative border border-white/5">
               <button
                 type="button"
                 onClick={() => setActiveTab('login')}
-                className={`flex-1 py-3 px-4 rounded-lg text-sm font-semibold text-center transition-all duration-200 flex items-center justify-center gap-2 ${
-                  activeTab === 'login'
-                    ? 'bg-[#2a2a2c] text-[#ffd56d] shadow-sm border border-[#ffd56d]/30'
-                    : 'text-[#d1c5af] hover:text-white'
-                }`}
+                className={`flex-1 py-3 px-2 sm:px-4 rounded-lg text-xs sm:text-sm font-semibold text-center transition-all duration-200 flex items-center justify-center gap-2 ${activeTab === 'login'
+                  ? 'bg-[#2a2a2c] text-[#ffd56d] shadow-sm border border-[#ffd56d]/30'
+                  : 'text-[#d1c5af] hover:text-white'
+                  }`}
               >
                 <KeyRound className="w-4 h-4" />
                 <span>Iniciar Sesión</span>
@@ -250,11 +201,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, isModal = fal
               <button
                 type="button"
                 onClick={() => setActiveTab('register')}
-                className={`flex-1 py-3 px-4 rounded-lg text-sm font-semibold text-center transition-all duration-200 flex items-center justify-center gap-2 ${
-                  activeTab === 'register'
-                    ? 'bg-[#2a2a2c] text-[#ffd56d] shadow-sm border border-[#ffd56d]/30'
-                    : 'text-[#d1c5af] hover:text-white'
-                }`}
+                className={`flex-1 py-3 px-2 sm:px-4 rounded-lg text-xs sm:text-sm font-semibold text-center transition-all duration-200 flex items-center justify-center gap-2 ${activeTab === 'register'
+                  ? 'bg-[#2a2a2c] text-[#ffd56d] shadow-sm border border-[#ffd56d]/30'
+                  : 'text-[#d1c5af] hover:text-white'
+                  }`}
               >
                 <UserCheck className="w-4 h-4" />
                 <span>Crear Cuenta</span>
@@ -262,8 +212,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, isModal = fal
             </div>
 
             {/* PANE 1: LOGIN FORM */}
+            <AnimatePresence mode="wait" initial={false}>
             {activeTab === 'login' && (
-              <div className="space-y-6 animate-in fade-in duration-200">
+              <motion.div key="login" initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 24 }} transition={{ duration: 0.25 }} className="space-y-6">
                 <div>
                   <h2 className="text-2xl font-semibold text-[#e5e1e4] font-display tracking-tight">
                     Bienvenido al Ecosistema
@@ -295,7 +246,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, isModal = fal
 
                   {/* Password */}
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                       <label className="block text-xs font-semibold text-[#e5e1e4] uppercase tracking-wider" htmlFor="login-pwd">
                         Contraseña
                       </label>
@@ -352,12 +303,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, isModal = fal
                   </button>
                 </form>
 
-              </div>
+              </motion.div>
             )}
 
             {/* PANE 2: REGISTER FORM */}
             {activeTab === 'register' && (
-              <div className="space-y-4 animate-in fade-in duration-200">
+              <motion.div key="register" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.25 }} className="space-y-4">
                 <div>
                   <h2 className="text-2xl font-semibold text-[#e5e1e4] font-display tracking-tight">
                     Crear Cuenta Corporativa
@@ -526,8 +477,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, isModal = fal
                     <FileBadge className="w-4 h-4" />
                   </button>
                 </form>
-              </div>
+              </motion.div>
             )}
+            </AnimatePresence>
 
           </div>
         </div>
@@ -555,7 +507,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, isModal = fal
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
+              <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowForgotModal(false)}

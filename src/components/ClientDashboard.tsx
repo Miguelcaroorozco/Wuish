@@ -11,9 +11,6 @@ import {
   Maximize2,
   CheckCircle2,
   Clock,
-  Send,
-  PhoneCall,
-  CalendarPlus,
   FileSpreadsheet,
   PlusCircle,
   Video,
@@ -26,12 +23,12 @@ import {
 
 interface ClientDashboardProps {
   onNavigateToCotizador?: () => void;
-  onOpenReport?: () => void;
+  onNavigateToPlanes?: () => void;
 }
 
 export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   onNavigateToCotizador,
-  onOpenReport
+  onNavigateToPlanes,
 }) => {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -45,13 +42,13 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       return [];
     }
   });
-  
+
   // Roadmap Sprint Status
   const [sprintApproved, setSprintApproved] = useState(false);
   const [activeStageIndex, setActiveStageIndex] = useState(2); // Step 3 "Crear" active
 
   // Chat State
-  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+  const [messages] = useState<ChatMessage[]>(() => {
     try {
       const saved = localStorage.getItem('wuish_messages_v1');
       return saved ? JSON.parse(saved) : [];
@@ -59,7 +56,6 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       return [];
     }
   });
-  const [chatInput, setChatInput] = useState('');
 
   // Modals state
   const [showNewReqModal, setShowNewReqModal] = useState(false);
@@ -73,28 +69,6 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
     if (filterStatus === 'Todas') return true;
     return item.status === filterStatus;
   });
-
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatInput.trim()) return;
-
-    const userMsg: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      sender: user?.name || 'Cliente',
-      role: user?.title || 'Director',
-      text: chatInput,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isMe: true
-    };
-
-    setMessages((prev) => {
-      const updated = [...prev, userMsg];
-      localStorage.setItem('wuish_messages_v1', JSON.stringify(updated));
-      return updated;
-    });
-    setChatInput('');
-    showToast('Mensaje Enviado', 'Su mensaje ha sido remitido al canal de atención.', 'info');
-  };
 
   const handleApproveSprint = () => {
     setSprintApproved(true);
@@ -130,10 +104,9 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   };
 
   return (
-    <div className="w-full max-w-[1560px] mx-auto p-4 sm:p-6 lg:p-10 space-y-6 animate-in fade-in duration-300">
-      
+    <div className="w-full max-w-[1560px] mx-auto p-4 sm:p-6 lg:p-10 space-y-6">
       {/* 1. TOP GREETING BANNER (Exact match to Image 3) */}
-      <div className="relative rounded-2xl bg-[#1c1b1d] border border-white/5 p-6 sm:p-8 shadow-xl overflow-hidden">
+      <div className="relative rounded-2xl bg-[#1c1b1d] border border-white/5 p-5 sm:p-8 shadow-xl overflow-hidden">
         {/* Subtle Ambient Gold Light */}
         <div className="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-[#ffd56d]/10 via-transparent to-transparent pointer-events-none" />
 
@@ -150,7 +123,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
             </div>
 
             <div>
-              <h1 className="text-3xl sm:text-4xl font-extrabold text-[#e5e1e4] font-display tracking-tight">
+              <h1 className="text-2xl sm:text-4xl font-extrabold text-[#e5e1e4] font-display tracking-tight break-words">
                 Hola, {user?.name || 'Usuario'}
               </h1>
               <p className="text-sm text-[#d1c5af] mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -165,19 +138,8 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
 
           <div className="flex flex-wrap items-center gap-3">
             <button
-              onClick={() => {
-                if (onOpenReport) onOpenReport();
-                else showToast('Informe Mensual Generado', 'Descargando sumario ejecutivo de rendimiento y SLA.', 'info');
-              }}
-              className="px-4 py-2.5 rounded-xl bg-[#2a2a2c] hover:bg-[#353437] text-white border border-white/10 font-semibold text-xs transition flex items-center gap-2 cursor-pointer"
-            >
-              <FileSpreadsheet className="w-4 h-4 text-[#ffd56d]" />
-              <span>Informe Mensual</span>
-            </button>
-
-            <button
               onClick={() => setShowNewReqModal(true)}
-              className="px-5 py-2.5 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-bold text-xs transition shadow-lg shadow-[#ffd56d]/15 flex items-center gap-2 cursor-pointer transform hover:scale-[1.02]"
+              className="w-full sm:w-auto justify-center px-5 py-3 sm:py-2.5 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-bold text-xs transition shadow-lg shadow-[#ffd56d]/15 flex items-center gap-2 cursor-pointer transform hover:scale-[1.02]"
             >
               <PlusCircle className="w-4 h-4 text-[#3e2e00]" />
               <span>Nueva Solicitud Estratégica</span>
@@ -222,9 +184,9 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                 <span className="text-3xl font-extrabold text-[#ffd56d] font-display">
                   {solicitudes.length > 0
                     ? `$${solicitudes.reduce((acc, s) => {
-                        const num = parseInt((s.budget || '').replace(/[^0-9]/g, '')) || 0;
-                        return acc + num;
-                      }, 0).toLocaleString()}`
+                      const num = parseInt((s.budget || '').replace(/[^0-9]/g, '')) || 0;
+                      return acc + num;
+                    }, 0).toLocaleString()}`
                     : '$0'}
                 </span>
                 <span className="text-xs text-zinc-400 font-mono">USD</span>
@@ -289,21 +251,21 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       </div>
 
       {/* 3. HORIZON IMPACT METHODOLOGY ROADMAP (Exact match to Image 3) */}
-      <div className="rounded-2xl bg-[#1c1b1d] border border-white/5 p-6 sm:p-8 shadow-xl space-y-6">
+      <div className="rounded-2xl bg-[#1c1b1d] border border-white/5 p-5 sm:p-8 shadow-xl space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/5">
           <div>
-            <div className="text-[11px] font-semibold text-[#ffd56d] tracking-widest uppercase font-display mb-1 flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#ffd56d]" />
+            <div className="text-[10px] sm:text-[11px] font-semibold text-[#ffd56d] tracking-wider sm:tracking-widest uppercase font-display mb-1 flex items-start sm:items-center gap-2">
+              <span className="w-1.5 h-1.5 mt-1 sm:mt-0 shrink-0 rounded-full bg-[#ffd56d]" />
               Metodología de Impacto Horizon • Sprint #08 / Release V2
             </div>
-            <h2 className="text-xl sm:text-2xl font-bold text-white font-display">
+            <h2 className="text-lg sm:text-2xl font-bold text-white font-display">
               Ecosistema Digital Transaccional • Core Bancario &amp; Móvil
             </h2>
           </div>
 
-          <div className="flex items-center gap-3 self-start sm:self-auto">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#201f21] border border-white/5 text-xs text-[#d1c5af]">
-              <Calendar className="w-4 h-4 text-[#ffd56d]" />
+          <div className="flex items-center gap-3 self-stretch sm:self-auto">
+            <div className="flex-1 sm:flex-none flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#201f21] border border-white/5 text-xs text-[#d1c5af]">
+              <Calendar className="w-4 h-4 shrink-0 text-[#ffd56d]" />
               <span>Hito Estimado: <strong className="text-white">28 May, 2025</strong></span>
             </div>
             <button
@@ -317,15 +279,14 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
         </div>
 
         {/* 6 Stage Pipeline Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
           {/* Stage 01 */}
           <div
             onClick={() => setActiveStageIndex(0)}
-            className={`p-4 rounded-xl border transition-all cursor-pointer ${
-              activeStageIndex === 0
-                ? 'bg-[#2a2a2c] border-[#ffd56d]'
-                : 'bg-[#201f21]/60 border-white/5 hover:bg-[#201f21]'
-            }`}
+            className={`p-3 sm:p-4 rounded-xl border transition-all cursor-pointer ${activeStageIndex === 0
+              ? 'bg-[#2a2a2c] border-[#ffd56d]'
+              : 'bg-[#201f21]/60 border-white/5 hover:bg-[#201f21]'
+              }`}
           >
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-mono font-bold text-[#ffd56d]">01</span>
@@ -341,11 +302,10 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
           {/* Stage 02 */}
           <div
             onClick={() => setActiveStageIndex(1)}
-            className={`p-4 rounded-xl border transition-all cursor-pointer ${
-              activeStageIndex === 1
-                ? 'bg-[#2a2a2c] border-[#ffd56d]'
-                : 'bg-[#201f21]/60 border-white/5 hover:bg-[#201f21]'
-            }`}
+            className={`p-3 sm:p-4 rounded-xl border transition-all cursor-pointer ${activeStageIndex === 1
+              ? 'bg-[#2a2a2c] border-[#ffd56d]'
+              : 'bg-[#201f21]/60 border-white/5 hover:bg-[#201f21]'
+              }`}
           >
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-mono font-bold text-[#ffd56d]">02</span>
@@ -361,11 +321,10 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
           {/* Stage 03 - Active */}
           <div
             onClick={() => setActiveStageIndex(2)}
-            className={`p-4 rounded-xl border-2 transition-all cursor-pointer relative shadow-lg ${
-              activeStageIndex === 2
-                ? 'bg-[#2a2a2c] border-[#ffd56d] shadow-[#ffd56d]/10'
-                : 'bg-[#201f21] border-[#ffd56d]/60'
-            }`}
+            className={`p-3 sm:p-4 rounded-xl border-2 transition-all cursor-pointer relative shadow-lg ${activeStageIndex === 2
+              ? 'bg-[#2a2a2c] border-[#ffd56d] shadow-[#ffd56d]/10'
+              : 'bg-[#201f21] border-[#ffd56d]/60'
+              }`}
           >
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-mono font-bold text-[#ffd56d]">03</span>
@@ -381,11 +340,10 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
           {/* Stage 04 */}
           <div
             onClick={() => setActiveStageIndex(3)}
-            className={`p-4 rounded-xl border transition-all cursor-pointer ${
-              activeStageIndex === 3
-                ? 'bg-[#2a2a2c] border-[#ffd56d]'
-                : 'bg-[#201f21]/40 border-white/5 hover:bg-[#201f21]'
-            }`}
+            className={`p-3 sm:p-4 rounded-xl border transition-all cursor-pointer ${activeStageIndex === 3
+              ? 'bg-[#2a2a2c] border-[#ffd56d]'
+              : 'bg-[#201f21]/40 border-white/5 hover:bg-[#201f21]'
+              }`}
           >
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-mono font-bold text-[#9a907c]">04</span>
@@ -401,11 +359,10 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
           {/* Stage 05 */}
           <div
             onClick={() => setActiveStageIndex(4)}
-            className={`p-4 rounded-xl border transition-all cursor-pointer ${
-              activeStageIndex === 4
-                ? 'bg-[#2a2a2c] border-[#ffd56d]'
-                : 'bg-[#201f21]/40 border-white/5 hover:bg-[#201f21]'
-            }`}
+            className={`p-3 sm:p-4 rounded-xl border transition-all cursor-pointer ${activeStageIndex === 4
+              ? 'bg-[#2a2a2c] border-[#ffd56d]'
+              : 'bg-[#201f21]/40 border-white/5 hover:bg-[#201f21]'
+              }`}
           >
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-mono font-bold text-[#9a907c]">05</span>
@@ -421,11 +378,10 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
           {/* Stage 06 */}
           <div
             onClick={() => setActiveStageIndex(5)}
-            className={`p-4 rounded-xl border transition-all cursor-pointer ${
-              activeStageIndex === 5
-                ? 'bg-[#2a2a2c] border-[#ffd56d]'
-                : 'bg-[#201f21]/40 border-white/5 hover:bg-[#201f21]'
-            }`}
+            className={`p-3 sm:p-4 rounded-xl border transition-all cursor-pointer ${activeStageIndex === 5
+              ? 'bg-[#2a2a2c] border-[#ffd56d]'
+              : 'bg-[#201f21]/40 border-white/5 hover:bg-[#201f21]'
+              }`}
           >
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-mono font-bold text-[#9a907c]">06</span>
@@ -441,9 +397,9 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
 
         {/* Deliverable & Sprint Action Strip (Exact to Image 3) */}
         <div className="p-4 rounded-xl bg-[#201f21] border border-white/5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-6">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-4 sm:gap-6">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-[#2a2a2c] flex items-center justify-center text-[#ffd56d]">
+              <div className="w-9 h-9 shrink-0 rounded-lg bg-[#2a2a2c] flex items-center justify-center text-[#ffd56d]">
                 <FileCode className="w-5 h-5" />
               </div>
               <div>
@@ -457,7 +413,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-[#2a2a2c] flex items-center justify-center text-rose-400">
+              <div className="w-9 h-9 shrink-0 rounded-lg bg-[#2a2a2c] flex items-center justify-center text-rose-400">
                 <Video className="w-5 h-5" />
               </div>
               <div>
@@ -471,10 +427,10 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full md:w-auto">
             <button
               onClick={() => setShowChangelogModal(true)}
-              className="flex-1 md:flex-none px-4 py-2 rounded-xl bg-[#2a2a2c] hover:bg-[#353437] text-white border border-white/10 text-xs font-semibold transition flex items-center justify-center gap-2 cursor-pointer"
+              className="flex-1 md:flex-none px-4 py-2.5 sm:py-2 rounded-xl bg-[#2a2a2c] hover:bg-[#353437] text-white border border-white/10 text-xs font-semibold transition flex items-center justify-center gap-2 cursor-pointer"
             >
               <FileCode className="w-4 h-4 text-[#ffd56d]" />
               <span>Ver Changelog Técnico</span>
@@ -483,11 +439,10 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
             <button
               onClick={handleApproveSprint}
               disabled={sprintApproved}
-              className={`flex-1 md:flex-none px-4 py-2 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer ${
-                sprintApproved
-                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                  : 'bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] shadow'
-              }`}
+              className={`flex-1 md:flex-none px-4 py-2.5 sm:py-2 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer ${sprintApproved
+                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                : 'bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] shadow'
+                }`}
             >
               {sprintApproved ? (
                 <>
@@ -504,9 +459,9 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
 
       {/* 4. MAIN TWO-COLUMN SECTION: Historial vs Assigned Strategist & Live Chat */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
+
         {/* Left Column (Col 8): Solicitudes e Historial */}
-        <div className="lg:col-span-8 rounded-2xl bg-[#1c1b1d] border border-white/5 p-6 sm:p-7 shadow-xl space-y-5">
+        <div className="lg:col-span-12 min-w-0 rounded-2xl bg-[#1c1b1d] border border-white/5 p-5 sm:p-7 shadow-xl space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h3 className="text-lg sm:text-xl font-bold text-white font-display">
@@ -518,16 +473,15 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
             </div>
 
             {/* Filter Pills */}
-            <div className="flex items-center gap-1.5 p-1 bg-[#131315] rounded-xl border border-white/5 text-xs">
+            <div className="flex items-center gap-1.5 p-1 bg-[#131315] rounded-xl border border-white/5 text-xs overflow-x-auto [scrollbar-width:none]">
               {['Todas', 'En Proceso', 'En Revisión', 'Aprobada'].map((st) => (
                 <button
                   key={st}
                   onClick={() => setFilterStatus(st)}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
-                    filterStatus === st
-                      ? 'bg-[#ffd56d] text-[#3e2e00] font-bold shadow-sm'
-                      : 'text-[#d1c5af] hover:text-white'
-                  }`}
+                  className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${filterStatus === st
+                    ? 'bg-[#ffd56d] text-[#3e2e00] font-bold shadow-sm'
+                    : 'text-[#d1c5af] hover:text-white'
+                    }`}
                 >
                   {st === 'Todas' ? `Todas (${solicitudes.length})` : st}
                 </button>
@@ -535,8 +489,50 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
             </div>
           </div>
 
+          {/* Móvil: tarjetas en lugar de tabla */}
+          <div className="sm:hidden space-y-2.5">
+            {filteredSolicitudes.length === 0 ? (
+              <div className="py-10 flex flex-col items-center text-center gap-2">
+                <FolderKanban className="w-8 h-8 text-[#ffd56d]/60" />
+                <p className="text-sm font-semibold text-white">No hay requerimientos activos</p>
+                <p className="text-xs text-[#9a907c]">
+                  Crea una nueva solicitud o usa el Cotizador para activar tu primer proyecto.
+                </p>
+              </div>
+            ) : (
+              filteredSolicitudes.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => showToast(`Detalle ${item.code}`, `${item.title} — Asignado a: ${item.assignedTo || 'Mesa Técnica'}`)}
+                  className="w-full text-left p-4 rounded-xl bg-[#201f21] border border-white/5 active:bg-[#2a2a2c] transition cursor-pointer"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono font-bold text-xs text-[#ffd56d]">{item.code}</span>
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold ${item.status === 'En Proceso'
+                        ? 'bg-[#ffd56d]/15 text-[#ffd56d] border border-[#ffd56d]/30'
+                        : item.status === 'En Revisión'
+                          ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                          : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                        }`}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                      {item.status}
+                    </span>
+                  </div>
+                  <div className="mt-2 font-semibold text-white text-sm">{item.title}</div>
+                  <div className="text-[11px] text-[#9a907c] mt-0.5 line-clamp-2">{item.subtitle}</div>
+                  <div className="mt-3 flex items-center justify-between gap-2 text-[11px]">
+                    <span className="px-2 py-0.5 rounded bg-[#131315] border border-white/5 text-zinc-300 truncate">{item.plan}</span>
+                    <span className="text-[#d1c5af] shrink-0">{item.date}</span>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+
           {/* Requests Table (Exact to Image 3) */}
-          <div className="overflow-x-auto">
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="text-[11px] uppercase font-semibold text-[#9a907c] tracking-wider border-b border-white/5">
                 <tr>
@@ -588,13 +584,12 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                       </td>
                       <td className="py-4 text-right whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold ${
-                            item.status === 'En Proceso'
-                              ? 'bg-[#ffd56d]/15 text-[#ffd56d] border border-[#ffd56d]/30'
-                              : item.status === 'En Revisión'
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold ${item.status === 'En Proceso'
+                            ? 'bg-[#ffd56d]/15 text-[#ffd56d] border border-[#ffd56d]/30'
+                            : item.status === 'En Revisión'
                               ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
                               : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                          }`}
+                            }`}
                         >
                           <span className="w-1.5 h-1.5 rounded-full bg-current" />
                           {item.status}
@@ -609,8 +604,8 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
 
           {/* Table Pagination bar */}
           <div className="pt-3 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#9a907c]">
-            <span>Mostrando {filteredSolicitudes.length} de {solicitudes.length} operaciones históricas</span>
-            <div className="flex items-center gap-1.5">
+            <span className="text-center">Mostrando {filteredSolicitudes.length} de {solicitudes.length} operaciones históricas</span>
+            <div className="flex flex-wrap justify-center items-center gap-1.5">
               <button
                 onClick={() => showToast('Paginación', 'Página anterior')}
                 className="px-3 py-1 rounded-lg bg-[#201f21] hover:bg-[#2a2a2c] text-[#d1c5af] hover:text-white transition"
@@ -635,194 +630,13 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
             </div>
           </div>
         </div>
-
-        {/* Right Column (Col 4): Assigned Advisor & Live Chat Stream (Exact to Image 3) */}
-        <div className="lg:col-span-4 space-y-4">
-          
-          {/* Assigned Partner Profile Card */}
-          <div className="p-5 rounded-2xl bg-[#1c1b1d] border border-white/5 shadow-xl space-y-4">
-            <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-xl bg-[#ffd56d]/15 border border-[#ffd56d]/30 flex items-center justify-center text-[#ffd56d] font-black font-display text-lg shrink-0">
-                W
-              </div>
-              <div className="min-w-0 flex-1">
-                <span className="text-[10px] uppercase font-bold text-[#ffd56d] tracking-widest block font-display">
-                  Socio Estratégico Asignado
-                </span>
-                <h4 className="text-base font-bold text-white truncate font-display">
-                  Mesa Estratégica WUISH
-                </h4>
-                <span className="text-xs text-[#9a907c] block">
-                  Dirección de Estrategia &amp; Tecnología
-                </span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="p-2.5 rounded-xl bg-[#201f21] border border-white/5">
-                <span className="text-[10px] text-[#9a907c] block">Tiempo de Rta.</span>
-                <span className="font-bold text-[#ffd56d] mt-0.5 block">&lt; 15 min</span>
-              </div>
-              <div className="p-2.5 rounded-xl bg-[#201f21] border border-white/5">
-                <span className="text-[10px] text-[#9a907c] block">Canal Seguro</span>
-                <span className="font-bold text-emerald-400 mt-0.5 block">Encriptado E2E</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => showToast('Llamada Segura', 'Conectando con la línea prioritaria de atención directa...', 'info')}
-                className="py-2.5 px-3 rounded-xl bg-[#201f21] hover:bg-[#2a2a2c] text-white border border-white/10 text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <PhoneCall className="w-4 h-4 text-[#ffd56d]" />
-                <span>Llamada Directa</span>
-              </button>
-              <button
-                onClick={() => showToast('Agendar Sesión', 'Abriendo calendario ejecutivo para sesión de coordinación directiva...', 'info')}
-                className="py-2.5 px-3 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
-              >
-                <CalendarPlus className="w-4 h-4" />
-                <span>Agendar Sesión</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Interactive Live Chat Console */}
-          <div className="p-5 rounded-2xl bg-[#1c1b1d] border border-white/5 shadow-xl flex flex-col h-[460px]">
-            <div className="flex items-center justify-between pb-3 border-b border-white/5">
-              <div className="flex items-center gap-2">
-                <MessageSquareText className="w-4 h-4 text-[#ffd56d]" />
-                <h4 className="text-sm font-bold text-white font-display">
-                  Buzón Rápido &amp; Conversación
-                </h4>
-              </div>
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#ffd56d]/15 text-[#ffd56d] border border-[#ffd56d]/30">
-                {messages.length} {messages.length === 1 ? 'Mensaje' : 'Mensajes'}
-              </span>
-            </div>
-
-            {/* Chat Messages Stream */}
-            <div className="flex-1 overflow-y-auto py-4 space-y-3 pr-1 text-xs">
-              {messages.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-6 text-zinc-400">
-                  <MessageSquareText className="w-8 h-8 text-[#ffd56d]/60 mb-2" />
-                  <p className="text-sm font-semibold text-white">Canal de Asesoría Directa</p>
-                  <p className="text-xs text-[#9a907c] mt-1 max-w-xs">
-                    Envía un mensaje para comunicarte directamente con el equipo técnico y estratégico asignado.
-                  </p>
-                </div>
-              ) : (
-                messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex flex-col ${msg.isMe ? 'items-end' : 'items-start'}`}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`font-semibold text-[11px] ${msg.isMe ? 'text-[#ffd56d]' : 'text-zinc-300'}`}>
-                        {msg.sender}
-                      </span>
-                      <span className="text-[10px] text-[#9a907c]">{msg.time}</span>
-                    </div>
-                    <div
-                      className={`p-3 rounded-2xl max-w-[90%] leading-relaxed ${
-                        msg.isMe
-                          ? 'bg-[#ffd56d] text-[#3e2e00] font-medium rounded-tr-none'
-                          : 'bg-[#201f21] text-[#e5e1e4] border border-white/5 rounded-tl-none'
-                      }`}
-                    >
-                      {msg.text}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Chat Input */}
-            <form onSubmit={handleSendMessage} className="pt-3 border-t border-white/5 flex gap-2">
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Escribe un mensaje para tu equipo asignado..."
-                className="flex-1 bg-[#0e0e10] text-[#e5e1e4] placeholder:text-[#9a907c] px-3.5 py-2.5 rounded-xl border border-white/10 text-xs focus:outline-none focus:border-[#ffd56d]"
-              />
-              <button
-                type="submit"
-                className="p-2.5 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-bold transition flex items-center justify-center shrink-0 cursor-pointer shadow-md"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
-          </div>
-
-        </div>
-      </div>
-
-      {/* 5. THREE BOTTOM SHORTCUT CARDS (Exact match to Image 3) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-        {/* Shortcut 1 */}
-        <div
-          onClick={onNavigateToCotizador}
-          className="p-4 rounded-xl bg-[#1c1b1d] hover:bg-[#201f21] border border-white/5 hover:border-[#ffd56d]/30 transition-all flex items-center gap-4 cursor-pointer group shadow-sm"
-        >
-          <div className="w-12 h-12 rounded-xl bg-[#201f21] group-hover:bg-[#ffd56d]/10 flex items-center justify-center text-[#ffd56d] transition-colors shrink-0">
-            <Calculator className="w-6 h-6" />
-          </div>
-          <div className="min-w-0">
-            <h4 className="text-sm font-bold text-white group-hover:text-[#ffd56d] transition-colors flex items-center gap-1">
-              Cotizador de Expansión
-              <ChevronRight className="w-4 h-4 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-            </h4>
-            <p className="text-xs text-[#9a907c] truncate mt-0.5">
-              Simula nuevos requerimientos tecnológicos y de pauta...
-            </p>
-          </div>
-        </div>
-
-        {/* Shortcut 2 */}
-        <div
-          onClick={() => showToast('Garantía Horizon', 'Certificación ISO 27001, SOC2 Tipo II y Acuerdos de Nivel de Servicio verificados.', 'info')}
-          className="p-4 rounded-xl bg-[#1c1b1d] hover:bg-[#201f21] border border-white/5 hover:border-[#ffd56d]/30 transition-all flex items-center gap-4 cursor-pointer group shadow-sm"
-        >
-          <div className="w-12 h-12 rounded-xl bg-[#201f21] group-hover:bg-[#ffd56d]/10 flex items-center justify-center text-[#ffd56d] transition-colors shrink-0">
-            <ShieldCheck className="w-6 h-6" />
-          </div>
-          <div className="min-w-0">
-            <h4 className="text-sm font-bold text-white group-hover:text-[#ffd56d] transition-colors flex items-center gap-1">
-              Garantía Horizon &amp; Compliance
-              <ChevronRight className="w-4 h-4 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-            </h4>
-            <p className="text-xs text-[#9a907c] truncate mt-0.5">
-              Certificados ISO 27001 &amp; Acuerdos de Nivel de Servicio...
-            </p>
-          </div>
-        </div>
-
-        {/* Shortcut 3 */}
-        <div
-          onClick={() => showToast('Soporte Concierge 24/7', 'Mesa de operaciones disponible. Ticket prioritario generado.', 'info')}
-          className="p-4 rounded-xl bg-[#1c1b1d] hover:bg-[#201f21] border border-white/5 hover:border-[#ffd56d]/30 transition-all flex items-center gap-4 cursor-pointer group shadow-sm"
-        >
-          <div className="w-12 h-12 rounded-xl bg-[#201f21] group-hover:bg-[#ffd56d]/10 flex items-center justify-center text-[#ffd56d] transition-colors shrink-0">
-            <Headphones className="w-6 h-6" />
-          </div>
-          <div className="min-w-0">
-            <h4 className="text-sm font-bold text-white group-hover:text-[#ffd56d] transition-colors flex items-center gap-1">
-              Soporte Concierge 24/7
-              <ChevronRight className="w-4 h-4 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-            </h4>
-            <p className="text-xs text-[#9a907c] truncate mt-0.5">
-              Línea prioritaria con equipo de ingenieros dedicados...
-            </p>
-          </div>
-        </div>
       </div>
 
       {/* Modal: Nueva Solicitud Estratégica */}
       {showNewReqModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#1c1b1d] border border-[#ffd56d]/30 rounded-2xl max-w-lg w-full p-6 text-left shadow-2xl relative">
-            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 sm:p-4">
+          <div className="bg-[#1c1b1d] border border-[#ffd56d]/30 rounded-2xl max-w-lg w-full max-h-[92svh] overflow-y-auto p-5 sm:p-6 text-left shadow-2xl relative">
+            <div className="flex items-center justify-between gap-3 pb-3 border-b border-white/10 mb-4">
               <h3 className="text-lg font-bold text-white font-display">
                 Nueva Solicitud Estratégica
               </h3>
@@ -849,7 +663,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-[#e5e1e4] mb-1">
                     Plan / Nivel *
@@ -891,7 +705,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-2">
+              <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowNewReqModal(false)}
@@ -913,9 +727,9 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
 
       {/* Modal: Changelog Técnico */}
       {showChangelogModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#1c1b1d] border border-[#ffd56d]/30 rounded-2xl max-w-lg w-full p-6 text-left shadow-2xl relative">
-            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 sm:p-4">
+          <div className="bg-[#1c1b1d] border border-[#ffd56d]/30 rounded-2xl max-w-lg w-full max-h-[92svh] overflow-y-auto p-5 sm:p-6 text-left shadow-2xl relative">
+            <div className="flex items-center justify-between gap-3 pb-3 border-b border-white/10 mb-4">
               <h3 className="text-lg font-bold text-white font-display">
                 Changelog Técnico • Release V2.4
               </h3>
@@ -927,9 +741,9 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
               </button>
             </div>
 
-            <div className="space-y-3 text-xs text-[#d1c5af] max-h-80 overflow-y-auto pr-1">
+            <div className="space-y-3 text-xs text-[#d1c5af] sm:max-h-80 sm:overflow-y-auto pr-1">
               <div className="p-3 rounded-xl bg-[#201f21] border border-white/5">
-                <div className="flex items-center justify-between text-[#ffd56d] font-semibold mb-1">
+                <div className="flex flex-wrap items-center justify-between gap-x-2 text-[#ffd56d] font-semibold mb-1">
                   <span>Commit #9a84f • Staging Production</span>
                   <span className="text-[10px]">Ayer 18:20</span>
                 </div>
@@ -937,7 +751,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
               </div>
 
               <div className="p-3 rounded-xl bg-[#201f21] border border-white/5">
-                <div className="flex items-center justify-between text-white font-semibold mb-1">
+                <div className="flex flex-wrap items-center justify-between gap-x-2 text-white font-semibold mb-1">
                   <span>Commit #3b12c • Core iOS &amp; Next.js</span>
                   <span className="text-[10px]">10 May 2025</span>
                 </div>
@@ -945,7 +759,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
               </div>
 
               <div className="p-3 rounded-xl bg-[#201f21] border border-white/5">
-                <div className="flex items-center justify-between text-white font-semibold mb-1">
+                <div className="flex flex-wrap items-center justify-between gap-x-2 text-white font-semibold mb-1">
                   <span>Commit #f710a • Webhooks SAP ERP</span>
                   <span className="text-[10px]">06 May 2025</span>
                 </div>

@@ -1,20 +1,37 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Wuish
 
-# Run and deploy your AI Studio app
+Aplicación web de landing + portal de cliente y administración construida con React + Vite + TypeScript.
 
-This contains everything you need to run your app locally.
+## Requisitos
 
-View your app in AI Studio: https://ai.studio/apps/d87b801f-cb82-40e3-b1ea-a7aa1a742c32
+- Node.js 18+
+- npm
 
-## Run Locally
+## Instalación
 
-**Prerequisites:**  Node.js
+```bash
+npm install
+```
 
+## Desarrollo
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+```bash
+npm run dev
+```
+
+## Producción
+
+```bash
+npm run build
+```
+
+## Estructura principal
+
+- src/App.tsx: composición principal
+- src/components: vistas de landing, autenticación, dashboard, panel admin y cotizador
+- src/context: proveedor de autenticación y toasts
+- src/types.ts: tipos compartidos
+
+## Nota
+
+Se han removido dependencias y fragmentos de ejemplo no utilizados para dejar el proyecto en una base más limpia y mantenible.

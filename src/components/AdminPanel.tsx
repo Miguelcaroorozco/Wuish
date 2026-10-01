@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useToast } from '../context/ToastContext';
+import { useContent } from '../context/ContentContext';
+import { SiteContentManager } from './SiteContentManager';
 import {
   ShieldAlert,
   Users,
@@ -28,6 +30,7 @@ interface QuotationRow {
 
 export const AdminPanel: React.FC = () => {
   const { showToast } = useToast();
+  const { addPlan } = useContent();
 
   const [rows, setRows] = useState<QuotationRow[]>(() => {
     try {
@@ -84,6 +87,14 @@ export const AdminPanel: React.FC = () => {
   const handleCreatePlan = (e: React.FormEvent) => {
     e.preventDefault();
     if (!planName) return;
+    addPlan({
+      name: planName,
+      price: planPrice ? parseInt(planPrice) : null,
+      category: planCategory,
+      badge: 'Nuevo plan',
+      features: planDesc.split('\n').filter(Boolean),
+      highlight: false
+    });
     showToast('Plan Publicado', `El plan "${planName}" ha sido añadido a la matriz de servicios.`, 'success');
     setShowCreatePlanModal(false);
     setPlanName('');
@@ -104,18 +115,18 @@ export const AdminPanel: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-[1560px] mx-auto p-4 sm:p-6 lg:p-10 space-y-8 animate-in fade-in duration-300">
+    <div className="w-full max-w-[1560px] mx-auto p-4 sm:p-6 lg:p-10 space-y-6 sm:space-y-8">
       
       {/* Admin Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/5">
         <div>
-          <div className="flex items-center gap-2 mb-1.5">
+          <div className="flex flex-wrap items-center gap-2 mb-1.5">
             <span className="px-3 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest bg-rose-500/20 text-rose-400 border border-rose-500/30 font-display">
               ADMIN MASTER
             </span>
             <span className="text-xs text-[#ffd56d] font-mono">CONSOLE • ROOT ACCESS</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white font-display">
+          <h1 className="text-xl sm:text-3xl font-bold text-white font-display">
             Panel Administrativo Global WUISH
           </h1>
           <p className="text-xs text-[#9a907c] mt-1">
@@ -123,10 +134,10 @@ export const AdminPanel: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="grid grid-cols-2 sm:flex items-center gap-3">
           <button
             onClick={() => setShowCreatePlanModal(true)}
-            className="px-4 py-2.5 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-bold text-xs uppercase tracking-wider transition shadow flex items-center gap-1.5 cursor-pointer"
+            className="justify-center px-4 py-2.5 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-bold text-xs uppercase tracking-wider transition shadow flex items-center gap-1.5 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Crear Plan</span>
@@ -134,7 +145,7 @@ export const AdminPanel: React.FC = () => {
 
           <button
             onClick={handleExportData}
-            className="px-4 py-2.5 rounded-xl bg-[#1c1b1d] hover:bg-[#201f21] text-zinc-300 hover:text-white border border-white/10 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
+            className="justify-center px-4 py-2.5 rounded-xl bg-[#1c1b1d] hover:bg-[#201f21] text-zinc-300 hover:text-white border border-white/10 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
           >
             <Download className="w-4 h-4" />
             <span>Exportar</span>
@@ -143,8 +154,8 @@ export const AdminPanel: React.FC = () => {
       </div>
 
       {/* 5 KPI Stat Cards (Dynamic from real quotations) */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <div className="p-5 rounded-2xl bg-[#1c1b1d] border border-white/5">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+        <div className="p-4 sm:p-5 min-w-0 rounded-2xl bg-[#1c1b1d] border border-white/5">
           <span className="text-[10px] uppercase tracking-wider text-[#9a907c] font-bold font-display block">
             Clientes Registrados
           </span>
@@ -156,7 +167,7 @@ export const AdminPanel: React.FC = () => {
           </span>
         </div>
 
-        <div className="p-5 rounded-2xl bg-[#1c1b1d] border border-white/5">
+        <div className="p-4 sm:p-5 min-w-0 rounded-2xl bg-[#1c1b1d] border border-white/5">
           <span className="text-[10px] uppercase tracking-wider text-[#9a907c] font-bold font-display block">
             Cotizaciones en Curso
           </span>
@@ -168,7 +179,7 @@ export const AdminPanel: React.FC = () => {
           </span>
         </div>
 
-        <div className="p-5 rounded-2xl bg-[#1c1b1d] border border-white/5">
+        <div className="p-4 sm:p-5 min-w-0 rounded-2xl bg-[#1c1b1d] border border-white/5">
           <span className="text-[10px] uppercase tracking-wider text-[#9a907c] font-bold font-display block">
             Proyectos Activos
           </span>
@@ -180,11 +191,11 @@ export const AdminPanel: React.FC = () => {
           </span>
         </div>
 
-        <div className="p-5 rounded-2xl bg-[#1c1b1d] border border-white/5">
+        <div className="p-4 sm:p-5 min-w-0 rounded-2xl bg-[#1c1b1d] border border-white/5">
           <span className="text-[10px] uppercase tracking-wider text-[#9a907c] font-bold font-display block">
             Pipeline Proyectado
           </span>
-          <div className="text-2xl sm:text-3xl font-extrabold text-emerald-400 mt-1 font-display">
+          <div className="text-xl sm:text-3xl font-extrabold text-emerald-400 mt-1 font-display break-words">
             {rows.length > 0
               ? `$${rows.reduce((acc, r) => {
                   const num = parseInt(r.budget.replace(/[^0-9]/g, '')) || 0;
@@ -197,7 +208,7 @@ export const AdminPanel: React.FC = () => {
           </span>
         </div>
 
-        <div className="p-5 rounded-2xl bg-[#1c1b1d] border border-white/5 col-span-2 lg:col-span-1">
+        <div className="p-4 sm:p-5 rounded-2xl bg-[#1c1b1d] border border-white/5 col-span-2 lg:col-span-1">
           <span className="text-[10px] uppercase tracking-wider text-[#9a907c] font-bold font-display block">
             Tickets Pendientes
           </span>
@@ -211,7 +222,7 @@ export const AdminPanel: React.FC = () => {
       </div>
 
       {/* Section 1: Solicitudes y Cotizaciones Management (CRUD) */}
-      <div className="p-6 sm:p-7 rounded-2xl bg-[#1c1b1d] border border-white/5 shadow-xl space-y-5">
+      <div className="p-5 sm:p-7 min-w-0 rounded-2xl bg-[#1c1b1d] border border-white/5 shadow-xl space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h3 className="text-lg font-bold text-white font-display">
@@ -234,8 +245,8 @@ export const AdminPanel: React.FC = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+        <div className="overflow-x-auto -mx-5 px-5 sm:mx-0 sm:px-0">
+          <table className="w-full min-w-[760px] text-left text-xs">
             <thead className="text-[11px] uppercase font-semibold text-[#9a907c] tracking-wider border-b border-white/5">
               <tr>
                 <th className="pb-3 pr-4">Cliente / Empresa</th>
@@ -311,8 +322,11 @@ export const AdminPanel: React.FC = () => {
         </div>
       </div>
 
+      {/* Comentarios y portafolio del inicio */}
+      <SiteContentManager />
+
       {/* Section 2: Institutional Editor (CMS Rápido) */}
-      <div className="p-6 sm:p-7 rounded-2xl bg-[#1c1b1d] border border-white/5 shadow-xl space-y-5">
+      <div className="p-5 sm:p-7 min-w-0 rounded-2xl bg-[#1c1b1d] border border-white/5 shadow-xl space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h3 className="text-lg font-bold text-white font-display">
@@ -325,7 +339,7 @@ export const AdminPanel: React.FC = () => {
 
           <button
             onClick={handleSaveCms}
-            className="px-4 py-2.5 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-bold text-xs uppercase tracking-wider transition shadow flex items-center gap-2 cursor-pointer"
+            className="w-full sm:w-auto justify-center px-4 py-2.5 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-bold text-xs uppercase tracking-wider transition shadow flex items-center gap-2 cursor-pointer"
           >
             <Save className="w-4 h-4" />
             <span>Guardar Cambios</span>
@@ -367,8 +381,8 @@ export const AdminPanel: React.FC = () => {
 
       {/* Modal: Crear Plan */}
       {showCreatePlanModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#1c1b1d] border border-[#ffd56d]/30 rounded-2xl max-w-lg w-full p-6 text-left shadow-2xl relative">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 sm:p-4">
+          <div className="bg-[#1c1b1d] border border-[#ffd56d]/30 rounded-2xl max-w-lg w-full max-h-[92svh] overflow-y-auto p-5 sm:p-6 text-left shadow-2xl relative">
             <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
               <h3 className="text-base font-bold text-white font-display">
                 Crear Nuevo Plan de Servicio
@@ -394,7 +408,7 @@ export const AdminPanel: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[#9a907c] mb-1 font-semibold">Precio Estimado (USD)</label>
                   <input
@@ -433,7 +447,7 @@ export const AdminPanel: React.FC = () => {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowCreatePlanModal(false)}

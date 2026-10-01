@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useContent } from '../context/ContentContext';
 import {
   Megaphone,
   Film,
@@ -17,7 +18,8 @@ import {
   Headphones,
   Sliders,
   CheckCircle2,
-  Check
+  Check,
+  Trash2
 } from 'lucide-react';
 
 interface CotizadorViewProps {
@@ -105,9 +107,8 @@ const AVAILABLE_SERVICES: ServiceItem[] = [
 export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit }) => {
   const { user } = useAuth();
   const { showToast } = useToast();
+  const { cart, addToCart, removeFromCart, clearCart } = useContent();
 
-  // Selected services (starts empty for user selection)
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [scaleTier, setScaleTier] = useState<number>(1.0);
   const [speedTier, setSpeedTier] = useState<number>(1.0);
 
@@ -120,19 +121,20 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
   const [challenge, setChallenge] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const toggleService = (id: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
+  const toggleService = (service: ServiceItem) => {
+    const inCart = cart.find(i => i.id === service.id);
+    if (inCart) {
+      removeFromCart(service.id);
+    } else {
+      addToCart({ id: service.id, name: service.name, type: 'service', price: service.basePrice });
+    }
   };
 
-  const selectedServices = useMemo(() => {
-    return AVAILABLE_SERVICES.filter((s) => selectedIds.includes(s.id));
-  }, [selectedIds]);
+  const selectedIds = cart.map(i => i.id);
 
   const baseSubtotal = useMemo(() => {
-    return selectedServices.reduce((sum, s) => sum + s.basePrice, 0);
-  }, [selectedServices]);
+    return cart.reduce((sum, item) => sum + (typeof item.price === 'number' ? item.price : Number(item.price) || 0), 0);
+  }, [cart]);
 
   const totalMultiplier = scaleTier * speedTier;
 
@@ -156,7 +158,7 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
           id: `quote-${Date.now()}`,
           client: company.trim() || name.trim() || 'Cliente Sin Nombre',
           email: email.trim() || 'contacto@empresa.com',
-          services: selectedServices.map((s) => s.name).join(', '),
+          services: cart.map((s) => s.name).join(', '),
           budget: `$${calculatedMin.toLocaleString()} USD`,
           status: 'En revisión',
           assigned: 'Por Asignar'
@@ -169,10 +171,10 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
         const newSolicitud = {
           id: `sol-${Date.now()}`,
           code: newCode,
-          title: selectedServices.map((s) => s.name).slice(0, 2).join(' & ') || 'Proyecto Estratégico',
+          title: cart.map((s) => s.name).slice(0, 2).join(' & ') || 'Proyecto Estratégico',
           subtitle: challenge.trim() || `Presupuesto estimado: $${calculatedMin.toLocaleString()} USD`,
           date: 'Hoy',
-          plan: selectedServices.length > 2 ? 'Optimización & Escala' : 'Crecimiento Digital',
+          plan: cart.some(i => i.type === 'plan') ? cart.find(i => i.type === 'plan')?.name : 'A medida',
           status: 'En Revisión',
           assignedTo: 'Mesa Técnica WUISH',
           budget: `$${calculatedMin.toLocaleString()} USD`
@@ -188,21 +190,22 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
         `Expediente generado con éxito. Su solicitud ha sido enviada al equipo técnico.`,
         'success'
       );
+      clearCart();
       if (onSuccessSubmit) onSuccessSubmit();
     }, 1100);
   };
 
   return (
-    <div className="w-full max-w-[1560px] mx-auto p-4 sm:p-6 lg:p-10 space-y-8 animate-in fade-in duration-300">
+    <div className="w-full max-w-[1560px] mx-auto p-4 sm:p-6 lg:p-10 space-y-6 sm:space-y-8">
       
       {/* Executive Section Banner (Exact to reference) */}
-      <div className="relative bg-[#1c1b1d] rounded-2xl p-6 sm:p-8 lg:p-10 border border-white/5 shadow-xl overflow-hidden">
+      <div className="relative bg-[#1c1b1d] rounded-2xl p-5 sm:p-8 lg:p-10 border border-white/5 shadow-xl overflow-hidden">
         <div className="absolute top-0 right-0 w-80 h-full bg-gradient-to-l from-[#ffd56d]/10 to-transparent pointer-events-none" />
 
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 relative z-10">
           <div className="max-w-3xl">
             <div className="flex flex-wrap items-center gap-2 mb-3">
-              <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#ffd56d]/15 text-[#ffd56d] text-[11px] font-semibold tracking-wider uppercase font-display border border-[#ffd56d]/30">
+              <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#ffd56d]/15 text-[#ffd56d] text-[10px] sm:text-[11px] font-semibold tracking-wider uppercase font-display border border-[#ffd56d]/30">
                 ARQUITECTURA DE PROYECTO • COTIZADOR DINÁMICO
               </span>
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#2a2a2c] text-[#d1c5af] text-[11px] font-semibold">
@@ -211,7 +214,7 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
               </span>
             </div>
 
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#e5e1e4] font-display tracking-tight leading-tight">
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-[#e5e1e4] font-display tracking-tight leading-tight">
               Cotizador Inteligente &amp; Solicitud de <span className="text-[#ffd56d]">Transformación Digital</span>
             </h1>
 
@@ -221,7 +224,7 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
           </div>
 
           {/* Mini Status Card */}
-          <div className="bg-[#0e0e10]/90 backdrop-blur-md p-4 rounded-xl border border-white/5 flex items-center gap-4 shadow-md min-w-[280px]">
+          <div className="bg-[#0e0e10]/90 backdrop-blur-md p-4 rounded-xl border border-white/5 flex items-center gap-4 shadow-md w-full lg:w-auto lg:min-w-[280px]">
             <div className="w-12 h-12 rounded-xl bg-[#201f21] flex items-center justify-center shrink-0 text-[#ffd56d]">
               <Shield className="w-6 h-6" />
             </div>
@@ -236,40 +239,40 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
         </div>
 
         {/* 4 Breadcrumb Steps Indicator */}
-        <div className="mt-8 pt-5 border-t border-white/5 grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="mt-6 sm:mt-8 pt-5 border-t border-white/5 grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-full bg-[#ffd56d] text-[#3e2e00] text-xs flex items-center justify-center font-bold">1</span>
+            <span className="w-6 h-6 shrink-0 rounded-full bg-[#ffd56d] text-[#3e2e00] text-xs flex items-center justify-center font-bold">1</span>
             <span className="text-xs font-semibold text-white">Soluciones &amp; Módulos</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-full bg-[#201f21] text-[#ffd56d] text-xs flex items-center justify-center font-semibold">2</span>
+            <span className="w-6 h-6 shrink-0 rounded-full bg-[#201f21] text-[#ffd56d] text-xs flex items-center justify-center font-semibold">2</span>
             <span className="text-xs text-[#d1c5af]">Escala &amp; Plazos</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-full bg-[#201f21] text-[#ffd56d] text-xs flex items-center justify-center font-semibold">3</span>
+            <span className="w-6 h-6 shrink-0 rounded-full bg-[#201f21] text-[#ffd56d] text-xs flex items-center justify-center font-semibold">3</span>
             <span className="text-xs text-[#d1c5af]">Valuación en Vivo</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-full bg-[#201f21] text-[#ffd56d] text-xs flex items-center justify-center font-semibold">4</span>
+            <span className="w-6 h-6 shrink-0 rounded-full bg-[#201f21] text-[#ffd56d] text-xs flex items-center justify-center font-semibold">4</span>
             <span className="text-xs text-[#d1c5af]">Despacho &amp; Expediente</span>
           </div>
         </div>
       </div>
 
       {/* Main Layout: 2 Columns */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 sm:gap-8 items-start">
         
         {/* Left Side: Steps (Col 8) */}
-        <div className="xl:col-span-8 flex flex-col gap-8">
+        <div className="xl:col-span-8 min-w-0 flex flex-col gap-6 sm:gap-8">
           
           {/* PASO 1: Selección de Módulos & Capacidades */}
-          <section className="bg-[#1c1b1d] rounded-2xl p-6 sm:p-8 border border-white/5 shadow-xl space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-white/5">
+          <section className="bg-[#1c1b1d] rounded-2xl p-5 sm:p-8 border border-white/5 shadow-xl space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-white/5">
               <div className="flex items-center gap-3">
-                <span className="text-xs font-bold px-3 py-1 rounded bg-[#ffd56d] text-[#3e2e00] font-display uppercase">
+                <span className="shrink-0 text-xs font-bold px-3 py-1 rounded bg-[#ffd56d] text-[#3e2e00] font-display uppercase">
                   PASO 01
                 </span>
-                <h2 className="text-xl font-bold text-white font-display">
+                <h2 className="text-lg sm:text-xl font-bold text-white font-display">
                   Selección de Módulos &amp; Capacidades
                 </h2>
               </div>
@@ -279,11 +282,11 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
             {/* Pilar I: Comunicaciones & Marca */}
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <Megaphone className="w-5 h-5 text-[#ffd56d]" />
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider font-display">
+                <Megaphone className="w-5 h-5 shrink-0 text-[#ffd56d]" />
+                <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider font-display">
                   Pilar I: Comunicaciones &amp; Marca
                 </h3>
-                <div className="h-px bg-white/10 flex-1 ml-3" />
+                <div className="h-px bg-white/10 flex-1 ml-3 min-w-4" />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -293,16 +296,16 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
                   return (
                     <div
                       key={s.id}
-                      onClick={() => toggleService(s.id)}
+                      onClick={() => toggleService(s)}
                       className={`p-4 rounded-xl transition-all cursor-pointer border flex flex-col justify-between group ${
                         isChecked
                           ? 'bg-[#2a2a2c] border-[#ffd56d] shadow-sm'
                           : 'bg-[#201f21] border-white/5 hover:border-white/20'
                       }`}
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${isChecked ? 'bg-[#ffd56d] text-[#3e2e00]' : 'bg-[#0e0e10] text-[#ffd56d]'}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`w-10 h-10 shrink-0 rounded-lg flex items-center justify-center transition-colors ${isChecked ? 'bg-[#ffd56d] text-[#3e2e00]' : 'bg-[#0e0e10] text-[#ffd56d]'}`}>
                             <Icon className="w-5 h-5" />
                           </div>
                           <div>
@@ -311,13 +314,13 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
                           </div>
                         </div>
 
-                        <div className={`w-5 h-5 rounded flex items-center justify-center transition-all ${isChecked ? 'bg-[#ffd56d] text-[#3e2e00]' : 'bg-[#0e0e10] border border-white/20'}`}>
+                        <div className={`w-5 h-5 shrink-0 rounded flex items-center justify-center transition-all ${isChecked ? 'bg-[#ffd56d] text-[#3e2e00]' : 'bg-[#0e0e10] border border-white/20'}`}>
                           {isChecked && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                         </div>
                       </div>
 
                       <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-xs">
-                        <span className="text-[#9a907c] uppercase tracking-wider font-semibold">ESTIMADO BASE</span>
+                        <span className="text-[10px] sm:text-xs text-[#9a907c] uppercase tracking-wider font-semibold">ESTIMADO BASE</span>
                         <span className="text-[#ffd56d] font-bold text-sm font-mono">${s.basePrice.toLocaleString()} USD</span>
                       </div>
                     </div>
@@ -329,11 +332,11 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
             {/* Pilar II: Sistemas & Tecnología Avanzada */}
             <div className="pt-2">
               <div className="flex items-center gap-2 mb-4">
-                <Database className="w-5 h-5 text-[#ffd56d]" />
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider font-display">
+                <Database className="w-5 h-5 shrink-0 text-[#ffd56d]" />
+                <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider font-display">
                   Pilar II: Sistemas &amp; Tecnología Avanzada
                 </h3>
-                <div className="h-px bg-white/10 flex-1 ml-3" />
+                <div className="h-px bg-white/10 flex-1 ml-3 min-w-4" />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -343,16 +346,16 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
                   return (
                     <div
                       key={s.id}
-                      onClick={() => toggleService(s.id)}
+                      onClick={() => toggleService(s)}
                       className={`p-4 rounded-xl transition-all cursor-pointer border flex flex-col justify-between group ${
                         isChecked
                           ? 'bg-[#2a2a2c] border-[#ffd56d] shadow-sm'
                           : 'bg-[#201f21] border-white/5 hover:border-white/20'
                       }`}
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${isChecked ? 'bg-[#ffd56d] text-[#3e2e00]' : 'bg-[#0e0e10] text-[#ffd56d]'}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`w-10 h-10 shrink-0 rounded-lg flex items-center justify-center transition-colors ${isChecked ? 'bg-[#ffd56d] text-[#3e2e00]' : 'bg-[#0e0e10] text-[#ffd56d]'}`}>
                             <Icon className="w-5 h-5" />
                           </div>
                           <div>
@@ -361,13 +364,13 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
                           </div>
                         </div>
 
-                        <div className={`w-5 h-5 rounded flex items-center justify-center transition-all ${isChecked ? 'bg-[#ffd56d] text-[#3e2e00]' : 'bg-[#0e0e10] border border-white/20'}`}>
+                        <div className={`w-5 h-5 shrink-0 rounded flex items-center justify-center transition-all ${isChecked ? 'bg-[#ffd56d] text-[#3e2e00]' : 'bg-[#0e0e10] border border-white/20'}`}>
                           {isChecked && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                         </div>
                       </div>
 
                       <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-xs">
-                        <span className="text-[#9a907c] uppercase tracking-wider font-semibold">ESTIMADO BASE</span>
+                        <span className="text-[10px] sm:text-xs text-[#9a907c] uppercase tracking-wider font-semibold">ESTIMADO BASE</span>
                         <span className="text-[#ffd56d] font-bold text-sm font-mono">${s.basePrice.toLocaleString()} USD</span>
                       </div>
                     </div>
@@ -378,13 +381,13 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
           </section>
 
           {/* PASO 2: Escala Organizacional & Cronograma */}
-          <section className="bg-[#1c1b1d] rounded-2xl p-6 sm:p-8 border border-white/5 shadow-xl space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-white/5">
+          <section className="bg-[#1c1b1d] rounded-2xl p-5 sm:p-8 border border-white/5 shadow-xl space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-white/5">
               <div className="flex items-center gap-3">
-                <span className="text-xs font-bold px-3 py-1 rounded bg-[#ffd56d] text-[#3e2e00] font-display uppercase">
+                <span className="shrink-0 text-xs font-bold px-3 py-1 rounded bg-[#ffd56d] text-[#3e2e00] font-display uppercase">
                   PASO 02
                 </span>
-                <h2 className="text-xl font-bold text-white font-display">
+                <h2 className="text-lg sm:text-xl font-bold text-white font-display">
                   Escala Organizacional &amp; Cronograma
                 </h2>
               </div>
@@ -434,7 +437,7 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
                   <div
                     key={item.name}
                     onClick={() => setSpeedTier(item.val)}
-                    className={`p-4 rounded-xl cursor-pointer transition-all border flex items-center justify-between ${
+                    className={`p-4 rounded-xl cursor-pointer transition-all border flex items-center justify-between gap-3 ${
                       speedTier === item.val
                         ? 'bg-[#2a2a2c] border-[#ffd56d] shadow-sm'
                         : 'bg-[#201f21] border-white/5 hover:border-white/20'
@@ -444,7 +447,7 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
                       <span className="text-sm font-bold text-white block font-display">{item.name}</span>
                       <span className="text-xs text-[#9a907c] block mt-0.5">{item.time}</span>
                     </div>
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-[#ffd56d]/15 text-[#ffd56d]">
+                    <span className="shrink-0 text-xs font-semibold px-2 py-0.5 rounded bg-[#ffd56d]/15 text-[#ffd56d]">
                       {item.tag}
                     </span>
                   </div>
@@ -454,17 +457,17 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
           </section>
 
           {/* PASO 4: Expediente Corporativo & Contacto */}
-          <section id="quoteRequestForm" className="bg-[#1c1b1d] rounded-2xl p-6 sm:p-8 border border-white/5 shadow-xl space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-white/5">
+          <section id="quoteRequestForm" className="scroll-mt-24 bg-[#1c1b1d] rounded-2xl p-5 sm:p-8 border border-white/5 shadow-xl space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-white/5">
               <div className="flex items-center gap-3">
-                <span className="text-xs font-bold px-3 py-1 rounded bg-[#ffd56d] text-[#3e2e00] font-display uppercase">
+                <span className="shrink-0 text-xs font-bold px-3 py-1 rounded bg-[#ffd56d] text-[#3e2e00] font-display uppercase">
                   PASO 04
                 </span>
-                <h2 className="text-xl font-bold text-white font-display">
+                <h2 className="text-lg sm:text-xl font-bold text-white font-display">
                   Expediente Corporativo &amp; Contacto
                 </h2>
               </div>
-              <span className="text-xs text-[#9a907c] flex items-center gap-1">
+              <span className="text-xs text-[#9a907c] flex items-center gap-1 sm:shrink-0">
                 <Lock className="w-3.5 h-3.5 text-[#ffd56d]" />
                 Canal Seguro Encriptado
               </span>
@@ -583,7 +586,7 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
 
               <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-2 text-xs text-[#9a907c]">
-                  <Lock className="w-4 h-4 text-[#ffd56d]" />
+                  <Lock className="w-4 h-4 shrink-0 text-[#ffd56d]" />
                   <span>Encriptación AES-256 de extremo a extremo.</span>
                 </div>
 
@@ -602,9 +605,9 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
         </div>
 
         {/* Right Side: Sticky Live Interactive Quote Calculation Engine (Col 4) */}
-        <div className="xl:col-span-4 sticky top-24 flex flex-col gap-4">
+        <div className="xl:col-span-4 min-w-0 xl:sticky xl:top-24 flex flex-col gap-4">
           
-          <div className="relative rounded-2xl bg-[#1c1b1d] border border-white/5 p-6 sm:p-7 shadow-2xl overflow-hidden space-y-5">
+          <div className="relative rounded-2xl bg-[#1c1b1d] border border-white/5 p-5 sm:p-7 shadow-2xl overflow-hidden space-y-5">
             {/* Subtle Gold Horizon Glow */}
             <div className="absolute -top-16 -right-16 w-52 h-52 bg-[#ffd56d]/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -643,7 +646,7 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
                 <span className="text-xs text-[#9a907c] font-mono">USD</span>
               </div>
 
-              <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between text-xs">
+              <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between gap-2 text-xs">
                 <span className="text-[#d1c5af] flex items-center gap-1.5">
                   <CheckCircle2 className="w-4 h-4 text-[#ffd56d]" />
                   Diagnóstico técnico inicial
@@ -656,23 +659,35 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
 
             {/* Breakdown List */}
             <div>
-              <span className="text-[10px] uppercase font-bold text-[#9a907c] tracking-widest block mb-2 font-display">
-                DESGLOSE DE SERVICIOS ACTIVOS ({selectedServices.length})
-              </span>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] uppercase font-bold text-[#9a907c] tracking-widest block font-display">
+                  DESGLOSE DE SERVICIOS ACTIVOS ({cart.length})
+                </span>
+                {cart.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => clearCart()}
+                    className="text-[10px] text-rose-400 hover:text-rose-300 font-bold tracking-wider flex items-center gap-1 transition cursor-pointer"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    VACIAR
+                  </button>
+                )}
+              </div>
               <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1 text-xs">
-                {selectedServices.length === 0 ? (
+                {cart.length === 0 ? (
                   <div className="text-zinc-500 italic py-2 text-center">
                     Selecciona al menos una solución.
                   </div>
                 ) : (
-                  selectedServices.map((item) => (
+                  cart.map((item) => (
                     <div
                       key={item.id}
                       className="p-2 rounded-lg bg-[#201f21] flex items-center justify-between text-xs"
                     >
                       <span className="text-zinc-200 truncate pr-2">{item.name}</span>
                       <span className="text-[#ffd56d] font-mono font-semibold shrink-0">
-                        ${item.basePrice.toLocaleString()}
+                        ${typeof item.price === 'number' ? item.price.toLocaleString() : item.price}
                       </span>
                     </div>
                   ))
@@ -734,6 +749,28 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
 
         </div>
 
+      </div>
+
+      {/* Móvil/tablet: total en vivo siempre a la vista */}
+      <div className="xl:hidden sticky bottom-3 z-30">
+        <div className="flex items-center justify-between gap-3 p-3 pl-4 rounded-2xl bg-[#1c1b1d]/95 backdrop-blur-md border border-[#ffd56d]/30 shadow-2xl shadow-black/60">
+          <div className="min-w-0">
+            <span className="text-[10px] uppercase font-bold text-[#9a907c] tracking-wider block">
+              {cart.length} {cart.length === 1 ? 'servicio' : 'servicios'} · Estimado
+            </span>
+            <span className="text-lg font-extrabold text-[#ffd56d] font-display truncate block">
+              ${calculatedMin.toLocaleString()}
+              <span className="text-xs text-[#9a907c] font-mono font-normal"> – ${calculatedMax.toLocaleString()}</span>
+            </span>
+          </div>
+          <a
+            href="#quoteRequestForm"
+            className="shrink-0 px-4 py-2.5 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-bold text-xs flex items-center gap-1.5"
+          >
+            <Send className="w-3.5 h-3.5" />
+            Enviar
+          </a>
+        </div>
       </div>
 
     </div>

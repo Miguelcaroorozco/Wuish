@@ -58,3 +58,28 @@ export interface PlanTier {
   features: string[];
   isFeatured?: boolean;
 }
+
+export interface Testimonial {
+  id: string;
+  userId: string;
+  name: string;
+  company: string;
+  rating: number;
+  text: string;
+  date: string;
+  status: 'pending' | 'approved';
+}
+
+export type ProjectCategory = 'comunicacion' | 'tecnologia';
+
+export interface Project {
+  id: string;
+  title: string;
+  client: string;
+  category: ProjectCategory;
+  year: string;
+  description: string;
+  imageUrl?: string;
+  link?: string;
+  tags: string[];
+}
