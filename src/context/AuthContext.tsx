@@ -35,6 +35,7 @@ interface AuthContextType {
   }) => Promise<{ success: boolean; message: string; role: string }>;
   logout: () => void;
   resetPassword: (email: string) => Promise<{ success: boolean; message: string }>;
+  updateProfile: (data: Partial<AuthUser>) => Promise<{ success: boolean; message: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -137,6 +138,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   };
 
+  const updateProfile = async (data: Partial<AuthUser>) => {
+    return new Promise<{ success: boolean; message: string }>((resolve) => {
+      setTimeout(() => {
+        setUser((prev) => {
+          if (!prev) return prev;
+          return { ...prev, ...data };
+        });
+        resolve({ success: true, message: 'Perfil actualizado correctamente.' });
+      }, 600);
+    });
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -148,6 +161,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         register,
         logout,
         resetPassword,
+        updateProfile,
       }}
     >
       {children}

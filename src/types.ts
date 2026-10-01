@@ -67,7 +67,7 @@ export interface Testimonial {
   rating: number;
   text: string;
   date: string;
-  status: 'pending' | 'approved';
+  status: 'pending' | 'approved' | 'hidden';
 }
 
 export type ProjectCategory = 'comunicacion' | 'tecnologia';

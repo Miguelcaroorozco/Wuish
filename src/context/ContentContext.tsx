@@ -108,7 +108,7 @@ interface ContentContextType {
   stats: StatItem[];
   plans: any[];
   cart: { id: string; name: string; type: 'plan' | 'service'; price: number | string }[];
-  addTestimonial: (data: Omit<Testimonial, 'id' | 'date' | 'status'>) => void;
+  addTestimonial: (data: Omit<Testimonial, 'id' | 'date' | 'status' | 'userId'> & { userId?: string }) => void;
   approveTestimonial: (id: string) => void;
   removeTestimonial: (id: string) => void;
   updateTestimonial: (id: string, data: Partial<Testimonial>) => void;
@@ -222,7 +222,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const addTestimonial: ContentContextType['addTestimonial'] = (data) => {
     setTestimonials((prev) => [
-      { ...data, id: `tst-${Date.now()}`, date: new Date().toISOString(), status: 'approved' },
+      { ...data, userId: data.userId ?? '', id: `tst-${Date.now()}`, date: new Date().toISOString(), status: 'approved' },
       ...prev,
     ]);
     comentariosApi.create({ contenido: data.text, calificacion: data.rating }).catch(() => {});
