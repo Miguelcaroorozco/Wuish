@@ -27,6 +27,8 @@ import {
   Briefcase,
   Tag,
   FolderOpen,
+  CreditCard,
+  Pencil,
 } from 'lucide-react';
 
 const ESTADOS = ['pendiente', 'en_revision', 'en_proceso', 'aprobada', 'finalizada'] as const;
@@ -46,7 +48,7 @@ export const AdminPanel: React.FC = () => {
     removeTestimonial,
   } = useContent();
 
-  const [activeTab, setActiveTab] = useState<'solicitudes' | 'mensajes' | 'cms' | 'resultados' | 'comentarios'>('solicitudes');
+  const [activeTab, setActiveTab] = useState<'solicitudes' | 'mensajes' | 'planes' | 'cms' | 'resultados' | 'comentarios'>('solicitudes');
 
   // Data states
   const [solicitudes, setSolicitudes] = useState<any[]>([]);
@@ -65,6 +67,9 @@ export const AdminPanel: React.FC = () => {
   const [tiposServicio, setTiposServicio] = useState<any[]>([]);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [newPlan, setNewPlan] = useState({ nombre: '', precio: '', tipo_id: '', desc: '', features: '' });
+  // Planes (incluye inactivos) y plan en edición (null = creando uno nuevo)
+  const [planes, setPlanes] = useState<any[]>([]);
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
 
   // Testimonios & Resultados state
   const [comentarios, setComentarios] = useState<any[]>([]);
@@ -117,14 +122,17 @@ export const AdminPanel: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [sol, info, tipos, com, res, msg] = await Promise.allSettled([
+      const [sol, info, tipos, com, res, msg, pls] = await Promise.allSettled([
         solicitudesApi.getAll(),
         infoGeneralApi.getAll(),
         tiposServicioApi.getAll(),
         comentariosApi.getAll(),
         resultadosApi.getAll(true),
         mensajesApi.getAll(),
+        planesApi.getAll(true),
       ]);
+
+      if (pls.status === 'fulfilled') setPlanes(pls.value);
 
       if (sol.status === 'fulfilled') setSolicitudes(sol.value);
       if (tipos.status === 'fulfilled') {
@@ -251,25 +259,80 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
-  const handleCreatePlan = async (e: React.FormEvent) => {
+  const getPlanFeatures = (plan: any): string[] => {
+    if (Array.isArray(plan.caracteristicas)) return plan.caracteristicas;
+    if (plan.caracteristicas?.features) return plan.caracteristicas.features;
+    return [];
+  };
+
+  const reloadPlanes = async () => {
+    try {
+      setPlanes(await planesApi.getAll(true));
+    } catch {}
+  };
+
+  const openCreatePlan = () => {
+    setEditingPlanId(null);
+    setNewPlan({ nombre: '', precio: '', tipo_id: tiposServicio[0]?.id || '', desc: '', features: '' });
+    setShowPlanModal(true);
+  };
+
+  const openEditPlan = (plan: any) => {
+    setEditingPlanId(plan.id);
+    setNewPlan({
+      nombre: plan.nombre || '',
+      precio: plan.precio != null ? String(parseFloat(plan.precio)) : '',
+      tipo_id: plan.tipo_servicio_id || tiposServicio[0]?.id || '',
+      desc: plan.descripcion || '',
+      features: getPlanFeatures(plan).join('\n'),
+    });
+    setShowPlanModal(true);
+  };
+
+  const handleSavePlan = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPlan.nombre || !newPlan.precio || !newPlan.tipo_id) {
       showToast('Campos requeridos', 'Completa nombre, precio y tipo.', 'error');
       return;
     }
+    const data = {
+      nombre: newPlan.nombre,
+      precio: parseFloat(newPlan.precio),
+      tipo_servicio_id: newPlan.tipo_id,
+      descripcion: newPlan.desc,
+      caracteristicas: newPlan.features.split('\n').map(f => f.trim()).filter(Boolean),
+    };
     try {
-      await planesApi.create({
-        nombre: newPlan.nombre,
-        precio: parseFloat(newPlan.precio),
-        tipo_servicio_id: newPlan.tipo_id,
-        descripcion: newPlan.desc,
-        caracteristicas: newPlan.features.split('\n').filter(Boolean),
-      });
-      showToast('Plan Creado', 'El plan ha sido registrado.', 'success');
+      if (editingPlanId) {
+        await planesApi.update(editingPlanId, data);
+        showToast('Plan Actualizado', 'Los cambios del plan fueron guardados.', 'success');
+      } else {
+        await planesApi.create(data);
+        showToast('Plan Creado', 'El plan ha sido registrado.', 'success');
+      }
       setShowPlanModal(false);
+      setEditingPlanId(null);
       setNewPlan({ nombre: '', precio: '', tipo_id: tiposServicio[0]?.id || '', desc: '', features: '' });
+      reloadPlanes();
     } catch (err: any) {
       showToast('Error', err.message, 'error');
+    }
+  };
+
+  // El backend no borra planes (tienen solicitudes y carritos asociados): los desactiva y dejan de mostrarse
+  const handleTogglePlan = async (plan: any) => {
+    try {
+      if (plan.activo) {
+        if (!window.confirm(`¿Quitar el plan "${plan.nombre}"? Dejará de mostrarse a los clientes.`)) return;
+        await planesApi.delete(plan.id);
+        showToast('Plan Quitado', `"${plan.nombre}" ya no es visible para los clientes.`, 'success');
+      } else {
+        await planesApi.update(plan.id, { activo: true });
+        showToast('Plan Reactivado', `"${plan.nombre}" vuelve a estar visible.`, 'success');
+      }
+      reloadPlanes();
+    } catch (err: any) {
+      showToast('Error', err.message || 'No se pudo actualizar el plan.', 'error');
     }
   };
 
@@ -476,7 +539,7 @@ export const AdminPanel: React.FC = () => {
 
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setShowPlanModal(true)}
+            onClick={openCreatePlan}
             className="px-4 py-2.5 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-bold text-xs uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer shadow"
           >
             <Plus className="w-4 h-4" />
@@ -507,6 +570,7 @@ export const AdminPanel: React.FC = () => {
         {[
           { id: 'solicitudes', label: 'Solicitudes', icon: ClipboardList, count: solicitudes.length },
           { id: 'mensajes', label: 'Mensajes de Clientes', icon: MessageSquare, count: conversations.reduce((a, c) => a + c.unreadCount, 0) },
+          { id: 'planes', label: 'Planes', icon: CreditCard, count: planes.filter(p => p.activo).length },
           { id: 'cms', label: 'CMS Institucional', icon: FileText },
           { id: 'resultados', label: 'Resultados & Portafolio', icon: TrendingUp, count: projects.length },
           { id: 'comentarios', label: 'Testimonios', icon: Star, count: allComentarios.length },
@@ -1103,15 +1167,99 @@ export const AdminPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Modal: Crear Plan */}
+      {/* TAB: Planes */}
+      {activeTab === 'planes' && (
+        <div className="p-6 rounded-2xl bg-[#1c1b1d] border border-white/5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-bold text-white font-display">Gestión de Planes</h3>
+              <p className="text-xs text-[#9a907c]">Edita los planes del catálogo o quítalos para que los clientes dejen de verlos.</p>
+            </div>
+            <button
+              onClick={openCreatePlan}
+              className="px-4 py-2 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-bold text-xs transition flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Nuevo Plan</span>
+            </button>
+          </div>
+
+          {planes.length === 0 ? (
+            <div className="py-10 text-center text-xs text-[#9a907c]">No hay planes registrados todavía.</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {planes.map(plan => {
+                const features = getPlanFeatures(plan);
+                return (
+                  <div
+                    key={plan.id}
+                    className={`p-5 rounded-2xl border flex flex-col gap-3 transition ${
+                      plan.activo ? 'bg-[#201f21] border-white/10' : 'bg-[#161617] border-white/5 opacity-60'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <span className="text-[10px] uppercase font-bold text-[#ffd56d] tracking-wider font-display">
+                          {plan.tipo_servicio?.nombre || 'Plan'}
+                        </span>
+                        <h4 className="text-sm font-bold text-white truncate">{plan.nombre}</h4>
+                      </div>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 border ${
+                          plan.activo
+                            ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                            : 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30'
+                        }`}
+                      >
+                        {plan.activo ? 'Visible' : 'Oculto'}
+                      </span>
+                    </div>
+
+                    <div className="text-xl font-extrabold text-white font-display">
+                      {plan.precio != null ? `$${parseFloat(plan.precio).toLocaleString('es-CO')}` : 'Personalizado'}
+                      {plan.precio != null && <span className="text-[10px] text-[#9a907c] font-semibold ml-1">COP</span>}
+                    </div>
+
+                    <p className="text-xs text-[#9a907c] line-clamp-2 min-h-[32px]">{plan.descripcion || 'Sin descripción'}</p>
+                    <span className="text-[11px] text-[#d1c5af]">{features.length} {features.length === 1 ? 'característica' : 'características'}</span>
+
+                    <div className="flex gap-2 pt-3 mt-auto border-t border-white/5">
+                      <button
+                        onClick={() => openEditPlan(plan)}
+                        className="flex-1 py-2 rounded-lg bg-[#2a2a2c] hover:bg-[#353437] text-white text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => handleTogglePlan(plan)}
+                        className={`flex-1 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer border ${
+                          plan.activo
+                            ? 'text-rose-400 border-rose-500/30 hover:bg-rose-500/10'
+                            : 'text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10'
+                        }`}
+                      >
+                        {plan.activo ? <Trash2 className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        {plan.activo ? 'Quitar' : 'Reactivar'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Modal: Crear / Editar Plan */}
       {showPlanModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#1c1b1d] border border-[#ffd56d]/30 rounded-2xl max-w-md w-full p-6 text-left shadow-2xl relative text-xs">
             <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
-              <h3 className="text-base font-bold text-white font-display">Nuevo Plan Corporativo</h3>
+              <h3 className="text-base font-bold text-white font-display">{editingPlanId ? 'Editar Plan' : 'Nuevo Plan Corporativo'}</h3>
               <button onClick={() => setShowPlanModal(false)} className="text-[#9a907c] hover:text-white">✕</button>
             </div>
-            <form onSubmit={handleCreatePlan} className="space-y-3">
+            <form onSubmit={handleSavePlan} className="space-y-3">
               <div>
                 <label className="block text-zinc-300 font-semibold mb-1">Nombre</label>
                 <input
@@ -1170,7 +1318,7 @@ export const AdminPanel: React.FC = () => {
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setShowPlanModal(false)} className="px-4 py-2 rounded-xl text-zinc-400 hover:text-white">Cancelar</button>
-                <button type="submit" className="px-5 py-2 rounded-xl bg-[#ffd56d] text-[#3e2e00] font-bold cursor-pointer">Guardar</button>
+                <button type="submit" className="px-5 py-2 rounded-xl bg-[#ffd56d] text-[#3e2e00] font-bold cursor-pointer">{editingPlanId ? 'Guardar Cambios' : 'Guardar'}</button>
               </div>
             </form>
           </div>

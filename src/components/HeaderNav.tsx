@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { WuishLogo } from './WuishLogo';
@@ -11,29 +11,23 @@ import {
   Sliders,
   KeyRound,
   LayoutDashboard,
-  ClipboardList,
-  MessageSquare,
   CreditCard,
-  Calculator,
-  Settings
+  Calculator
 } from 'lucide-react';
 
-export type DashboardTab = 'resumen' | 'solicitudes' | 'mensajes' | 'cotizacion' | 'ajustes';
+export type DashboardTab = 'resumen' | 'planes' | 'cotizador' | 'ajustes';
 
 interface HeaderNavProps {
-  currentView: 'landing' | 'portal' | 'admin' | 'cotizador' | 'planes' | 'auth';
-  onSelectView: (view: 'landing' | 'portal' | 'admin' | 'cotizador' | 'planes' | 'auth') => void;
+  currentView: 'landing' | 'portal' | 'admin' | 'planes' | 'auth';
+  onSelectView: (view: 'landing' | 'portal' | 'admin' | 'planes' | 'auth') => void;
   activeDashboardTab?: DashboardTab;
   onSelectDashboardTab?: (tab: DashboardTab) => void;
-  onSelectCotizacionSubview?: (sub: 'planes' | 'cotizador') => void;
 }
 
 const DASHBOARD_TABS = [
   { id: 'resumen', label: 'Resumen', icon: LayoutDashboard },
-  { id: 'solicitudes', label: 'Solicitudes', icon: ClipboardList },
-  { id: 'mensajes', label: 'Mensajes', icon: MessageSquare },
-  { id: 'cotizacion', label: 'Planes & Cotización', icon: CreditCard },
-  { id: 'ajustes', label: 'Ajustes de Cuenta', icon: Settings },
+  { id: 'planes', label: 'Planes', icon: CreditCard },
+  { id: 'cotizador', label: 'Cotizador', icon: Calculator },
 ] as const;
 
 export const HeaderNav: React.FC<HeaderNavProps> = ({
@@ -41,7 +35,6 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
   onSelectView,
   activeDashboardTab = 'resumen',
   onSelectDashboardTab,
-  onSelectCotizacionSubview,
 }) => {
   const { user, isAuthenticated, currentRole, logout } = useAuth();
   const { showToast } = useToast();
@@ -54,29 +47,6 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [showCotizacionMenu, setShowCotizacionMenu] = useState(false);
-  const [cotizacionMenuPos, setCotizacionMenuPos] = useState({ top: 0, left: 0 });
-  const cotizacionBtnRef = useRef<HTMLButtonElement>(null);
-
-  const openCotizacionMenu = () => {
-    if (cotizacionBtnRef.current) {
-      const rect = cotizacionBtnRef.current.getBoundingClientRect();
-      setCotizacionMenuPos({ top: rect.bottom + 6, left: rect.left });
-    }
-    setShowCotizacionMenu(true);
-  };
-
-  // Cerrar al hacer click fuera
-  useEffect(() => {
-    if (!showCotizacionMenu) return;
-    const handler = (e: MouseEvent) => {
-      if (cotizacionBtnRef.current && !cotizacionBtnRef.current.contains(e.target as Node)) {
-        setShowCotizacionMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [showCotizacionMenu]);
 
   return (
     <header className="sticky top-0 left-0 right-0 z-40 bg-[#0e0e10]/95 backdrop-blur-xl border-b border-white/10 shadow-[0_1px_16px_rgba(0,0,0,0.5)]">
@@ -85,7 +55,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
         {/* Left: Brand Logo & Navigation Links */}
         <div className="flex items-center gap-4 lg:gap-8 overflow-hidden">
           <div
-            onClick={() => onSelectView('landing')}
+            onClick={() => onSelectView(isAuthenticated ? (isAdmin ? 'admin' : 'portal') : 'landing')}
             className="cursor-pointer transition-transform hover:scale-[1.02] shrink-0"
           >
             <WuishLogo size="md" />
@@ -93,82 +63,9 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
 
           {/* Navigation Links */}
           <nav className="flex items-center gap-1.5 text-xs font-medium py-1 relative">
-            <button
-              onClick={() => onSelectView('landing')}
-              className={`px-3 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                currentView === 'landing'
-                  ? 'bg-[#2a2a2c] text-[#ffd56d] font-semibold border border-[#ffd56d]/30 shadow-sm'
-                  : 'text-[#d1c5af] hover:text-white hover:bg-white/5'
-              }`}
-            >
-              Inicio
-            </button>
-
             {isAuthenticated && (
               <>
                 {DASHBOARD_TABS.map(({ id, label, icon: Icon }) => {
-                  if (id === 'cotizacion') {
-                    const isActive = currentView === 'portal' && activeDashboardTab === 'cotizacion';
-                    return (
-                      <React.Fragment key={id}>
-                        <button
-                          ref={cotizacionBtnRef}
-                          onClick={() => showCotizacionMenu ? setShowCotizacionMenu(false) : openCotizacionMenu()}
-                          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                            isActive
-                              ? 'bg-[#ffd56d] text-[#3e2e00] font-bold shadow-sm'
-                              : 'text-[#d1c5af] hover:text-white hover:bg-white/5'
-                          }`}
-                        >
-                          <Icon className="w-3.5 h-3.5" />
-                          <span>{label}</span>
-                          <ChevronDown className={`w-3 h-3 ml-0.5 transition-transform duration-200 ${showCotizacionMenu ? 'rotate-180' : ''}`} />
-                        </button>
-
-                        {showCotizacionMenu && (
-                          <div
-                            style={{ position: 'fixed', top: cotizacionMenuPos.top, left: cotizacionMenuPos.left, zIndex: 9999 }}
-                            className="w-52 rounded-xl bg-[#1c1b1d] border border-[#ffd56d]/20 shadow-2xl overflow-hidden"
-                          >
-                            <button
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onClick={() => {
-                                setShowCotizacionMenu(false);
-                                onSelectDashboardTab?.('cotizacion');
-                                onSelectView('portal');
-                                onSelectCotizacionSubview?.('planes');
-                              }}
-                              className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-[#d1c5af] hover:bg-[#2a2a2c] hover:text-white transition cursor-pointer"
-                            >
-                              <CreditCard className="w-3.5 h-3.5 text-[#ffd56d]" />
-                              <div className="text-left">
-                                <div className="font-semibold">Ver Planes</div>
-                                <div className="text-[10px] text-[#9a907c]">Catálogo de soluciones</div>
-                              </div>
-                            </button>
-                            <div className="border-t border-white/5" />
-                            <button
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onClick={() => {
-                                setShowCotizacionMenu(false);
-                                onSelectDashboardTab?.('cotizacion');
-                                onSelectView('portal');
-                                onSelectCotizacionSubview?.('cotizador');
-                              }}
-                              className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-[#d1c5af] hover:bg-[#2a2a2c] hover:text-white transition cursor-pointer"
-                            >
-                              <Calculator className="w-3.5 h-3.5 text-[#ffd56d]" />
-                              <div className="text-left">
-                                <div className="font-semibold">Cotizador Inteligente</div>
-                                <div className="text-[10px] text-[#9a907c]">Presupuesto en tiempo real</div>
-                              </div>
-                            </button>
-                          </div>
-                        )}
-                      </React.Fragment>
-                    );
-                  }
-
                   const isActive = currentView === 'portal' && activeDashboardTab === id;
                   return (
                     <button
@@ -205,8 +102,6 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
               </>
             )}
 
-
-
           </nav>
         </div>
 
@@ -214,6 +109,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
         <div className="flex items-center gap-3 shrink-0">
           
           {/* Notifications Trigger */}
+          {isAuthenticated && (
           <div className="relative">
             <button
               type="button"
@@ -236,6 +132,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
               </div>
             )}
           </div>
+          )}
 
           {/* User Profile Avatar & Menu */}
           {isAuthenticated && user ? (

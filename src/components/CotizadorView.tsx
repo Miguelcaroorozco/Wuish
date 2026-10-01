@@ -17,7 +17,9 @@ import {
   Headphones,
   Sliders,
   CheckCircle2,
-  Check
+  Check,
+  Trash2,
+  X
 } from 'lucide-react';
 
 interface CotizadorViewProps {
@@ -61,8 +63,23 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
   const [challenge, setChallenge] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Servicios marcados en el resumen para eliminarlos en bloque
+  const [markedForRemoval, setMarkedForRemoval] = useState<string[]>([]);
+
   const toggleService = (id: string) => {
     setSelectedServiceIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+    setMarkedForRemoval((prev) => prev.filter((item) => item !== id));
+  };
+
+  const removeServices = (ids: string[]) => {
+    setSelectedServiceIds((prev) => prev.filter((item) => !ids.includes(item)));
+    setMarkedForRemoval((prev) => prev.filter((item) => !ids.includes(item)));
+  };
+
+  const toggleMarked = (id: string) => {
+    setMarkedForRemoval((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
   };
@@ -274,7 +291,7 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
               </span>
             </div>
 
-            <form onSubmit={handleSubmitDossier} className="space-y-4 text-xs">
+            <form id="quoteForm" onSubmit={handleSubmitDossier} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[11px] font-semibold uppercase text-[#9a907c] mb-1">Nombre Completo *</label>
@@ -343,17 +360,7 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
                 </div>
               </div>
 
-              <div className="pt-3 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <span className="text-xs text-[#9a907c]">Información protegida bajo estricta confidencialidad.</span>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-8 py-3 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-bold text-xs transition shadow-lg shadow-[#ffd56d]/15 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  <span>{isSubmitting ? 'Enviando...' : 'Enviar Solicitud y Recibir Propuesta'}</span>
-                  <Send className="w-4 h-4" />
-                </button>
-              </div>
+              <p className="pt-3 text-xs text-[#9a907c]">Información protegida bajo estricta confidencialidad.</p>
             </form>
           </section>
 
@@ -378,17 +385,70 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
             </div>
 
             <div>
-              <span className="text-[10px] uppercase font-bold text-[#9a907c] block mb-2 font-display">
-                SERVICIOS ACTIVOS ({selectedServices.length})
-              </span>
-              <div className="space-y-1.5 max-h-48 overflow-y-auto text-xs">
-                {selectedServices.map((item) => (
-                  <div key={item.id} className="p-2 rounded-lg bg-[#201f21] flex items-center justify-between">
-                    <span className="text-zinc-200 truncate pr-2">{item.name}</span>
-                    <span className="text-[#ffd56d] font-mono font-semibold">${item.basePrice.toLocaleString()}</span>
-                  </div>
-                ))}
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] uppercase font-bold text-[#9a907c] font-display">
+                  SERVICIOS ACTIVOS ({selectedServices.length})
+                </span>
+                {selectedServices.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => removeServices(selectedServiceIds)}
+                    className="text-[10px] font-semibold text-rose-400 hover:text-rose-300 transition cursor-pointer"
+                  >
+                    Quitar todo
+                  </button>
+                )}
               </div>
+
+              {selectedServices.length === 0 ? (
+                <div className="p-4 rounded-lg bg-[#201f21] text-center text-[11px] text-[#9a907c]">
+                  No hay servicios en la cotización. Selecciónalos en el Paso 01.
+                </div>
+              ) : (
+                <div className="space-y-1.5 max-h-56 overflow-y-auto text-xs">
+                  {selectedServices.map((item) => {
+                    const isMarked = markedForRemoval.includes(item.id);
+                    return (
+                      <div
+                        key={item.id}
+                        className={`p-2 rounded-lg flex items-center gap-2 border transition ${
+                          isMarked ? 'bg-rose-500/10 border-rose-500/40' : 'bg-[#201f21] border-transparent'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isMarked}
+                          onChange={() => toggleMarked(item.id)}
+                          aria-label={`Seleccionar ${item.name} para eliminar`}
+                          className="w-3.5 h-3.5 shrink-0 accent-rose-500 cursor-pointer"
+                        />
+                        <span className="text-zinc-200 truncate flex-1 min-w-0">{item.name}</span>
+                        <span className="text-[#ffd56d] font-mono font-semibold">${item.basePrice.toLocaleString()}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeServices([item.id])}
+                          title="Eliminar de la cotización"
+                          aria-label={`Eliminar ${item.name}`}
+                          className="p-1 rounded-md text-[#9a907c] hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer shrink-0"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {markedForRemoval.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => removeServices(markedForRemoval)}
+                  className="mt-2 w-full py-2 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-[11px] font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Eliminar seleccionados ({markedForRemoval.length})
+                </button>
+              )}
             </div>
 
             <div className="p-3 rounded-xl bg-[#201f21] flex items-center justify-between text-xs">
@@ -396,12 +456,16 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
               <span className="text-[#ffd56d] font-bold font-mono">{totalMultiplier.toFixed(2)}x</span>
             </div>
 
-            <a
-              href="#quoteRequestForm"
-              className="w-full block text-center py-3 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-bold text-xs uppercase tracking-wider transition shadow-md"
+            {/* Único botón de envío: envía el formulario del Paso 03 (id="quoteForm") */}
+            <button
+              type="submit"
+              form="quoteForm"
+              disabled={isSubmitting || selectedServices.length === 0}
+              className="w-full py-3 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-bold text-xs uppercase tracking-wider transition shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Completar y Enviar
-            </a>
+              <span>{isSubmitting ? 'Enviando...' : 'Completar y Enviar'}</span>
+              <Send className="w-4 h-4" />
+            </button>
           </div>
         </div>
 

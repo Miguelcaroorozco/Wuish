@@ -11,26 +11,20 @@ import {
   Send,
   PlusCircle,
   FolderKanban,
-  CreditCard,
-  Calculator,
   User,
   Tag
 } from 'lucide-react';
 
-export type DashboardTab = 'resumen' | 'solicitudes' | 'mensajes' | 'cotizacion' | 'ajustes';
+export type DashboardTab = 'resumen' | 'planes' | 'cotizador' | 'ajustes';
 
 interface ClientDashboardProps {
   activeTab?: DashboardTab;
   onTabChange?: (tab: DashboardTab) => void;
-  cotizacionSubview?: 'planes' | 'cotizador' | null;
-  onCotizacionSubviewChange?: (sub: 'planes' | 'cotizador' | null) => void;
 }
 
 export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   activeTab: controlledTab,
   onTabChange,
-  cotizacionSubview: externalSubview,
-  onCotizacionSubviewChange,
 }) => {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -48,7 +42,6 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const [messages, setMessages] = useState<any[]>([]);
   const [chatInput, setChatInput] = useState('');
   const chatBottomRef = useRef<HTMLDivElement>(null);
-  const mainChatBottomRef = useRef<HTMLDivElement>(null);
 
   // Modal nueva solicitud
   const [showNewReqModal, setShowNewReqModal] = useState(false);
@@ -61,14 +54,6 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const [ajustesApellidos, setAjustesApellidos] = useState(user?.apellidos || '');
   const [ajustesTelefono, setAjustesTelefono] = useState(user?.telefono || '');
   const [ajustesSaving, setAjustesSaving] = useState(false);
-
-  // Cotización subview — controlled from App.tsx when coming from HeaderNav dropdown
-  const [internalCotizadorSubview, setInternalCotizadorSubview] = useState<'planes' | 'cotizador' | null>(null);
-  const cotizadorSubview = externalSubview !== undefined ? externalSubview : internalCotizadorSubview;
-  const setCotizadorSubview = (val: 'planes' | 'cotizador' | null) => {
-    setInternalCotizadorSubview(val);
-    onCotizacionSubviewChange?.(val);
-  };
 
   useEffect(() => {
     loadData();
@@ -92,10 +77,15 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
     };
   }, []);
 
+  // Desplaza solo la caja del chat (no la página) y solo cuando llegan mensajes nuevos;
+  // scrollIntoView movía toda la página hacia abajo en cada sondeo de 4 s
+  const lastMessageCount = useRef(0);
   useEffect(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    mainChatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (messages.length === lastMessageCount.current) return;
+    lastMessageCount.current = messages.length;
+    const box = chatBottomRef.current?.parentElement;
+    if (box) box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
+  }, [messages, activeTab]);
 
   const loadData = async () => {
     try {
@@ -463,161 +453,22 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
         </div>
       )}
 
-      {/* ===== TAB: SOLICITUDES ===== */}
-      {activeTab === 'solicitudes' && (
-        <div className="space-y-4 animate-in fade-in duration-200">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-bold text-white font-display">Solicitudes &amp; Requerimientos</h2>
-              <p className="text-xs text-[#9a907c] mt-0.5">Gestiona tus cotizaciones y solicitudes de servicio.</p>
-            </div>
-            <button
-              onClick={() => setShowNewReqModal(true)}
-              className="px-4 py-2.5 rounded-xl bg-[#ffd56d] text-[#3e2e00] font-bold text-xs flex items-center gap-2 cursor-pointer hover:bg-[#ffdf97] transition shadow-sm"
-            >
-              <PlusCircle className="w-4 h-4" />
-              <span>Nueva Solicitud</span>
-            </button>
-          </div>
-
-          <div className="rounded-2xl bg-[#1c1b1d] border border-white/5 p-6 shadow-xl">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="text-[11px] uppercase font-semibold text-[#9a907c] tracking-wider border-b border-white/5">
-                  <tr>
-                    <th className="pb-3 pr-4">Código</th>
-                    <th className="pb-3 pr-4">Tipo</th>
-                    <th className="pb-3 pr-4">Descripción</th>
-                    <th className="pb-3 pr-4">Fecha</th>
-                    <th className="pb-3 text-right">Estado</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {solicitudes.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="py-8 text-center text-[#9a907c]">No tienes solicitudes registradas.</td>
-                    </tr>
-                  ) : (
-                    solicitudes.map((s) => (
-                      <tr key={s.id} className="hover:bg-[#201f21]/70">
-                        <td className="py-3 pr-4 font-mono font-bold text-[#ffd56d]">#{s.id?.slice(0, 8)}</td>
-                        <td className="py-3 pr-4 font-semibold text-white capitalize">{s.tipo}</td>
-                        <td className="py-3 pr-4 text-[#d1c5af]">{s.descripcion || '—'}</td>
-                        <td className="py-3 pr-4 text-[#9a907c]">{new Date(s.created_at).toLocaleDateString('es-CO')}</td>
-                        <td className="py-3 text-right">
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-[#ffd56d]/15 text-[#ffd56d] border border-[#ffd56d]/30 capitalize">
-                            {s.estado}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+      {/* ===== TAB: PLANES ===== */}
+      {activeTab === 'planes' && (
+        <div className="animate-in fade-in duration-200">
+          <PlanesView onSelectPlan={() => setActiveTab('cotizador')} />
         </div>
       )}
 
-      {/* ===== TAB: MENSAJES ===== */}
-      {activeTab === 'mensajes' && (
-        <div className="space-y-4 animate-in fade-in duration-200">
-          <div>
-            <h2 className="text-xl font-bold text-white font-display">Buzón de Mensajes</h2>
-            <p className="text-xs text-[#9a907c] mt-0.5">Comunicación directa con el equipo WUISH.</p>
-          </div>
-
-          <div className="rounded-2xl bg-[#1c1b1d] border border-white/5 flex flex-col h-[520px]">
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-[#9a907c]">
-                  <MessageSquareText className="w-8 h-8 mb-2 opacity-30" />
-                  <p className="text-xs">No hay mensajes aún. Inicia la conversación.</p>
-                </div>
-              ) : (
-                messages.map((msg: any) => {
-                  const isFromMe = !msg.es_admin;
-                  return (
-                    <div key={msg.id} className={`flex gap-3 ${isFromMe ? 'flex-row-reverse' : ''}`}>
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                        isFromMe ? 'bg-[#ffd56d] text-[#3e2e00] shadow-sm' : 'bg-[#2a2a2c] text-[#ffd56d] border border-[#ffd56d]/30'
-                      }`}>
-                        {isFromMe ? (user?.nombres?.charAt(0) || 'U') : 'W'}
-                      </div>
-                      <div className="max-w-[75%]">
-                        <div className={`px-4 py-2.5 rounded-2xl text-xs leading-relaxed ${
-                          isFromMe
-                            ? 'bg-[#ffd56d] text-[#3e2e00] font-medium rounded-tr-sm shadow-sm'
-                            : 'bg-[#201f21] text-[#e5e1e4] border border-white/10 rounded-tl-sm'
-                        }`}>
-                          {msg.contenido || msg.text}
-                        </div>
-                        <div className={`flex items-center gap-1.5 mt-1 px-1 ${isFromMe ? 'justify-end' : ''}`}>
-                          <span className="text-[10px] text-[#ffd56d] font-semibold">{isFromMe ? 'Tú' : 'Equipo WUISH'}</span>
-                          <span className="text-[10px] text-[#9a907c]">• {msg.created_at ? new Date(msg.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-              <div ref={mainChatBottomRef} />
-            </div>
-            <div className="border-t border-white/5 p-4">
-              <form onSubmit={handleSendMessage} className="flex gap-3">
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Escribe tu mensaje al equipo WUISH..."
-                  className="flex-1 bg-[#0e0e10] text-[#e5e1e4] placeholder:text-[#9a907c]/60 px-4 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
-                />
-                <button
-                  type="submit"
-                  className="px-4 py-2.5 rounded-xl bg-[#ffd56d] text-[#3e2e00] font-bold text-xs flex items-center gap-2 cursor-pointer hover:bg-[#ffdf97] transition"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ===== TAB: PLANES & COTIZACIÓN ===== */}
-      {activeTab === 'cotizacion' && (
-        <div className="space-y-4 animate-in fade-in duration-200">
-
-          {/* Sin subvista seleccionada: mostrar selector */}
-          {!cotizadorSubview && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <button
-                onClick={() => setCotizadorSubview('planes')}
-                className="group rounded-2xl bg-[#1c1b1d] border border-white/5 hover:border-[#ffd56d]/40 p-8 text-center transition-all cursor-pointer hover:bg-[#232224]"
-              >
-                <CreditCard className="w-10 h-10 text-[#ffd56d] mx-auto mb-4 group-hover:scale-110 transition-transform" />
-                <div className="text-white font-bold text-base mb-1">Ver Planes</div>
-                <div className="text-xs text-[#9a907c]">Catálogo de soluciones corporativas</div>
-              </button>
-              <button
-                onClick={() => setCotizadorSubview('cotizador')}
-                className="group rounded-2xl bg-[#1c1b1d] border border-white/5 hover:border-[#ffd56d]/40 p-8 text-center transition-all cursor-pointer hover:bg-[#232224]"
-              >
-                <Calculator className="w-10 h-10 text-[#ffd56d] mx-auto mb-4 group-hover:scale-110 transition-transform" />
-                <div className="text-white font-bold text-base mb-1">Cotizador Inteligente</div>
-                <div className="text-xs text-[#9a907c]">Presupuesto en tiempo real</div>
-              </button>
-            </div>
-          )}
-
-          {cotizadorSubview === 'planes' && (
-            <PlanesView onSelectPlan={() => setCotizadorSubview('cotizador')} />
-          )}
-
-          {cotizadorSubview === 'cotizador' && (
-            <CotizadorView onSuccessSubmit={() => {}} />
-          )}
-
+      {/* ===== TAB: COTIZADOR ===== */}
+      {activeTab === 'cotizador' && (
+        <div className="animate-in fade-in duration-200">
+          <CotizadorView
+            onSuccessSubmit={() => {
+              loadData();
+              setActiveTab('resumen');
+            }}
+          />
         </div>
       )}
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const SPRING = { type: 'spring', stiffness: 220, damping: 30, mass: 0.9 } as const;
 // Con menos tarjetas se repite la lista, así el salto de un extremo al otro ocurre fuera de vista
@@ -14,6 +15,8 @@ interface CoverflowCarouselProps<T> {
   /** Avance automático en ms; se pausa al pasar el mouse o al arrastrar. */
   autoplay?: number;
   ariaLabel?: string;
+  /** Muestra flechas y puntos indicadores debajo del carrusel. */
+  controls?: boolean;
 }
 
 export function CoverflowCarousel<T>({
@@ -23,6 +26,7 @@ export function CoverflowCarousel<T>({
   initialIndex = 0,
   autoplay = 4000,
   ariaLabel = 'Carrusel',
+  controls = false,
 }: CoverflowCarouselProps<T>) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dragged = useRef(false);
@@ -71,7 +75,16 @@ export function CoverflowCarousel<T>({
     else if (e.key === 'ArrowLeft') setIndex((i) => i - 1);
   };
 
-  return (
+  const activeItem = count ? ((index % count) + count) % count : 0;
+  // Lleva al elemento `target` por el camino más corto
+  const goTo = (target: number) => {
+    let d = target - activeItem;
+    if (d > count / 2) d -= count;
+    if (d < -count / 2) d += count;
+    setIndex((i) => i + d);
+  };
+
+  const carousel = (
     <motion.div
       ref={containerRef}
       role="region"
@@ -79,8 +92,9 @@ export function CoverflowCarousel<T>({
       aria-label={ariaLabel}
       tabIndex={0}
       onKeyDown={onKeyDown}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      // Con controles, la pausa por hover la maneja el contenedor externo (incluye flechas y puntos)
+      onMouseEnter={controls ? undefined : () => setHovered(true)}
+      onMouseLeave={controls ? undefined : () => setHovered(false)}
       onPanStart={() => {
         if (!canSlide) return;
         dragged.current = true;
@@ -138,5 +152,38 @@ export function CoverflowCarousel<T>({
         );
       })}
     </motion.div>
+  );
+
+  if (!controls || !canSlide) return carousel;
+
+  const arrowClass =
+    'p-2.5 rounded-full bg-[#1c1b1d] border border-white/10 text-[#d1c5af] hover:text-[#3e2e00] hover:bg-[#ffd56d] hover:border-[#ffd56d] transition cursor-pointer';
+
+  return (
+    <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+      {carousel}
+      <div className="flex items-center justify-center gap-4 mt-2">
+        <button type="button" onClick={() => setIndex((i) => i - 1)} aria-label="Anterior" className={arrowClass}>
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <div className="flex items-center gap-1.5">
+          {items.map((item, i) => (
+            <button
+              key={getKey(item)}
+              type="button"
+              onClick={() => goTo(i)}
+              aria-label={`Ir al elemento ${i + 1}`}
+              aria-current={i === activeItem}
+              className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                i === activeItem ? 'w-6 bg-[#ffd56d]' : 'w-1.5 bg-white/20 hover:bg-white/40'
+              }`}
+            />
+          ))}
+        </div>
+        <button type="button" onClick={() => setIndex((i) => i + 1)} aria-label="Siguiente" className={arrowClass}>
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
   );
 }

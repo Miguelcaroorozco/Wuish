@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { planesApi, carritoApi } from '../lib/api';
+import { CoverflowCarousel } from './CoverflowCarousel';
 import {
   Check,
   Zap,
@@ -42,6 +43,9 @@ export const PlanesView: React.FC<PlanesViewProps> = ({ onSelectPlan }) => {
       showToast('Error', err.message || 'No se pudo agregar al carrito', 'error');
     }
   };
+
+  // El plan del medio es el recomendado y el carrusel arranca en él
+  const featuredIndex = Math.floor(planes.length / 2);
 
   const formatPrice = (precio: any) => {
     if (!precio) return 'Personalizado';
@@ -85,18 +89,23 @@ export const PlanesView: React.FC<PlanesViewProps> = ({ onSelectPlan }) => {
           <p className="text-sm text-[#9a907c] mt-1">Estamos preparando nuestras soluciones. ¡Vuelve pronto!</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 items-stretch">
-          {planes.map((p, idx) => {
+        <CoverflowCarousel
+          items={planes}
+          getKey={(p: any) => String(p.id)}
+          initialIndex={featuredIndex}
+          autoplay={4500}
+          controls
+          ariaLabel="Planes disponibles"
+          renderItem={(p: any, active) => {
             const features = getFeatures(p);
-            const isFeatured = idx === Math.floor(planes.length / 2);
+            const isFeatured = planes.indexOf(p) === featuredIndex;
 
             return (
               <div
-                key={p.id}
-                className={`p-7 rounded-2xl flex flex-col justify-between transition-all duration-200 relative ${
+                className={`w-full p-7 rounded-2xl flex flex-col justify-between transition-colors duration-200 relative ${
                   isFeatured
-                    ? 'bg-[#201f21] border-2 border-[#ffd56d] shadow-2xl shadow-[#ffd56d]/10 transform lg:-translate-y-2'
-                    : 'bg-[#1c1b1d] border border-white/5 hover:border-white/20'
+                    ? 'bg-[#201f21] border-2 border-[#ffd56d] shadow-2xl shadow-[#ffd56d]/10'
+                    : `bg-[#1c1b1d] border ${active ? 'border-[#ffd56d]/40' : 'border-white/5'}`
                 }`}
               >
                 {isFeatured && (
@@ -136,7 +145,7 @@ export const PlanesView: React.FC<PlanesViewProps> = ({ onSelectPlan }) => {
                 <div className="mt-8 pt-4 border-t border-white/5 space-y-2">
                   <button
                     onClick={() => {
-                      showToast(`Plan Seleccionado: ${p.nombre}`, 'Cargando configurador...');
+                      if (isAuthenticated) showToast(`Plan Seleccionado: ${p.nombre}`, 'Cargando configurador...');
                       onSelectPlan(p.id);
                     }}
                     className={`w-full py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer ${
@@ -159,8 +168,8 @@ export const PlanesView: React.FC<PlanesViewProps> = ({ onSelectPlan }) => {
                 </div>
               </div>
             );
-          })}
-        </div>
+          }}
+        />
       )}
 
       {/* Trust & Guarantee Box */}
