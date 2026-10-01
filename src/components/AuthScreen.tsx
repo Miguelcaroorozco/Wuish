@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { WuishLogo } from './WuishLogo';
-import { motion, AnimatePresence } from 'motion/react';
 import {
   Mail,
   Lock,
@@ -14,26 +13,34 @@ import {
   Terminal,
   Compass,
   BarChart3,
-  UserCheck,
   KeyRound,
   Phone,
-  User,
-  FileBadge
+  UserCheck
 } from 'lucide-react';
 
 interface AuthScreenProps {
   onSuccess?: () => void;
-  onSuccessAuth?: () => void;
+  onSuccessAuth?: (role: string) => void;
   isModal?: boolean;
-  initialTab?: 'login' | 'register';
 }
 
-export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth, isModal = false, initialTab = 'login' }) => {
+const PILLARS = [
+  { icon: Megaphone, title: 'Comunicación', desc: 'Narrativas corporativas de alto impacto y reputación.' },
+  { icon: Terminal, title: 'Tecnología', desc: 'Infraestructura escalable y arquitecturas digitales sólidas.' },
+  { icon: Compass, title: 'Estrategia', desc: 'Modelos de negocio ágiles orientados a expansión real.' },
+  { icon: BarChart3, title: 'Datos & Analítica', desc: 'Métricas de rendimiento y decisiones estratégicas en tiempo real.' },
+];
+
+export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth, isModal = false }) => {
+  const handleSuccess = (role: string) => {
+    if (onSuccess) onSuccess();
+    if (onSuccessAuth) onSuccessAuth(role);
+  };
   const { login, register, resetPassword } = useAuth();
   const { showToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<'login' | 'register'>(initialTab);
-
+  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  
   // Login form state
   const [loginUser, setLoginUser] = useState('');
   const [loginPwd, setLoginPwd] = useState('');
@@ -44,11 +51,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth
   // Register form state
   const [regFirstName, setRegFirstName] = useState('');
   const [regLastName, setRegLastName] = useState('');
-  const [regDocType, setRegDocType] = useState('RUC');
+  const [regDocType, setRegDocType] = useState('CC');
   const [regDocNumber, setRegDocNumber] = useState('');
   const [regPhone, setRegPhone] = useState('');
   const [regEmail, setRegEmail] = useState('');
-  const [regCompany, setRegCompany] = useState('');
+  const [regBirthDate, setRegBirthDate] = useState('');
   const [regPwd, setRegPwd] = useState('');
   const [regConfirmPwd, setRegConfirmPwd] = useState('');
   const [showRegPwd, setShowRegPwd] = useState(false);
@@ -57,7 +64,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth
   // Forgot password modal state
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
-
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,11 +74,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth
 
     setIsSubmitting(true);
     try {
-      const res = await login(loginUser, loginPwd, rememberMe);
+      const res = await login(loginUser, loginPwd);
       if (res.success) {
         showToast('Acceso Concedido', res.message, 'success');
-        if (onSuccessAuth) onSuccessAuth();
-        if (onSuccess) onSuccess();
+        handleSuccess(res.role || 'usuario');
       } else {
         showToast('Acceso Denegado', res.message, 'error');
       }
@@ -101,23 +106,24 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth
     setIsSubmitting(true);
     try {
       const res = await register({
-        firstName: regFirstName,
-        lastName: regLastName,
-        docType: regDocType,
-        docNumber: regDocNumber,
-        phone: regPhone,
-        email: regEmail,
-        company: regCompany || `${regLastName} Holdings`,
+        nombres: regFirstName,
+        apellidos: regLastName,
+        tipo_documento: regDocType,
+        numero_cedula: regDocNumber,
+        telefono: regPhone,
+        correo: regEmail,
+        fecha_nacimiento: regBirthDate,
         password: regPwd,
       });
 
       if (res.success) {
         showToast('Registro Exitoso', res.message, 'success');
-        if (onSuccessAuth) onSuccessAuth();
-        if (onSuccess) onSuccess();
+        handleSuccess(res.role || 'usuario');
+      } else {
+        showToast('Error de Registro', res.message, 'error');
       }
     } catch {
-      showToast('Error de Registro', 'No se pudo completar el registro corporativo', 'error');
+      showToast('Error', 'No se pudo procesar la solicitud de registro', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -133,45 +139,58 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth
   };
 
   return (
-    <div className={`w-full ${isModal ? 'p-0' : 'min-h-[calc(100svh-80px)] p-0 sm:p-6 lg:p-10 flex items-center justify-center'}`}>
+    <div className={`w-full ${isModal ? 'p-0' : 'min-h-[calc(100vh-80px)] p-4 sm:p-6 lg:p-10 flex items-center justify-center'}`}>
       <div className="w-full max-w-[1560px] mx-auto">
         <div className="w-full grid grid-cols-1 lg:grid-cols-12 rounded-2xl bg-[#0e0e10] border border-[#ffd56d]/20 overflow-hidden shadow-2xl relative">
-
-          {/* Top Decorative Horizon Line */}
+          
           <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#ffd56d] to-transparent opacity-80 pointer-events-none z-30" />
 
-          {/* LEFT PANE: Brand Presence & Transformation Pillars (Exact to Image 1) */}
-          <div className="lg:col-span-6 xl:col-span-7 bg-[#1c1b1d] px-5 py-8 sm:p-12 xl:p-16 flex flex-col justify-between gap-6 relative overflow-hidden">
-            {/* Ambient Atmospheric Glows */}
+          {/* LEFT PANE: Brand Showcase & Pillars */}
+          <div className="lg:col-span-6 xl:col-span-7 bg-[#1c1b1d] p-8 sm:p-12 xl:p-16 flex flex-col justify-between relative overflow-hidden">
             <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-[#ffd56d]/10 blur-[100px] pointer-events-none" />
-            <div className="absolute -bottom-40 right-0 w-[450px] h-[450px] rounded-full bg-[#e5b842]/5 blur-[120px] pointer-events-none" />
 
-            {/* Brand Header Section */}
-            <div className="relative z-10 flex flex-col items-center lg:items-start text-center lg:text-left space-y-4 sm:space-y-6">
-              {/* Logo & Geometric Brand Showcase */}
+            <div className="relative z-10 flex flex-col items-center lg:items-start text-center lg:text-left space-y-6">
               <div className="w-full flex justify-center lg:justify-start">
                 <WuishLogo size="hero" />
               </div>
 
-              {/* Slogan Badge with pulse */}
               <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-lg bg-[#353437]/60 backdrop-blur-md border border-[#ffd56d]/20 shadow-inner">
                 <span className="w-2 h-2 rounded-full bg-[#ffd56d] animate-pulse" />
-                <span className="text-[10px] sm:text-[11px] font-semibold text-[#ffd56d] tracking-[0.12em] sm:tracking-[0.2em] uppercase font-display">
+                <span className="text-[11px] font-semibold text-[#ffd56d] tracking-[0.2em] uppercase font-display">
                   WE UNITE IDEAS, STRATEGY &amp; HORIZONS
                 </span>
               </div>
 
-              {/* Dynamic Value Proposition Quote */}
-              <div className="pt-2 max-w-xl">
-                <p className="text-base sm:text-2xl text-[#e5e1e4] leading-snug font-medium font-display">
-                  “No te vendemos tecnología ni marketing. Analizamos tu negocio y construimos lo que necesitas para crecer.”
-                </p>
+              <p className="text-xl sm:text-2xl text-[#e5e1e4] leading-snug font-medium font-display max-w-xl">
+                “No te vendemos tecnología ni marketing. Analizamos tu negocio y construimos lo que necesitas para crecer.”
+              </p>
+            </div>
+
+            <div className="relative z-10 my-8 sm:my-10">
+              <div className="text-[11px] font-semibold text-[#9a907c] uppercase tracking-widest mb-4 flex items-center gap-2">
+                <span>Ecosistema de Transformación</span>
+                <span className="h-[1px] flex-1 bg-[#353437]" />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {PILLARS.map((p, idx) => {
+                  const Icon = p.icon;
+                  return (
+                    <div key={idx} className="p-4 rounded-xl bg-[#201f21]/80 border border-white/5 flex items-start space-x-3.5 group hover:bg-[#2a2a2c] hover:border-[#ffd56d]/30 transition-all duration-200">
+                      <div className="w-9 h-9 rounded-lg bg-[#ffd56d]/10 flex items-center justify-center shrink-0 text-[#ffd56d]">
+                        <Icon className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-sm font-semibold text-[#e5e1e4] block">{p.title}</span>
+                        <span className="text-xs text-[#d1c5af]/80 line-clamp-1">{p.desc}</span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
-
-            {/* Institutional Footer Signature */}
-            <div className="relative z-10 pt-4 hidden sm:flex items-center justify-between gap-3 text-xs text-[#9a907c] border-t border-white/5">
+            <div className="relative z-10 pt-4 flex items-center justify-between text-xs text-[#9a907c] border-t border-white/5">
               <span className="flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-[#ffd56d]" />
                 Portal Estratégico Institucional
@@ -182,18 +201,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth
             </div>
           </div>
 
-          {/* RIGHT PANE: Dual Tab Authentication Console (Exact to Image 1) */}
-          <div className="lg:col-span-6 xl:col-span-5 bg-[#201f21] px-5 py-6 sm:p-10 xl:p-12 flex flex-col justify-center relative">
-
-            {/* Tab Switcher Navigation */}
+          {/* RIGHT PANE: Dual Tab Form */}
+          <div className="lg:col-span-6 xl:col-span-5 bg-[#201f21] p-6 sm:p-10 xl:p-12 flex flex-col justify-center relative">
             <div className="w-full bg-[#0e0e10] p-1 rounded-xl mb-7 flex items-center relative border border-white/5">
               <button
                 type="button"
                 onClick={() => setActiveTab('login')}
-                className={`flex-1 py-3 px-2 sm:px-4 rounded-lg text-xs sm:text-sm font-semibold text-center transition-all duration-200 flex items-center justify-center gap-2 ${activeTab === 'login'
-                  ? 'bg-[#2a2a2c] text-[#ffd56d] shadow-sm border border-[#ffd56d]/30'
-                  : 'text-[#d1c5af] hover:text-white'
-                  }`}
+                className={`flex-1 py-3 px-4 rounded-lg text-sm font-semibold text-center transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  activeTab === 'login'
+                    ? 'bg-[#2a2a2c] text-[#ffd56d] shadow-sm border border-[#ffd56d]/30'
+                    : 'text-[#d1c5af] hover:text-white'
+                }`}
               >
                 <KeyRound className="w-4 h-4" />
                 <span>Iniciar Sesión</span>
@@ -201,20 +219,20 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth
               <button
                 type="button"
                 onClick={() => setActiveTab('register')}
-                className={`flex-1 py-3 px-2 sm:px-4 rounded-lg text-xs sm:text-sm font-semibold text-center transition-all duration-200 flex items-center justify-center gap-2 ${activeTab === 'register'
-                  ? 'bg-[#2a2a2c] text-[#ffd56d] shadow-sm border border-[#ffd56d]/30'
-                  : 'text-[#d1c5af] hover:text-white'
-                  }`}
+                className={`flex-1 py-3 px-4 rounded-lg text-sm font-semibold text-center transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  activeTab === 'register'
+                    ? 'bg-[#2a2a2c] text-[#ffd56d] shadow-sm border border-[#ffd56d]/30'
+                    : 'text-[#d1c5af] hover:text-white'
+                }`}
               >
                 <UserCheck className="w-4 h-4" />
                 <span>Crear Cuenta</span>
               </button>
             </div>
 
-            {/* PANE 1: LOGIN FORM */}
-            <AnimatePresence mode="wait" initial={false}>
+            {/* TAB: LOGIN */}
             {activeTab === 'login' && (
-              <motion.div key="login" initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 24 }} transition={{ duration: 0.25 }} className="space-y-6">
+              <div className="space-y-6 animate-in fade-in duration-200">
                 <div>
                   <h2 className="text-2xl font-semibold text-[#e5e1e4] font-display tracking-tight">
                     Bienvenido al Ecosistema
@@ -225,35 +243,32 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth
                 </div>
 
                 <form className="space-y-4" onSubmit={handleLoginSubmit}>
-                  {/* Email / Username */}
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-[#e5e1e4] uppercase tracking-wider" htmlFor="login-user">
+                    <label className="block text-xs font-semibold text-[#e5e1e4] uppercase tracking-wider">
                       Usuario o Correo Corporativo
                     </label>
                     <div className="relative flex items-center">
                       <Mail className="absolute left-3.5 text-[#9a907c] w-5 h-5 pointer-events-none" />
                       <input
-                        id="login-user"
                         type="text"
                         required
                         value={loginUser}
                         onChange={(e) => setLoginUser(e.target.value)}
                         placeholder="contacto@empresa.com"
-                        className="w-full bg-[#0e0e10] text-[#e5e1e4] placeholder:text-[#9a907c]/70 pl-11 pr-4 py-3 rounded-xl border border-white/10 focus:border-[#ffd56d]/60 focus:outline-none focus:bg-[#1c1b1d] transition-all text-sm shadow-inner"
+                        className="w-full bg-[#0e0e10] text-[#e5e1e4] placeholder:text-[#9a907c]/70 pl-11 pr-4 py-3 rounded-xl border border-white/10 focus:border-[#ffd56d]/60 focus:outline-none text-sm shadow-inner"
                       />
                     </div>
                   </div>
 
-                  {/* Password */}
                   <div className="space-y-1.5">
-                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                      <label className="block text-xs font-semibold text-[#e5e1e4] uppercase tracking-wider" htmlFor="login-pwd">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-semibold text-[#e5e1e4] uppercase tracking-wider">
                         Contraseña
                       </label>
                       <button
                         type="button"
                         onClick={() => setShowForgotModal(true)}
-                        className="text-xs text-[#ffd56d] hover:underline"
+                        className="text-xs text-[#ffd56d] hover:underline cursor-pointer"
                       >
                         ¿Olvidaste tu contraseña?
                       </button>
@@ -261,54 +276,50 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth
                     <div className="relative flex items-center">
                       <Lock className="absolute left-3.5 text-[#9a907c] w-5 h-5 pointer-events-none" />
                       <input
-                        id="login-pwd"
                         type={showLoginPwd ? 'text' : 'password'}
                         required
                         value={loginPwd}
                         onChange={(e) => setLoginPwd(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full bg-[#0e0e10] text-[#e5e1e4] placeholder:text-[#9a907c]/70 pl-11 pr-11 py-3 rounded-xl border border-white/10 focus:border-[#ffd56d]/60 focus:outline-none focus:bg-[#1c1b1d] transition-all text-sm shadow-inner"
+                        className="w-full bg-[#0e0e10] text-[#e5e1e4] placeholder:text-[#9a907c]/70 pl-11 pr-11 py-3 rounded-xl border border-white/10 focus:border-[#ffd56d]/60 focus:outline-none text-sm shadow-inner"
                       />
                       <button
                         type="button"
                         onClick={() => setShowLoginPwd(!showLoginPwd)}
-                        className="absolute right-3.5 text-[#9a907c] hover:text-white transition-colors flex items-center justify-center p-1"
+                        className="absolute right-3.5 text-[#9a907c] hover:text-white flex items-center p-1 cursor-pointer"
                       >
                         {showLoginPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
                   </div>
 
-                  {/* Remember me toggle */}
                   <div className="flex items-center pt-1">
                     <label className="inline-flex items-center gap-2.5 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={rememberMe}
                         onChange={(e) => setRememberMe(e.target.checked)}
-                        className="w-4 h-4 rounded bg-[#0e0e10] border-white/20 text-[#ffd56d] focus:ring-0 cursor-pointer accent-[#ffd56d]"
+                        className="w-4 h-4 rounded bg-[#0e0e10] border-white/20 text-[#ffd56d] accent-[#ffd56d]"
                       />
                       <span className="text-xs text-[#d1c5af] select-none">Recordar esta estación por 30 días</span>
                     </label>
                   </div>
 
-                  {/* Submit Button */}
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full py-3.5 px-6 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-semibold text-sm transition-all duration-300 transform hover:brightness-105 hover:shadow-[0_0_24px_rgba(255,213,109,0.35)] flex items-center justify-center gap-2 mt-4 cursor-pointer disabled:opacity-50"
+                    className="w-full py-3.5 px-6 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-semibold text-sm transition-all flex items-center justify-center gap-2 mt-4 cursor-pointer disabled:opacity-50"
                   >
                     <span>{isSubmitting ? 'Verificando...' : 'Acceder a la Plataforma'}</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </form>
-
-              </motion.div>
+              </div>
             )}
 
-            {/* PANE 2: REGISTER FORM */}
+            {/* TAB: REGISTER */}
             {activeTab === 'register' && (
-              <motion.div key="register" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.25 }} className="space-y-4">
+              <div className="space-y-4 animate-in fade-in duration-200">
                 <div>
                   <h2 className="text-2xl font-semibold text-[#e5e1e4] font-display tracking-tight">
                     Crear Cuenta Corporativa
@@ -319,167 +330,164 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth
                 </div>
 
                 <form className="space-y-3" onSubmit={handleRegisterSubmit}>
-                  {/* Row 1: First and Last Name */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="block text-xs font-medium text-[#e5e1e4]" htmlFor="reg-name">Nombres *</label>
+                      <label className="block text-xs font-medium text-[#e5e1e4]">Nombres *</label>
                       <input
-                        id="reg-name"
                         type="text"
                         required
                         value={regFirstName}
                         onChange={(e) => setRegFirstName(e.target.value)}
                         placeholder="Nombres"
-                        className="w-full bg-[#0e0e10] text-[#e5e1e4] placeholder:text-[#9a907c]/70 px-3.5 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
+                        className="w-full bg-[#0e0e10] text-[#e5e1e4] px-3.5 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="block text-xs font-medium text-[#e5e1e4]" htmlFor="reg-lastname">Apellidos *</label>
+                      <label className="block text-xs font-medium text-[#e5e1e4]">Apellidos *</label>
                       <input
-                        id="reg-lastname"
                         type="text"
                         required
                         value={regLastName}
                         onChange={(e) => setRegLastName(e.target.value)}
                         placeholder="Apellidos"
-                        className="w-full bg-[#0e0e10] text-[#e5e1e4] placeholder:text-[#9a907c]/70 px-3.5 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
+                        className="w-full bg-[#0e0e10] text-[#e5e1e4] px-3.5 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
                       />
                     </div>
                   </div>
 
-                  {/* Row 2: Document Type and Number */}
                   <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
                     <div className="sm:col-span-5 space-y-1">
-                      <label className="block text-xs font-medium text-[#e5e1e4]" htmlFor="reg-doctype">Tipo Doc.</label>
+                      <label className="block text-xs font-medium text-[#e5e1e4]">Tipo Doc.</label>
                       <select
-                        id="reg-doctype"
                         value={regDocType}
                         onChange={(e) => setRegDocType(e.target.value)}
                         className="w-full bg-[#0e0e10] text-[#e5e1e4] px-3 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs cursor-pointer"
                       >
-                        <option value="RUC">RUC / Tax ID</option>
-                        <option value="DNI">DNI / Cédula</option>
-                        <option value="CE">Carné Extranjería</option>
+                        <option value="CC">Cédula de Ciudadanía</option>
+                        <option value="CE">Cédula de Extranjería</option>
+                        <option value="TI">Tarjeta de Identidad</option>
                         <option value="PAS">Pasaporte</option>
+                        <option value="NIT">NIT</option>
                       </select>
                     </div>
                     <div className="sm:col-span-7 space-y-1">
-                      <label className="block text-xs font-medium text-[#e5e1e4]" htmlFor="reg-docnumber">Número de Documento *</label>
+                      <label className="block text-xs font-medium text-[#e5e1e4]">Número de Documento *</label>
                       <input
-                        id="reg-docnumber"
                         type="text"
                         required
                         value={regDocNumber}
                         onChange={(e) => setRegDocNumber(e.target.value)}
                         placeholder="N° de identificación fiscal"
-                        className="w-full bg-[#0e0e10] text-[#e5e1e4] placeholder:text-[#9a907c]/70 px-3.5 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
+                        className="w-full bg-[#0e0e10] text-[#e5e1e4] px-3.5 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
                       />
                     </div>
                   </div>
 
-                  {/* Row 3: Phone & Corporate Email */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="block text-xs font-medium text-[#e5e1e4]" htmlFor="reg-phone">Teléfono WhatsApp *</label>
+                      <label className="block text-xs font-medium text-[#e5e1e4]">Teléfono WhatsApp *</label>
                       <div className="relative flex items-center">
                         <Phone className="absolute left-3 text-[#9a907c] w-4 h-4 pointer-events-none" />
                         <input
-                          id="reg-phone"
                           type="tel"
                           required
                           value={regPhone}
                           onChange={(e) => setRegPhone(e.target.value)}
                           placeholder="+1 234 567 8900"
-                          className="w-full bg-[#0e0e10] text-[#e5e1e4] placeholder:text-[#9a907c]/70 pl-9 pr-3 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
+                          className="w-full bg-[#0e0e10] text-[#e5e1e4] pl-9 pr-3 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
                         />
                       </div>
                     </div>
                     <div className="space-y-1">
-                      <label className="block text-xs font-medium text-[#e5e1e4]" htmlFor="reg-email">Correo Corporativo *</label>
+                      <label className="block text-xs font-medium text-[#e5e1e4]">Correo Corporativo *</label>
                       <div className="relative flex items-center">
                         <Mail className="absolute left-3 text-[#9a907c] w-4 h-4 pointer-events-none" />
                         <input
-                          id="reg-email"
                           type="email"
                           required
                           value={regEmail}
                           onChange={(e) => setRegEmail(e.target.value)}
                           placeholder="contacto@empresa.com"
-                          className="w-full bg-[#0e0e10] text-[#e5e1e4] placeholder:text-[#9a907c]/70 pl-9 pr-3 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
+                          className="w-full bg-[#0e0e10] text-[#e5e1e4] pl-9 pr-3 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
                         />
                       </div>
                     </div>
                   </div>
 
-                  {/* Company Name */}
                   <div className="space-y-1">
-                    <label className="block text-xs font-medium text-[#e5e1e4]" htmlFor="reg-company">Razón Social / Empresa</label>
+                    <label className="block text-xs font-medium text-[#e5e1e4]">Fecha de Nacimiento *</label>
                     <input
-                      id="reg-company"
-                      type="text"
-                      value={regCompany}
-                      onChange={(e) => setRegCompany(e.target.value)}
-                      placeholder="Nombre comercial o razón social"
-                      className="w-full bg-[#0e0e10] text-[#e5e1e4] placeholder:text-[#9a907c]/70 px-3.5 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
+                      type="date"
+                      required
+                      value={regBirthDate}
+                      onChange={(e) => setRegBirthDate(e.target.value)}
+                      className="w-full bg-[#0e0e10] text-[#e5e1e4] px-3.5 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
                     />
                   </div>
 
-                  {/* Row 4: Password and Confirmation */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="block text-xs font-medium text-[#e5e1e4]" htmlFor="reg-pwd">Contraseña *</label>
-                      <input
-                        id="reg-pwd"
-                        type={showRegPwd ? 'text' : 'password'}
-                        required
-                        value={regPwd}
-                        onChange={(e) => setRegPwd(e.target.value)}
-                        placeholder="Mín. 6 caracteres"
-                        className="w-full bg-[#0e0e10] text-[#e5e1e4] placeholder:text-[#9a907c]/70 px-3.5 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
-                      />
+                      <label className="block text-xs font-medium text-[#e5e1e4]">Contraseña *</label>
+                      <div className="relative flex items-center">
+                        <Lock className="absolute left-3 text-[#9a907c] w-4 h-4 pointer-events-none" />
+                        <input
+                          type={showRegPwd ? 'text' : 'password'}
+                          required
+                          value={regPwd}
+                          onChange={(e) => setRegPwd(e.target.value)}
+                          placeholder="Mínimo 6 caracteres"
+                          className="w-full bg-[#0e0e10] text-[#e5e1e4] pl-9 pr-8 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowRegPwd(!showRegPwd)}
+                          className="absolute right-2.5 text-[#9a907c] hover:text-white flex items-center p-1 cursor-pointer"
+                        >
+                          {showRegPwd ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
                     </div>
                     <div className="space-y-1">
-                      <label className="block text-xs font-medium text-[#e5e1e4]" htmlFor="reg-pwdconfirm">Confirmar Contraseña *</label>
-                      <input
-                        id="reg-pwdconfirm"
-                        type={showRegPwd ? 'text' : 'password'}
-                        required
-                        value={regConfirmPwd}
-                        onChange={(e) => setRegConfirmPwd(e.target.value)}
-                        placeholder="Repetir contraseña"
-                        className="w-full bg-[#0e0e10] text-[#e5e1e4] placeholder:text-[#9a907c]/70 px-3.5 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
-                      />
+                      <label className="block text-xs font-medium text-[#e5e1e4]">Confirmar *</label>
+                      <div className="relative flex items-center">
+                        <Lock className="absolute left-3 text-[#9a907c] w-4 h-4 pointer-events-none" />
+                        <input
+                          type={showRegPwd ? 'text' : 'password'}
+                          required
+                          value={regConfirmPwd}
+                          onChange={(e) => setRegConfirmPwd(e.target.value)}
+                          placeholder="Repite la clave"
+                          className="w-full bg-[#0e0e10] text-[#e5e1e4] pl-9 pr-3 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  {/* Checkbox Terms */}
-                  <div className="pt-2">
-                    <label className="flex items-start gap-2.5 cursor-pointer">
+                  <div className="pt-1">
+                    <label className="inline-flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={acceptedTerms}
                         onChange={(e) => setAcceptedTerms(e.target.checked)}
-                        className="w-4 h-4 mt-0.5 rounded bg-[#0e0e10] border-white/20 text-[#ffd56d] focus:ring-0 cursor-pointer accent-[#ffd56d] shrink-0"
+                        className="w-4 h-4 rounded bg-[#0e0e10] border-white/20 text-[#ffd56d] accent-[#ffd56d]"
                       />
-                      <span className="text-[11px] text-[#d1c5af] leading-tight select-none">
-                        Acepto los <span className="text-[#ffd56d] underline cursor-pointer" onClick={() => showToast('Términos & NDA', 'Políticas de confidencialidad y tratamiento de datos institucionales WUISH vigentes.')}>términos y condiciones</span> y el tratamiento confidencial de datos de la plataforma WUISH.
+                      <span className="text-xs text-[#d1c5af] select-none">
+                        Acepto los términos de servicio y políticas de confidencialidad
                       </span>
                     </label>
                   </div>
 
-                  {/* Register Submit Button */}
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full py-3.5 px-6 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-semibold text-sm transition-all duration-300 transform hover:brightness-105 hover:shadow-[0_0_24px_rgba(255,213,109,0.35)] flex items-center justify-center gap-2 pt-3 cursor-pointer disabled:opacity-50 mt-2"
+                    className="w-full py-3 px-6 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-semibold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 mt-3 cursor-pointer disabled:opacity-50"
                   >
-                    <span>{isSubmitting ? 'Registrando...' : 'Completar Registro Estratégico'}</span>
-                    <FileBadge className="w-4 h-4" />
+                    <span>{isSubmitting ? 'Registrando...' : 'Completar Registro'}</span>
+                    <ArrowRight className="w-4 h-4" />
                   </button>
                 </form>
-              </motion.div>
+              </div>
             )}
-            </AnimatePresence>
 
           </div>
         </div>
@@ -488,38 +496,31 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth
       {/* Forgot Password Modal */}
       {showForgotModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#1c1b1d] border border-[#ffd56d]/30 rounded-2xl max-w-md w-full p-6 text-left shadow-2xl relative">
-            <h3 className="text-lg font-bold text-white font-display">Recuperar Acceso Corporativo</h3>
-            <p className="text-xs text-[#d1c5af] mt-1.5 leading-relaxed">
-              Ingresa el correo corporativo vinculado a tu organización. Enviaremos un token seguro para restablecer tus credenciales.
-            </p>
-
-            <form onSubmit={handleForgotSubmit} className="mt-4 space-y-3">
-              <div>
-                <label className="block text-xs text-[#9a907c] mb-1">Correo Electrónico</label>
-                <input
-                  type="email"
-                  required
-                  value={forgotEmail}
-                  onChange={(e) => setForgotEmail(e.target.value)}
-                  placeholder="ejemplo@empresa.com"
-                  className="w-full bg-[#0e0e10] text-[#e5e1e4] px-3.5 py-2.5 rounded-xl border border-white/10 text-xs focus:outline-none focus:border-[#ffd56d]"
-                />
-              </div>
-
-              <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-2">
+          <div className="bg-[#1c1b1d] border border-[#ffd56d]/30 rounded-2xl max-w-md w-full p-6 text-left shadow-2xl relative text-xs">
+            <h3 className="text-base font-bold text-white font-display mb-1">Recuperar Contraseña</h3>
+            <p className="text-xs text-[#9a907c] mb-4">Ingresa tu correo para recibir las instrucciones de restablecimiento.</p>
+            <form onSubmit={handleForgotSubmit} className="space-y-3">
+              <input
+                type="email"
+                required
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                placeholder="tu@correo.com"
+                className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d] focus:outline-none"
+              />
+              <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowForgotModal(false)}
-                  className="px-4 py-2 rounded-lg text-xs text-zinc-400 hover:text-white"
+                  className="px-4 py-2 rounded-xl text-zinc-400 hover:text-white"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-[#ffd56d] text-[#3e2e00] font-semibold text-xs hover:bg-[#ffdf97]"
+                  className="px-5 py-2 rounded-xl bg-[#ffd56d] text-[#3e2e00] font-bold shadow-md cursor-pointer"
                 >
-                  Enviar Enlace
+                  Enviar
                 </button>
               </div>
             </form>

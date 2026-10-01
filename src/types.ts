@@ -67,7 +67,7 @@ export interface Testimonial {
   rating: number;
   text: string;
   date: string;
-  status: 'pending' | 'approved';
+  status: 'pending' | 'approved' | 'hidden';
 }
 
 export type ProjectCategory = 'comunicacion' | 'tecnologia';
@@ -83,3 +83,11 @@ export interface Project {
   link?: string;
   tags: string[];
 }
+
+export interface StatItem {
+  id: string;
+  value: number;
+  suffix: string;
+  label: string;
+}
+

@@ -1,220 +1,337 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { useContent } from '../context/ContentContext';
 import { WuishLogo } from './WuishLogo';
-import { LogOut, ChevronDown, ArrowLeft, LayoutDashboard, ShoppingCart, Settings, Layers } from 'lucide-react';
-import { UserRole } from '../types';
-import type { AuthTab, ViewMode } from '../App';
+import {
+  Bell,
+  LogOut,
+  ChevronDown,
+  Shield,
+  Briefcase,
+  Sliders,
+  KeyRound,
+  LayoutDashboard,
+  ClipboardList,
+  MessageSquare,
+  CreditCard,
+  Calculator,
+  Settings
+} from 'lucide-react';
+
+export type DashboardTab = 'resumen' | 'solicitudes' | 'mensajes' | 'cotizacion' | 'ajustes';
 
 interface HeaderNavProps {
-  currentView: ViewMode;
-  onSelectView: (view: ViewMode, tab?: AuthTab) => void;
-  onBack: () => void;
+  currentView: 'landing' | 'portal' | 'admin' | 'cotizador' | 'planes' | 'auth';
+  onSelectView: (view: 'landing' | 'portal' | 'admin' | 'cotizador' | 'planes' | 'auth') => void;
+  activeDashboardTab?: DashboardTab;
+  onSelectDashboardTab?: (tab: DashboardTab) => void;
+  onSelectCotizacionSubview?: (sub: 'planes' | 'cotizador') => void;
 }
 
-// Vistas secundarias: muestran "Volver" en lugar de navegación
-const SECONDARY_VIEWS: ViewMode[] = ['planes', 'cotizador', 'auth'];
+const DASHBOARD_TABS = [
+  { id: 'resumen', label: 'Resumen', icon: LayoutDashboard },
+  { id: 'solicitudes', label: 'Solicitudes', icon: ClipboardList },
+  { id: 'mensajes', label: 'Mensajes', icon: MessageSquare },
+  { id: 'cotizacion', label: 'Planes & Cotización', icon: CreditCard },
+  { id: 'ajustes', label: 'Ajustes de Cuenta', icon: Settings },
+] as const;
 
-const ROLE_LABELS: Record<UserRole, string> = {
-  client: 'Cliente',
-  admin: 'Admin',
-  consultant: 'Consultor',
-};
-
-export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onSelectView, onBack }) => {
-  const { user, isAuthenticated, currentRole, switchRole, logout } = useAuth();
-  const { cart } = useContent();
+export const HeaderNav: React.FC<HeaderNavProps> = ({
+  currentView,
+  onSelectView,
+  activeDashboardTab = 'resumen',
+  onSelectDashboardTab,
+  onSelectCotizacionSubview,
+}) => {
+  const { user, isAuthenticated, currentRole, logout } = useAuth();
   const { showToast } = useToast();
+
+  const isAdmin =
+    user?.rol?.toLowerCase() === 'admin' ||
+    user?.rol?.toLowerCase() === 'administrador' ||
+    currentRole?.toLowerCase() === 'admin' ||
+    currentRole?.toLowerCase() === 'administrador';
+
+  const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const [showCotizacionMenu, setShowCotizacionMenu] = useState(false);
+  const [cotizacionMenuPos, setCotizacionMenuPos] = useState({ top: 0, left: 0 });
+  const cotizacionBtnRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    if (!showProfileMenu) return;
-    const close = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowProfileMenu(false);
-    };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, [showProfileMenu]);
-
-  const handleRoleChange = (role: UserRole) => {
-    switchRole(role);
-    setShowProfileMenu(false);
-    showToast('Rol cambiado', `Ahora navegas como ${ROLE_LABELS[role]}.`);
+  const openCotizacionMenu = () => {
+    if (cotizacionBtnRef.current) {
+      const rect = cotizacionBtnRef.current.getBoundingClientRect();
+      setCotizacionMenuPos({ top: rect.bottom + 6, left: rect.left });
+    }
+    setShowCotizacionMenu(true);
   };
 
+  // Cerrar al hacer click fuera
+  useEffect(() => {
+    if (!showCotizacionMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (cotizacionBtnRef.current && !cotizacionBtnRef.current.contains(e.target as Node)) {
+        setShowCotizacionMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showCotizacionMenu]);
+
   return (
-    <header className="sticky top-0 z-40 bg-[#0e0e10]/85 backdrop-blur-xl border-b border-white/10">
-      <div className="h-16 sm:h-18 w-full max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-2 sm:gap-4">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <AnimatePresence initial={false}>
-            {SECONDARY_VIEWS.includes(currentView) && (
-              <motion.button
-                key="back"
-                initial={{ opacity: 0, width: 0, x: -10 }}
-                animate={{ opacity: 1, width: 'auto', x: 0 }}
-                exit={{ opacity: 0, width: 0, x: -10 }}
-                onClick={onBack}
-                aria-label="Volver"
-                className="flex items-center gap-1.5 pr-2 sm:pr-3 sm:mr-1 border-r border-white/10 text-xs font-semibold text-[#d1c5af] hover:text-white overflow-hidden whitespace-nowrap cursor-pointer group"
-              >
-                <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                <span className="hidden sm:inline">Volver</span>
-              </motion.button>
+    <header className="sticky top-0 left-0 right-0 z-40 bg-[#0e0e10]/95 backdrop-blur-xl border-b border-white/10 shadow-[0_1px_16px_rgba(0,0,0,0.5)]">
+      <div className="h-16 sm:h-20 w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+        
+        {/* Left: Brand Logo & Navigation Links */}
+        <div className="flex items-center gap-4 lg:gap-8 overflow-hidden">
+          <div
+            onClick={() => onSelectView('landing')}
+            className="cursor-pointer transition-transform hover:scale-[1.02] shrink-0"
+          >
+            <WuishLogo size="md" />
+          </div>
+
+          {/* Navigation Links */}
+          <nav className="flex items-center gap-1.5 text-xs font-medium py-1 relative">
+            <button
+              onClick={() => onSelectView('landing')}
+              className={`px-3 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                currentView === 'landing'
+                  ? 'bg-[#2a2a2c] text-[#ffd56d] font-semibold border border-[#ffd56d]/30 shadow-sm'
+                  : 'text-[#d1c5af] hover:text-white hover:bg-white/5'
+              }`}
+            >
+              Inicio
+            </button>
+
+            {isAuthenticated && (
+              <>
+                {DASHBOARD_TABS.map(({ id, label, icon: Icon }) => {
+                  if (id === 'cotizacion') {
+                    const isActive = currentView === 'portal' && activeDashboardTab === 'cotizacion';
+                    return (
+                      <React.Fragment key={id}>
+                        <button
+                          ref={cotizacionBtnRef}
+                          onClick={() => showCotizacionMenu ? setShowCotizacionMenu(false) : openCotizacionMenu()}
+                          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                            isActive
+                              ? 'bg-[#ffd56d] text-[#3e2e00] font-bold shadow-sm'
+                              : 'text-[#d1c5af] hover:text-white hover:bg-white/5'
+                          }`}
+                        >
+                          <Icon className="w-3.5 h-3.5" />
+                          <span>{label}</span>
+                          <ChevronDown className={`w-3 h-3 ml-0.5 transition-transform duration-200 ${showCotizacionMenu ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {showCotizacionMenu && (
+                          <div
+                            style={{ position: 'fixed', top: cotizacionMenuPos.top, left: cotizacionMenuPos.left, zIndex: 9999 }}
+                            className="w-52 rounded-xl bg-[#1c1b1d] border border-[#ffd56d]/20 shadow-2xl overflow-hidden"
+                          >
+                            <button
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={() => {
+                                setShowCotizacionMenu(false);
+                                onSelectDashboardTab?.('cotizacion');
+                                onSelectView('portal');
+                                onSelectCotizacionSubview?.('planes');
+                              }}
+                              className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-[#d1c5af] hover:bg-[#2a2a2c] hover:text-white transition cursor-pointer"
+                            >
+                              <CreditCard className="w-3.5 h-3.5 text-[#ffd56d]" />
+                              <div className="text-left">
+                                <div className="font-semibold">Ver Planes</div>
+                                <div className="text-[10px] text-[#9a907c]">Catálogo de soluciones</div>
+                              </div>
+                            </button>
+                            <div className="border-t border-white/5" />
+                            <button
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={() => {
+                                setShowCotizacionMenu(false);
+                                onSelectDashboardTab?.('cotizacion');
+                                onSelectView('portal');
+                                onSelectCotizacionSubview?.('cotizador');
+                              }}
+                              className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-[#d1c5af] hover:bg-[#2a2a2c] hover:text-white transition cursor-pointer"
+                            >
+                              <Calculator className="w-3.5 h-3.5 text-[#ffd56d]" />
+                              <div className="text-left">
+                                <div className="font-semibold">Cotizador Inteligente</div>
+                                <div className="text-[10px] text-[#9a907c]">Presupuesto en tiempo real</div>
+                              </div>
+                            </button>
+                          </div>
+                        )}
+                      </React.Fragment>
+                    );
+                  }
+
+                  const isActive = currentView === 'portal' && activeDashboardTab === id;
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => {
+                        onSelectDashboardTab?.(id);
+                        onSelectView('portal');
+                      }}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                        isActive
+                          ? 'bg-[#ffd56d] text-[#3e2e00] font-bold shadow-sm'
+                          : 'text-[#d1c5af] hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      <span>{label}</span>
+                    </button>
+                  );
+                })}
+
+                {isAdmin && (
+                  <button
+                    onClick={() => onSelectView('admin')}
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap font-medium ${
+                      currentView === 'admin'
+                        ? 'bg-[#ffd56d] text-[#3e2e00] font-bold shadow-md ring-1 ring-[#ffd56d]'
+                        : 'text-[#ffd56d] bg-[#ffd56d]/10 border border-[#ffd56d]/30 hover:bg-[#ffd56d]/20 hover:text-white'
+                    }`}
+                  >
+                    <Shield className="w-3.5 h-3.5" />
+                    <span>Panel Admin</span>
+                  </button>
+                )}
+              </>
             )}
-          </AnimatePresence>
-          <motion.button whileHover={{ scale: 1.03 }} onClick={() => onSelectView('landing')} className="cursor-pointer shrink-0">
-            <span className="sm:hidden"><WuishLogo size="md" showSubtitle={false} /></span>
-            <span className="hidden sm:block"><WuishLogo size="md" /></span>
-          </motion.button>
+
+
+
+          </nav>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {isAuthenticated && (
-            <nav className="flex items-center gap-1 sm:gap-1.5 p-1 rounded-xl bg-[#1c1b1d] border border-white/10">
-              <button
-                onClick={() => onSelectView('planes')}
-                aria-label="Planes"
-                className={`px-2.5 sm:px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition cursor-pointer flex items-center gap-2 ${currentView === 'planes' ? 'bg-[#ffd56d] text-[#3e2e00] shadow-md' : 'text-[#d1c5af] hover:bg-white/5 hover:text-white'}`}
-              >
-                <Layers className="w-4 h-4 sm:hidden" />
-                <span className="hidden sm:inline">Planes</span>
-              </button>
-              <button
-                onClick={() => onSelectView('cotizador')}
-                aria-label="Cotizador"
-                className={`relative px-2.5 sm:px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition cursor-pointer flex items-center gap-2 ${currentView === 'cotizador' ? 'bg-[#ffd56d] text-[#3e2e00] shadow-md' : 'text-[#d1c5af] hover:bg-white/5 hover:text-white'}`}
-              >
-                <ShoppingCart className="w-4 h-4" />
-                <span className="hidden sm:inline">Cotizador</span>
-                {cart.length > 0 && (
-                  <span className="absolute -top-1 -right-1 sm:static bg-[#ffd56d] text-[#3e2e00] rounded-full w-4 h-4 flex items-center justify-center text-[10px] sm:ml-1 ring-2 ring-[#1c1b1d] sm:ring-0">
-                    {cart.length}
-                  </span>
-                )}
-              </button>
-            </nav>
-          )}
-          {isAuthenticated && currentView !== 'portal' && currentView !== 'admin' && (
-            <motion.button
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.96 }}
-              onClick={() => onSelectView(currentRole === 'admin' ? 'admin' : 'portal')}
-              aria-label="Mi panel"
-              className="px-2.5 sm:px-4 py-2 rounded-xl bg-[#ffd56d] text-[#3e2e00] text-xs font-bold hover:bg-[#ffdf97] shadow flex items-center gap-1.5 cursor-pointer"
+        {/* Right: Notifications & Profile Menu */}
+        <div className="flex items-center gap-3 shrink-0">
+          
+          {/* Notifications Trigger */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="p-2.5 rounded-xl bg-[#1c1b1d] hover:bg-[#2a2a2c] text-[#d1c5af] hover:text-white border border-white/5 transition-colors cursor-pointer"
+              title="Notificaciones"
             >
-              <LayoutDashboard className="w-4 h-4" />
-              <span className="hidden sm:inline">Mi panel</span>
-            </motion.button>
-          )}
+              <Bell className="w-4 h-4" />
+            </button>
+
+            {showNotifications && (
+              <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-[#1c1b1d] border border-[#ffd56d]/30 shadow-2xl p-4 z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                  <span className="text-xs font-bold uppercase tracking-wider text-white font-display">Notificaciones</span>
+                  <span className="text-[10px] text-[#ffd56d] cursor-pointer" onClick={() => showToast('Leídas', 'Todas marcadas como leídas')}>Marcar leídas</span>
+                </div>
+                <div className="py-4 text-center text-xs text-[#9a907c]">
+                  No tienes notificaciones pendientes.
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* User Profile Avatar & Menu */}
           {isAuthenticated && user ? (
-            <div className="relative" ref={menuRef}>
+            <div className="relative">
               <button
                 type="button"
-                onClick={() => setShowProfileMenu((v) => !v)}
-                className="flex items-center gap-1.5 sm:gap-2.5 pl-1 sm:pl-1.5 pr-1 sm:pr-2 py-1 rounded-xl hover:bg-[#1c1b1d] transition cursor-pointer group"
+                onClick={() => setShowProfileMenu(!showProfileMenu)}
+                className="flex items-center gap-2 pl-1.5 pr-2 py-1 rounded-xl hover:bg-[#1c1b1d] transition-all cursor-pointer group"
               >
-                {user.avatarUrl ? (
-                  <img src={user.avatarUrl} alt={user.name} className="w-8 h-8 rounded-full object-cover ring-1 ring-[#ffd56d]/50" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-[#ffd56d]/15 border border-[#ffd56d]/40 text-[#ffd56d] font-bold text-xs flex items-center justify-center">
-                    {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                  </div>
-                )}
-                <div className="hidden lg:flex flex-col text-left leading-none">
-                  <span className="text-xs font-semibold text-[#e5e1e4]">{user.name}</span>
-                  <span className="text-[10px] text-[#ffd56d]/80 mt-0.5">{ROLE_LABELS[currentRole]}</span>
+                <div className="w-8 h-8 rounded-full bg-[#ffd56d]/15 border border-[#ffd56d]/40 text-[#ffd56d] font-bold text-xs flex items-center justify-center">
+                  {user.nombres ? user.nombres.charAt(0).toUpperCase() : 'U'}
                 </div>
-                <motion.span animate={{ rotate: showProfileMenu ? 180 : 0 }}>
-                  <ChevronDown className="w-3.5 h-3.5 text-[#9a907c]" />
-                </motion.span>
+                <div className="hidden md:flex flex-col text-left leading-none">
+                  <span className="text-xs font-semibold text-[#e5e1e4] group-hover:text-white">
+                    {user.nombres} {user.apellidos || ''}
+                  </span>
+                  <span className="text-[10px] text-[#ffd56d]/80 font-mono mt-0.5 capitalize">
+                    {user.rol || 'Cliente'}
+                  </span>
+                </div>
+                <ChevronDown className="w-3.5 h-3.5 text-[#9a907c] group-hover:text-white" />
               </button>
 
-              <AnimatePresence>
-                {showProfileMenu && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -8, scale: 0.97 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -8, scale: 0.97 }}
-                    transition={{ duration: 0.18 }}
-                    className="absolute right-0 mt-2 w-[min(15rem,calc(100vw-1.5rem))] origin-top-right rounded-2xl bg-[#1c1b1d] border border-[#ffd56d]/25 shadow-2xl p-3 z-50"
-                  >
-                    <div className="px-2 pb-3 mb-2 border-b border-white/5">
-                      <div className="text-xs font-bold text-white">{user.name}</div>
-                      <div className="text-[11px] text-[#9a907c] font-mono truncate">{user.email}</div>
-                    </div>
+              {showProfileMenu && (
+                <div className="absolute right-0 mt-2 w-60 rounded-2xl bg-[#1c1b1d] border border-[#ffd56d]/30 shadow-2xl p-3 z-50 animate-in fade-in slide-in-from-top-2">
+                  <div className="p-2 border-b border-white/5 pb-2 mb-2">
+                    <div className="text-xs font-bold text-white truncate">{user.nombres} {user.apellidos || ''}</div>
+                    <div className="text-[11px] text-[#9a907c] font-mono truncate">{user.correo}</div>
+                  </div>
 
-                    {/* Selector de rol (modo demo) */}
-                    <div className="px-2 text-[10px] uppercase tracking-wider text-[#9a907c] mb-1.5">Ver como</div>
-                    <div className="flex p-1 mb-2 bg-[#0e0e10] rounded-lg text-[11px] font-semibold">
-                      {(Object.keys(ROLE_LABELS) as UserRole[]).map((role) => (
-                        <button
-                          key={role}
-                          onClick={() => handleRoleChange(role)}
-                          className={`relative flex-1 py-1.5 rounded-md cursor-pointer ${currentRole === role ? 'text-[#3e2e00]' : 'text-[#d1c5af] hover:text-white'}`}
-                        >
-                          {currentRole === role && (
-                            <motion.span layoutId="role-pill" className="absolute inset-0 rounded-md bg-[#ffd56d]" />
-                          )}
-                          <span className="relative z-10">{ROLE_LABELS[role]}</span>
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="border-t border-white/5 pt-2 mb-2">
-                      <button
-                        onClick={() => {
-                          setShowProfileMenu(false);
-                          onSelectView('settings');
-                        }}
-                        className="w-full text-left px-3 py-2 rounded-lg text-xs text-[#d1c5af] hover:bg-white/5 hover:text-white transition flex items-center gap-2 cursor-pointer"
-                      >
-                        <Settings className="w-4 h-4" />
-                        Ajustes de perfil
-                      </button>
-                    </div>
+                  <div className="space-y-1 text-xs text-[#d1c5af]">
+                    <button
+                      onClick={() => {
+                        onSelectView('portal');
+                        setShowProfileMenu(false);
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#201f21] hover:text-white transition flex items-center gap-2 cursor-pointer"
+                    >
+                      <Briefcase className="w-4 h-4 text-[#ffd56d]" />
+                      <span>Mi Dashboard</span>
+                    </button>
 
                     <button
                       onClick={() => {
-                        logout();
+                        onSelectView('portal');
+                        onSelectDashboardTab?.('ajustes');
                         setShowProfileMenu(false);
-                        showToast('Sesión cerrada', 'Hasta pronto.');
-                        onSelectView('landing');
                       }}
-                      className="w-full text-left px-3 py-2 rounded-lg text-xs text-rose-400 hover:bg-rose-500/10 transition flex items-center gap-2 cursor-pointer"
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#201f21] hover:text-white transition flex items-center gap-2 cursor-pointer"
                     >
-                      <LogOut className="w-4 h-4" />
-                      Cerrar sesión
+                      <Sliders className="w-4 h-4 text-[#ffd56d]" />
+                      <span>Ajustes de Cuenta</span>
                     </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+
+                    {isAdmin && (
+                      <button
+                        onClick={() => {
+                          onSelectView('admin');
+                          setShowProfileMenu(false);
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#201f21] hover:text-white transition flex items-center gap-2 cursor-pointer"
+                      >
+                        <Shield className="w-4 h-4 text-[#ffd56d]" />
+                        <span>Panel Administrativo</span>
+                      </button>
+                    )}
+
+                    <div className="border-t border-white/5 my-1 pt-1">
+                      <button
+                        onClick={() => {
+                          logout();
+                          setShowProfileMenu(false);
+                          showToast('Sesión Cerrada', 'Has salido del ecosistema corporativo.');
+                          onSelectView('auth');
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-lg text-rose-400 hover:bg-rose-500/10 transition flex items-center gap-2 cursor-pointer"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Cerrar Sesión</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
-            <>
-              <button
-                onClick={() => onSelectView('auth', 'login')}
-                className="hidden sm:block px-4 py-2 rounded-xl text-xs font-semibold text-[#d1c5af] hover:text-white transition cursor-pointer"
-              >
-                Ingresar
-              </button>
-              <motion.button
-                whileHover={{ scale: 1.04 }}
-                whileTap={{ scale: 0.96 }}
-                onClick={() => onSelectView('auth', 'register')}
-                className="px-3 sm:px-4 py-2 rounded-xl whitespace-nowrap bg-[#ffd56d] text-[#3e2e00] text-xs font-bold hover:bg-[#ffdf97] transition shadow cursor-pointer"
-              >
-                Crear cuenta
-              </motion.button>
-            </>
+            <button
+              onClick={() => onSelectView('auth')}
+              className="px-4 py-2 rounded-xl bg-[#ffd56d] text-[#3e2e00] text-xs font-bold uppercase tracking-wider hover:bg-[#ffdf97] transition shadow"
+            >
+              Iniciar Sesión
+            </button>
           )}
+
         </div>
       </div>
-
     </header>
   );
 };

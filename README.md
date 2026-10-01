@@ -1,37 +1,45 @@
-# Wuish
+# WUISH — Plataforma de Comunicación y Soluciones Tecnológicas
 
-Aplicación web de landing + portal de cliente y administración construida con React + Vite + TypeScript.
+Ecosistema integral que fusiona tecnología de punta y comunicación estratégica. Plataforma moderna desarrollada con **React 19**, **NestJS**, **Prisma ORM** y **PostgreSQL**.
 
-## Requisitos
+---
 
-- Node.js 18+
-- npm
+## ⚡ Inicio Rápido en 3 Pasos
 
-## Instalación
-
+### 1. Instalar dependencias
 ```bash
+# Frontend
 npm install
+
+# Backend API
+cd wuish-api
+npm install
+cd ..
 ```
 
-## Desarrollo
+### 2. Configurar Base de Datos
+Asegúrate de tener PostgreSQL activo y ejecuta el script [wuish_database_schema.sql](wuish_database_schema.sql) en **pgAdmin 4** o mediante consola.
 
+### 3. Iniciar la aplicación
 ```bash
 npm run dev
 ```
+- **Frontend Web:** `http://localhost:3000`
+- **Backend API:** `http://localhost:3001/api`
 
-## Producción
+---
 
-```bash
-npm run build
-```
+## 📖 Documentación Completa
 
-## Estructura principal
+Para una guía detallada con explicación completa de variables de entorno (`.env`), todos los comandos disponibles, solución de errores y credenciales, consulta:
 
-- src/App.tsx: composición principal
-- src/components: vistas de landing, autenticación, dashboard, panel admin y cotizador
-- src/context: proveedor de autenticación y toasts
-- src/types.ts: tipos compartidos
+👉 **[GUIA_INICIO.md](GUIA_INICIO.md)**
 
-## Nota
+---
 
-Se han removido dependencias y fragmentos de ejemplo no utilizados para dejar el proyecto en una base más limpia y mantenible.
+## 🔑 Credenciales de Prueba
+
+| Rol | Correo | Contraseña |
+|---|---|---|
+| **Administrador** | `admin@wuish.com` | `admin123` |
+| **Cliente** | `cliente@wuish.io` | `cliente123` |

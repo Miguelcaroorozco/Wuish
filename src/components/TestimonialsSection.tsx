@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useContent } from '../context/ContentContext';
 import { useToast } from '../context/ToastContext';
 import { Carousel } from './Carousel';
+import { Testimonial } from '../types';
 
 const ROTATE_MS = 5500;
 const MAX_CHARS = 280;
@@ -44,9 +45,10 @@ export const TestimonialsSection: React.FC<TestimonialsSectionProps> = ({ onRequ
       onRequireAuth();
       return;
     }
-    if (testimonials.some((t) => t.userId === user?.id)) {
-      showToast('Ya dejaste tu opinión', '¡Gracias! Solo se permite un comentario por cuenta.', 'info');
-      return;
+    const existing = testimonials.find((t) => t.userId === user?.id);
+    if (existing) {
+      setText(existing.text);
+      setRating(existing.rating);
     }
     setShowForm(true);
   };
@@ -57,8 +59,15 @@ export const TestimonialsSection: React.FC<TestimonialsSectionProps> = ({ onRequ
       showToast('Comentario muy corto', 'Escribe al menos 10 caracteres.', 'error');
       return;
     }
-    addTestimonial({ userId: user.id, name: user.name, company: user.company, rating, text: text.trim() });
-    showToast('¡Gracias por tu opinión!', 'Se publicará cuando nuestro equipo la revise.', 'success');
+    const company = (user as any).empresa || '';
+    addTestimonial({
+      userId: user.id,
+      name: `${user.nombres} ${user.apellidos}`.trim(),
+      company,
+      rating,
+      text: text.trim(),
+    });
+    showToast('¡Gracias por tu opinión!', 'Tu testimonio ha sido publicado en el carrusel.', 'success');
     setShowForm(false);
     setText('');
     setRating(5);
@@ -68,7 +77,7 @@ export const TestimonialsSection: React.FC<TestimonialsSectionProps> = ({ onRequ
     <>
       <div className="relative">
         {items.length ? (
-          <Carousel
+          <Carousel<Testimonial>
             items={items}
             getKey={(t) => t.id}
             perView={{ base: 1, md: 2, lg: 3 }}

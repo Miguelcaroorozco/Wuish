@@ -1,129 +1,187 @@
-import React from 'react';
-import { motion } from 'motion/react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { Check, Zap, Building, ShieldCheck, ChevronRight } from 'lucide-react';
-import { useContent } from '../context/ContentContext';
-import { CoverflowCarousel } from './CoverflowCarousel';
+import { planesApi, carritoApi } from '../lib/api';
+import {
+  Check,
+  Zap,
+  Building,
+  Rocket,
+  ShieldCheck,
+  ChevronRight,
+  ShoppingCart,
+  Loader2,
+} from 'lucide-react';
 
 interface PlanesViewProps {
   onSelectPlan: (planId: string) => void;
 }
 
-
-
-const guarantees = [
-  { icon: ShieldCheck, label: 'Sin permanencia' },
-  { icon: Zap, label: 'Kickoff en 72h' },
-  { icon: Building, label: 'Facturación en USD' },
-];
-
-const EASE = [0.22, 1, 0.36, 1] as const;
-
 export const PlanesView: React.FC<PlanesViewProps> = ({ onSelectPlan }) => {
   const { showToast } = useToast();
-  const { plans, addToCart } = useContent();
+  const { isAuthenticated } = useAuth();
+  const [planes, setPlanes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    planesApi.getAll()
+      .then(setPlanes)
+      .catch(err => console.error('Error cargando planes:', err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleAddToCart = async (planId: string, planName: string) => {
+    if (!isAuthenticated) {
+      showToast('Inicia Sesión', 'Debes iniciar sesión para agregar planes al carrito', 'error');
+      return;
+    }
+    try {
+      await carritoApi.addItem(planId);
+      showToast('Agregado al Carrito', `"${planName}" se agregó a tu carrito`, 'success');
+    } catch (err: any) {
+      showToast('Error', err.message || 'No se pudo agregar al carrito', 'error');
+    }
+  };
+
+  const formatPrice = (precio: any) => {
+    if (!precio) return 'Personalizado';
+    return `$${parseFloat(precio).toLocaleString('es-CO')}`;
+  };
+
+  const getFeatures = (plan: any): string[] => {
+    if (Array.isArray(plan.caracteristicas)) return plan.caracteristicas;
+    if (plan.caracteristicas?.features) return plan.caracteristicas.features;
+    return [];
+  };
+
+  if (loading) {
+    return (
+      <div className="w-full flex items-center justify-center py-32">
+        <Loader2 className="w-8 h-8 text-[#ffd56d] animate-spin" />
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-10 space-y-8 sm:space-y-12">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: EASE }}
-        className="text-center max-w-2xl mx-auto space-y-3 pt-2 sm:pt-6"
-      >
-        <span className="text-xs font-bold uppercase tracking-[0.25em] text-[#ffd56d] font-display">Planes</span>
-        <h1 className="text-3xl sm:text-5xl font-extrabold text-white font-display">Elige cómo crecer</h1>
-        <p className="text-sm text-[#9a907c]">Precios claros. Sin costos ocultos.</p>
-      </motion.div>
+    <div className="w-full max-w-[1560px] mx-auto p-4 sm:p-6 lg:p-10 space-y-12">
+      {/* Header */}
+      <div className="text-center max-w-3xl mx-auto space-y-3">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#ffd56d]/15 text-[#ffd56d] text-[11px] font-semibold uppercase tracking-wider font-display border border-[#ffd56d]/30">
+          MODELOS DE ACOMPAÑAMIENTO ESTRATÉGICO
+        </span>
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white font-display">
+          Planes y Alianzas Empresariales
+        </h1>
+        <p className="text-sm sm:text-base text-[#d1c5af] leading-relaxed">
+          Estructura de inversión transparente sin costos ocultos. Selecciona el modelo que mejor responde al momento operativo de tu empresa.
+        </p>
+      </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.15, ease: EASE }}
-      >
-        <CoverflowCarousel
-          items={plans}
-          getKey={(p) => p.id}
-          initialIndex={Math.max(0, plans.findIndex((p) => p.highlight))}
-          autoplay={4000}
-          ariaLabel="Planes"
-          renderItem={(p, active) => (
-            <div
-              className={`w-full p-5 sm:p-7 rounded-2xl flex flex-col justify-between relative transition-shadow duration-500 ${
-                p.highlight
-                  ? 'bg-[#201f21] border-2 border-[#ffd56d]'
-                  : 'bg-[#1c1b1d] border border-white/10'
-              } ${active ? 'shadow-2xl shadow-black/60' : ''} ${active && p.highlight ? 'shadow-[#ffd56d]/15' : ''}`}
-            >
-              {p.highlight && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-[#ffd56d] text-[#3e2e00] text-[10px] font-extrabold uppercase tracking-widest font-display shadow">
-                  Más elegido
-                </div>
-              )}
+      {/* Grid of Plans */}
+      {planes.length === 0 ? (
+        <div className="text-center py-16">
+          <Rocket className="w-12 h-12 text-[#ffd56d]/50 mx-auto mb-4" />
+          <p className="text-lg font-semibold text-white">Planes próximamente</p>
+          <p className="text-sm text-[#9a907c] mt-1">Estamos preparando nuestras soluciones. ¡Vuelve pronto!</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 items-stretch">
+          {planes.map((p, idx) => {
+            const features = getFeatures(p);
+            const isFeatured = idx === Math.floor(planes.length / 2);
 
-              <div>
-                <span className="text-[10px] uppercase font-bold text-[#ffd56d] tracking-wider font-display">{p.badge}</span>
-                <h2 className="text-xl font-bold text-white mt-1 font-display">{p.name}</h2>
+            return (
+              <div
+                key={p.id}
+                className={`p-7 rounded-2xl flex flex-col justify-between transition-all duration-200 relative ${
+                  isFeatured
+                    ? 'bg-[#201f21] border-2 border-[#ffd56d] shadow-2xl shadow-[#ffd56d]/10 transform lg:-translate-y-2'
+                    : 'bg-[#1c1b1d] border border-white/5 hover:border-white/20'
+                }`}
+              >
+                {isFeatured && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-[#ffd56d] text-[#3e2e00] text-[10px] font-extrabold uppercase tracking-widest font-display shadow">
+                    RECOMENDADO
+                  </div>
+                )}
 
-                <div className="mt-5 pb-5 border-b border-white/5 flex items-baseline gap-1">
-                  {p.price ? (
-                    <>
-                      <span className="text-4xl font-black text-white font-display">${p.price}</span>
-                      <span className="text-xs text-[#9a907c] font-semibold">/ mes</span>
-                    </>
-                  ) : (
-                    <span className="text-3xl font-black text-white font-display">A medida</span>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-[#ffd56d] tracking-wider font-display">
+                    {p.tipo_servicio?.nombre || 'Plan'}
+                  </span>
+                  <h2 className="text-xl font-bold text-white mt-1 font-display">{p.nombre}</h2>
+                  <p className="text-xs text-[#9a907c] mt-2 leading-relaxed min-h-[44px]">
+                    {p.descripcion || 'Solución integral para tu negocio'}
+                  </p>
+
+                  <div className="mt-5 pt-4 border-t border-white/5 flex items-baseline gap-1">
+                    <span className="text-3xl sm:text-4xl font-black text-white font-display">
+                      {formatPrice(p.precio)}
+                    </span>
+                    {p.precio && <span className="text-xs text-[#9a907c] font-semibold">COP</span>}
+                  </div>
+
+                  {features.length > 0 && (
+                    <div className="mt-6 space-y-2.5 text-xs text-[#d1c5af]">
+                      {features.map((f: string, fIdx: number) => (
+                        <div key={fIdx} className="flex items-start gap-2.5">
+                          <Check className="w-4 h-4 text-[#ffd56d] shrink-0 mt-0.5" />
+                          <span className="leading-snug">{f}</span>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
 
-                <ul className="mt-5 space-y-2.5 text-sm text-[#d1c5af]">
-                  {p.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2.5">
-                      <Check className="w-4 h-4 text-[#ffd56d] shrink-0 mt-0.5" />
-                      <span className="leading-snug">{f}</span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="mt-8 pt-4 border-t border-white/5 space-y-2">
+                  <button
+                    onClick={() => {
+                      showToast(`Plan Seleccionado: ${p.nombre}`, 'Cargando configurador...');
+                      onSelectPlan(p.id);
+                    }}
+                    className={`w-full py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      isFeatured
+                        ? 'bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] shadow-md'
+                        : 'bg-[#2a2a2c] hover:bg-[#353437] text-white border border-white/10'
+                    }`}
+                  >
+                    <span>Seleccionar y Cotizar</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={() => handleAddToCart(p.id, p.nombre)}
+                    className="w-full py-2.5 rounded-xl text-xs font-semibold text-[#ffd56d] hover:bg-[#ffd56d]/10 transition flex items-center justify-center gap-1.5 cursor-pointer border border-[#ffd56d]/20"
+                  >
+                    <ShoppingCart className="w-3.5 h-3.5" />
+                    <span>Agregar al Carrito</span>
+                  </button>
+                </div>
               </div>
+            );
+          })}
+        </div>
+      )}
 
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                onClick={() => {
-                  if (p.price) {
-                    addToCart({ id: p.id, name: p.name, type: 'plan', price: p.price });
-                    showToast(`Agregado: ${p.name}`, 'Plan añadido al cotizador.', 'success');
-                  } else {
-                    showToast(`Plan ${p.name}`, 'Abriendo el cotizador...');
-                  }
-                  onSelectPlan(p.id);
-                }}
-                className={`mt-8 w-full py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer group ${
-                  p.highlight
-                    ? 'bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] shadow-md'
-                    : 'bg-[#2a2a2c] hover:bg-[#353437] text-white border border-white/10'
-                }`}
-              >
-                {p.price ? 'Cotizar' : 'Hablemos'}
-                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </motion.button>
+      {/* Trust & Guarantee Box */}
+      <div className="p-8 rounded-2xl bg-[#1c1b1d] border border-white/5 grid md:grid-cols-3 gap-6 text-xs">
+        {[
+          { icon: ShieldCheck, title: 'Contratos Transparentes', desc: 'Sin cláusulas de permanencia abusivas. Renueva mensualmente por satisfacción y metas alcanzadas.' },
+          { icon: Zap, title: 'Onboarding Inmediato', desc: 'Kickoff técnico en menos de 72 horas con asignación directa de Partner y Líder de Proyecto.' },
+          { icon: Building, title: 'Facturación Corporativa', desc: 'Emisión de comprobantes fiscales conforme a regulaciones locales e internacionales.' },
+        ].map((item, idx) => {
+          const Icon = item.icon;
+          return (
+            <div key={idx} className="flex items-start gap-3">
+              <Icon className="w-6 h-6 text-[#ffd56d] shrink-0" />
+              <div>
+                <h4 className="font-bold text-white text-sm font-display">{item.title}</h4>
+                <p className="text-[#9a907c] mt-0.5">{item.desc}</p>
+              </div>
             </div>
-          )}
-        />
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.7 }}
-        className="flex flex-wrap justify-center gap-3"
-      >
-        {guarantees.map(({ icon: Icon, label }) => (
-          <span key={label} className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#1c1b1d] border border-white/5 text-xs text-[#d1c5af]">
-            <Icon className="w-4 h-4 text-[#ffd56d]" />
-            {label}
-          </span>
-        ))}
-      </motion.div>
+          );
+        })}
+      </div>
     </div>
   );
 };
