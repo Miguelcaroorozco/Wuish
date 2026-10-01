@@ -94,14 +94,6 @@ export interface InfoGeneral {
   updated_by: string | null;
 }
 
-export interface Equipo {
-  id: string;
-  nombre: string;
-  cargo: string | null;
-  foto_url: string | null;
-  descripcion: string | null;
-  orden: number | null;
-}
 
 export interface Comentario {
   id: string;
@@ -123,13 +115,6 @@ export interface Resultado {
   orden: number | null;
 }
 
-export interface PasoProceso {
-  id: string;
-  numero_paso: number;
-  titulo: string;
-  descripcion: string | null;
-  icono: string | null;
-}
 
 export interface CarritoItem {
   id: string;

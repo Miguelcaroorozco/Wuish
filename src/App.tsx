@@ -17,6 +17,7 @@ const MainAppContent: React.FC = () => {
   const { isAuthenticated, currentRole } = useAuth();
   const { showToast } = useToast();
   const [dashboardTab, setDashboardTab] = useState<DashboardTab>('resumen');
+  const [cotizacionSubview, setCotizacionSubview] = useState<'planes' | 'cotizador' | null>(null);
 
   const [currentView, setCurrentView] = useState<ViewMode>(() => {
     return isAuthenticated ? (currentRole === 'admin' || currentRole === 'administrador' ? 'admin' : 'portal') : 'landing';
@@ -42,6 +43,12 @@ const MainAppContent: React.FC = () => {
         currentView={currentView}
         activeDashboardTab={dashboardTab}
         onSelectDashboardTab={setDashboardTab}
+        onSelectCotizacionSubview={(sub) => {
+          setCotizacionSubview(sub);
+          setDashboardTab('cotizacion');
+          navigateTo('portal');
+          scrollToTop();
+        }}
         onSelectView={(v) => {
           navigateTo(v);
           scrollToTop();
@@ -72,8 +79,8 @@ const MainAppContent: React.FC = () => {
           <ClientDashboard
             activeTab={dashboardTab}
             onTabChange={setDashboardTab}
-            onNavigateToCotizador={() => { setDashboardTab('cotizacion'); scrollToTop(); }}
-            onNavigateToPlanes={() => { setDashboardTab('cotizacion'); scrollToTop(); }}
+            cotizacionSubview={cotizacionSubview}
+            onCotizacionSubviewChange={setCotizacionSubview}
           />
         )}
 

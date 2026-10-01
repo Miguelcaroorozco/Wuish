@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { solicitudesApi, mensajesApi, usuariosApi } from '../lib/api';
+import { PlanesView } from './PlanesView';
+import { CotizadorView } from './CotizadorView';
 import {
   Wallet,
   MessageSquareText,
@@ -20,15 +22,15 @@ export type DashboardTab = 'resumen' | 'solicitudes' | 'mensajes' | 'cotizacion'
 interface ClientDashboardProps {
   activeTab?: DashboardTab;
   onTabChange?: (tab: DashboardTab) => void;
-  onNavigateToCotizador?: () => void;
-  onOpenReport?: () => void;
+  cotizacionSubview?: 'planes' | 'cotizador' | null;
+  onCotizacionSubviewChange?: (sub: 'planes' | 'cotizador' | null) => void;
 }
 
 export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   activeTab: controlledTab,
   onTabChange,
-  onNavigateToCotizador,
-  onOpenReport
+  cotizacionSubview: externalSubview,
+  onCotizacionSubviewChange,
 }) => {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -60,8 +62,13 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const [ajustesTelefono, setAjustesTelefono] = useState(user?.telefono || '');
   const [ajustesSaving, setAjustesSaving] = useState(false);
 
-  // Cotización subview
-  const [cotizadorSubview, setCotizadorSubview] = useState<'planes' | 'cotizador'>('planes');
+  // Cotización subview — controlled from App.tsx when coming from HeaderNav dropdown
+  const [internalCotizadorSubview, setInternalCotizadorSubview] = useState<'planes' | 'cotizador' | null>(null);
+  const cotizadorSubview = externalSubview !== undefined ? externalSubview : internalCotizadorSubview;
+  const setCotizadorSubview = (val: 'planes' | 'cotizador' | null) => {
+    setInternalCotizadorSubview(val);
+    onCotizacionSubviewChange?.(val);
+  };
 
   useEffect(() => {
     loadData();
@@ -580,49 +587,40 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       {/* ===== TAB: PLANES & COTIZACIÓN ===== */}
       {activeTab === 'cotizacion' && (
         <div className="space-y-4 animate-in fade-in duration-200">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setCotizadorSubview('planes')}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${cotizadorSubview === 'planes' ? 'bg-[#ffd56d] text-[#3e2e00]' : 'bg-[#1c1b1d] text-[#9a907c] border border-white/10 hover:text-white'}`}
-            >
-              Ver Planes
-            </button>
-            <button
-              onClick={() => setCotizadorSubview('cotizador')}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${cotizadorSubview === 'cotizador' ? 'bg-[#ffd56d] text-[#3e2e00]' : 'bg-[#1c1b1d] text-[#9a907c] border border-white/10 hover:text-white'}`}
-            >
-              Cotizador
-            </button>
-          </div>
-          <div className="rounded-2xl bg-[#1c1b1d] border border-white/5 p-8 text-center">
-            {cotizadorSubview === 'planes' ? (
-              <div>
-                <CreditCard className="w-10 h-10 text-[#ffd56d] mx-auto mb-3" />
-                <h3 className="text-white font-bold mb-2">Planes Disponibles</h3>
-                <p className="text-xs text-[#9a907c] mb-4">Explora los planes y soluciones de inversión corporativa.</p>
-                <button
-                  onClick={() => onNavigateToCotizador && onNavigateToCotizador()}
-                  className="px-5 py-2.5 rounded-xl bg-[#ffd56d] text-[#3e2e00] font-bold text-xs cursor-pointer hover:bg-[#ffdf97] transition"
-                >
-                  Abrir Catálogo de Planes
-                </button>
-              </div>
-            ) : (
-              <div>
-                <Calculator className="w-10 h-10 text-[#ffd56d] mx-auto mb-3" />
-                <h3 className="text-white font-bold mb-2">Cotizador Inteligente</h3>
-                <p className="text-xs text-[#9a907c] mb-4">Calcula presupuestos y alcances según requerimientos de software y pauta.</p>
-                <button
-                  onClick={() => onNavigateToCotizador && onNavigateToCotizador()}
-                  className="px-5 py-2.5 rounded-xl bg-[#ffd56d] text-[#3e2e00] font-bold text-xs cursor-pointer hover:bg-[#ffdf97] transition"
-                >
-                  Abrir Cotizador en Vivo
-                </button>
-              </div>
-            )}
-          </div>
+
+          {/* Sin subvista seleccionada: mostrar selector */}
+          {!cotizadorSubview && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <button
+                onClick={() => setCotizadorSubview('planes')}
+                className="group rounded-2xl bg-[#1c1b1d] border border-white/5 hover:border-[#ffd56d]/40 p-8 text-center transition-all cursor-pointer hover:bg-[#232224]"
+              >
+                <CreditCard className="w-10 h-10 text-[#ffd56d] mx-auto mb-4 group-hover:scale-110 transition-transform" />
+                <div className="text-white font-bold text-base mb-1">Ver Planes</div>
+                <div className="text-xs text-[#9a907c]">Catálogo de soluciones corporativas</div>
+              </button>
+              <button
+                onClick={() => setCotizadorSubview('cotizador')}
+                className="group rounded-2xl bg-[#1c1b1d] border border-white/5 hover:border-[#ffd56d]/40 p-8 text-center transition-all cursor-pointer hover:bg-[#232224]"
+              >
+                <Calculator className="w-10 h-10 text-[#ffd56d] mx-auto mb-4 group-hover:scale-110 transition-transform" />
+                <div className="text-white font-bold text-base mb-1">Cotizador Inteligente</div>
+                <div className="text-xs text-[#9a907c]">Presupuesto en tiempo real</div>
+              </button>
+            </div>
+          )}
+
+          {cotizadorSubview === 'planes' && (
+            <PlanesView onSelectPlan={() => setCotizadorSubview('cotizador')} />
+          )}
+
+          {cotizadorSubview === 'cotizador' && (
+            <CotizadorView onSuccessSubmit={() => {}} />
+          )}
+
         </div>
       )}
+
 
       {/* ===== TAB: AJUSTES DE CUENTA ===== */}
       {activeTab === 'ajustes' && (

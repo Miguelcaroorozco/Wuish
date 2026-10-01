@@ -211,25 +211,6 @@ export const infoGeneralApi = {
     }),
 };
 
-// ========== EQUIPO ==========
-export const equipoApi = {
-  getAll: () => request<any[]>('/equipo'),
-
-  create: (data: { nombre: string; cargo?: string; foto_url?: string; descripcion?: string; orden?: number }) =>
-    request<any>('/equipo', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-
-  update: (id: string, data: any) =>
-    request<any>(`/equipo/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-
-  delete: (id: string) =>
-    request<any>(`/equipo/${id}`, { method: 'DELETE' }),
-};
 
 // ========== COMENTARIOS ==========
 export const comentariosApi = {
@@ -274,19 +255,6 @@ export const resultadosApi = {
     request<any>(`/resultados/${id}`, { method: 'DELETE' }),
 };
 
-// ========== PASOS PROCESO ==========
-export const pasosProcesoApi = {
-  getAll: () => request<any[]>('/pasos-proceso'),
-
-  upsert: (data: { numero_paso: number; titulo: string; descripcion?: string; icono?: string }) =>
-    request<any>('/pasos-proceso', {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-
-  delete: (id: string) =>
-    request<any>(`/pasos-proceso/${id}`, { method: 'DELETE' }),
-};
 
 // ========== CARRITO ==========
 export const carritoApi = {
