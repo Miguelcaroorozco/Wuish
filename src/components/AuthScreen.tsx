@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { WuishLogo } from './WuishLogo';
@@ -15,13 +15,16 @@ import {
   BarChart3,
   KeyRound,
   Phone,
-  UserCheck
+  UserCheck,
+  X
 } from 'lucide-react';
 
 interface AuthScreenProps {
   onSuccess?: () => void;
   onSuccessAuth?: (role: string) => void;
   isModal?: boolean;
+  initialTab?: 'login' | 'register';
+  onClose?: () => void;
 }
 
 const PILLARS = [
@@ -31,7 +34,7 @@ const PILLARS = [
   { icon: BarChart3, title: 'Datos & Analítica', desc: 'Métricas de rendimiento y decisiones estratégicas en tiempo real.' },
 ];
 
-export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth, isModal = false }) => {
+export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth, isModal = false, initialTab = 'login', onClose }) => {
   const handleSuccess = (role: string) => {
     if (onSuccess) onSuccess();
     if (onSuccessAuth) onSuccessAuth(role);
@@ -39,7 +42,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth
   const { login, register, resetPassword } = useAuth();
   const { showToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  const [activeTab, setActiveTab] = useState<'login' | 'register'>(initialTab);
   
   // Login form state
   const [loginUser, setLoginUser] = useState('');
@@ -64,6 +67,21 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth
   // Forgot password modal state
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
+
+  // Popup: bloquea el scroll de la página de fondo y cierra con Escape
+  useEffect(() => {
+    if (!isModal) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !showForgotModal) onClose?.();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [isModal, onClose, showForgotModal]);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,17 +157,35 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth
   };
 
   return (
-    <div className={`w-full ${isModal ? 'p-0' : 'min-h-[calc(100vh-80px)] p-4 sm:p-6 lg:p-10 flex items-center justify-center'}`}>
-      <div className="w-full max-w-[1560px] mx-auto">
-        <div className="w-full grid grid-cols-1 lg:grid-cols-12 rounded-2xl bg-[#0e0e10] border border-[#ffd56d]/20 overflow-hidden shadow-2xl relative">
-          
+    <div
+      className={isModal
+        ? 'fixed inset-0 z-[60] bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200'
+        : 'w-full h-full flex items-center justify-center'}
+      onMouseDown={(e) => { if (isModal && e.target === e.currentTarget) onClose?.(); }}
+      role={isModal ? 'dialog' : undefined}
+      aria-modal={isModal || undefined}
+    >
+      <div className={`w-full max-w-6xl mx-auto ${isModal ? 'max-h-[calc(100dvh-1.5rem)] sm:max-h-[min(760px,calc(100dvh-3rem))] flex' : 'h-full max-h-[760px]'}`}>
+        <div className="w-full flex rounded-2xl bg-[#0e0e10] border border-[#ffd56d]/20 overflow-hidden shadow-2xl relative">
+
+          {isModal && onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Cerrar"
+              className="absolute top-3 right-3 z-40 p-2 rounded-lg text-[#9a907c] hover:text-white hover:bg-white/10 transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+
           <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#ffd56d] to-transparent opacity-80 pointer-events-none z-30" />
 
           {/* LEFT PANE: Brand Showcase & Pillars */}
-          <div className="lg:col-span-6 xl:col-span-7 bg-[#1c1b1d] p-8 sm:p-12 xl:p-16 flex flex-col justify-between relative overflow-hidden">
+          <div className="hidden lg:flex lg:w-1/2 xl:w-7/12 shrink-0 bg-[#1c1b1d] p-8 xl:p-12 flex-col justify-between relative overflow-hidden">
             <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-[#ffd56d]/10 blur-[100px] pointer-events-none" />
 
-            <div className="relative z-10 flex flex-col items-center lg:items-start text-center lg:text-left space-y-6">
+            <div className="relative z-10 flex flex-col items-center lg:items-start text-center lg:text-left space-y-5">
               <div className="w-full flex justify-center lg:justify-start">
                 <WuishLogo size="hero" />
               </div>
@@ -161,12 +197,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth
                 </span>
               </div>
 
-              <p className="text-xl sm:text-2xl text-[#e5e1e4] leading-snug font-medium font-display max-w-xl">
+              <p className="text-lg xl:text-xl text-[#e5e1e4] leading-snug font-medium font-display max-w-xl">
                 “No te vendemos tecnología ni marketing. Analizamos tu negocio y construimos lo que necesitas para crecer.”
               </p>
             </div>
 
-            <div className="relative z-10 my-8 sm:my-10">
+            {/* Pilares: solo si la pantalla tiene altura suficiente, para que el login no requiera scroll */}
+            <div className="relative z-10 my-6 hidden [@media(min-height:820px)]:block">
               <div className="text-[11px] font-semibold text-[#9a907c] uppercase tracking-widest mb-4 flex items-center gap-2">
                 <span>Ecosistema de Transformación</span>
                 <span className="h-[1px] flex-1 bg-[#353437]" />
@@ -202,8 +239,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth
           </div>
 
           {/* RIGHT PANE: Dual Tab Form */}
-          <div className="lg:col-span-6 xl:col-span-5 bg-[#201f21] p-6 sm:p-10 xl:p-12 flex flex-col justify-center relative">
-            <div className="w-full bg-[#0e0e10] p-1 rounded-xl mb-7 flex items-center relative border border-white/5">
+          <div className="flex-1 min-w-0 min-h-0 overflow-y-auto bg-[#201f21] p-5 pt-12 sm:p-8 sm:pt-12 xl:p-10 xl:pt-12 flex flex-col justify-center-safe relative">
+            <div className="w-full bg-[#0e0e10] p-1 rounded-xl mb-5 flex items-center relative border border-white/5">
               <button
                 type="button"
                 onClick={() => setActiveTab('login')}
@@ -495,7 +532,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth
 
       {/* Forgot Password Modal */}
       {showForgotModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#1c1b1d] border border-[#ffd56d]/30 rounded-2xl max-w-md w-full p-6 text-left shadow-2xl relative text-xs">
             <h3 className="text-base font-bold text-white font-display mb-1">Recuperar Contraseña</h3>
             <p className="text-xs text-[#9a907c] mb-4">Ingresa tu correo para recibir las instrucciones de restablecimiento.</p>

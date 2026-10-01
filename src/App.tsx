@@ -7,127 +7,128 @@ import { LandingView } from './components/LandingView';
 import { AuthScreen } from './components/AuthScreen';
 import { ClientDashboard } from './components/ClientDashboard';
 import { AdminPanel } from './components/AdminPanel';
-import { CotizadorView } from './components/CotizadorView';
 import { PlanesView } from './components/PlanesView';
 import { WuishLogo } from './components/WuishLogo';
-import { Calculator, Shield, ArrowUp, Lock } from 'lucide-react';
+import { Shield, ArrowUp, Lock } from 'lucide-react';
 
-type ViewMode = 'landing' | 'portal' | 'admin' | 'cotizador' | 'planes' | 'auth';
+type ViewMode = 'landing' | 'portal' | 'admin' | 'planes';
+// 'auth' no es una vista: abre el popup de inicio de sesión sobre la vista actual
+type NavTarget = ViewMode | 'auth';
 
 const MainAppContent: React.FC = () => {
   const { isAuthenticated, currentRole } = useAuth();
   const { showToast } = useToast();
   const [dashboardTab, setDashboardTab] = useState<DashboardTab>('resumen');
-  const [cotizacionSubview, setCotizacionSubview] = useState<'planes' | 'cotizador' | null>(null);
+  // Pestaña a abrir después de iniciar sesión (ej. el usuario quiso cotizar sin sesión)
+  const [pendingTab, setPendingTab] = useState<DashboardTab | null>(null);
+  const [authModal, setAuthModal] = useState<'login' | 'register' | null>(null);
 
   const [currentView, setCurrentView] = useState<ViewMode>(() => {
     return isAuthenticated ? (currentRole === 'admin' || currentRole === 'administrador' ? 'admin' : 'portal') : 'landing';
   });
 
-  const navigateTo = (view: ViewMode) => {
-    if (view === 'auth' && isAuthenticated) {
-      setCurrentView(currentRole === 'admin' || currentRole === 'administrador' ? 'admin' : 'portal');
+  const isAdminRole = currentRole === 'admin' || currentRole === 'administrador';
+
+  const openAuth = (tab: 'login' | 'register' = 'login') => setAuthModal(tab);
+
+  const navigateTo = (view: NavTarget) => {
+    if (view === 'auth') {
+      if (isAuthenticated) setCurrentView(isAdminRole ? 'admin' : 'portal');
+      else openAuth('login');
+      return;
+    }
+    // Con sesión activa, las vistas públicas (inicio y planes sueltos) quedan bloqueadas
+    if (isAuthenticated && view === 'landing') {
+      setCurrentView(isAdminRole ? 'admin' : 'portal');
+      return;
+    }
+    if (isAuthenticated && view === 'planes') {
+      setDashboardTab('planes');
+      setCurrentView('portal');
       return;
     }
     if ((view === 'portal' || view === 'admin') && !isAuthenticated) {
-      setCurrentView('auth');
-    } else if (view === 'admin' && isAuthenticated && currentRole !== 'admin' && currentRole !== 'administrador') {
+      openAuth('login');
+    } else if (view === 'admin' && isAuthenticated && !isAdminRole) {
       setCurrentView('portal');
     } else {
       setCurrentView(view);
     }
   };
 
-  useEffect(() => {
-    if (isAuthenticated && currentView === 'auth') {
-      setCurrentView(currentRole === 'admin' || currentRole === 'administrador' ? 'admin' : 'portal');
+  // Abre una pestaña del portal; si no hay sesión, manda a iniciar sesión y la abre al entrar
+  const openDashboardTab = (tab: DashboardTab) => {
+    if (!isAuthenticated) {
+      setPendingTab(tab);
+      if (tab === 'cotizador') {
+        showToast('Inicia Sesión', 'Debes iniciar sesión para usar el cotizador.', 'error');
+      }
+      openAuth('login');
+      return;
     }
-  }, [isAuthenticated, currentView, currentRole]);
+    setDashboardTab(tab);
+    setCurrentView('portal');
+    scrollToTop();
+  };
+
+  useEffect(() => {
+    const publicViews: ViewMode[] = ['landing', 'planes'];
+    if (isAuthenticated && publicViews.includes(currentView)) {
+      setCurrentView(isAdminRole ? 'admin' : 'portal');
+    } else if (!isAuthenticated && (currentView === 'portal' || currentView === 'admin')) {
+      // Al cerrar sesión se vuelve al inicio con el popup de login abierto
+      setCurrentView('landing');
+      openAuth('login');
+    }
+  }, [isAuthenticated, currentView, isAdminRole]);
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
-    <div className="min-h-screen bg-[#131315] text-[#e5e1e4] flex flex-col selection:bg-[#ffd56d] selection:text-[#3e2e00]">
+    <div className={`min-h-screen bg-[#131315] text-[#e5e1e4] flex flex-col selection:bg-[#ffd56d] selection:text-[#3e2e00]`}>
       <HeaderNav
         currentView={currentView}
         activeDashboardTab={dashboardTab}
-        onSelectDashboardTab={setDashboardTab}
-        onSelectCotizacionSubview={(sub) => {
-          setCotizacionSubview(sub);
-          setDashboardTab('cotizacion');
-          navigateTo('portal');
-          scrollToTop();
-        }}
+        onSelectDashboardTab={openDashboardTab}
         onSelectView={(v) => {
           navigateTo(v);
-          scrollToTop();
+          if (v !== 'auth') scrollToTop();
         }}
       />
 
       <main className="flex-1 w-full flex flex-col">
         {currentView === 'landing' && (
           <LandingView
-            onNavigateToCotizador={() => { setCurrentView('cotizador'); scrollToTop(); }}
+            onNavigateToCotizador={() => openDashboardTab('cotizador')}
             onNavigateToAuth={() => {
               if (isAuthenticated) {
-                navigateTo(currentRole === 'admin' || currentRole === 'administrador' ? 'admin' : 'portal');
+                navigateTo(isAdminRole ? 'admin' : 'portal');
+                scrollToTop();
               } else {
-                navigateTo('auth');
+                openAuth('register');
               }
-              scrollToTop();
             }}
             onNavigateToPortal={() => {
               navigateTo(currentRole === 'admin' || currentRole === 'administrador' ? 'admin' : 'portal');
               scrollToTop();
             }}
-            onNavigateToPlanes={() => {
-              if (isAuthenticated) {
-                setDashboardTab('cotizacion');
-                setCotizacionSubview('planes');
-                navigateTo('portal');
-              } else {
-                navigateTo('planes');
-              }
-              scrollToTop();
-            }}
+            onNavigateToPlanes={() => { navigateTo('planes'); scrollToTop(); }}
             onRequireAuthForReview={() => {
-              if (!isAuthenticated) {
-                navigateTo('auth');
-                scrollToTop();
-              }
+              if (!isAuthenticated) openAuth('login');
             }}
           />
-        )}
-
-        {currentView === 'auth' && (
-          <div className="py-6 px-4 flex-1 flex items-center justify-center">
-            <AuthScreen
-              onSuccessAuth={(role) => {
-                setCurrentView(role === 'admin' || role === 'administrador' ? 'admin' : 'portal');
-                scrollToTop();
-              }}
-            />
-          </div>
         )}
 
         {currentView === 'portal' && (
           <ClientDashboard
             activeTab={dashboardTab}
             onTabChange={setDashboardTab}
-            cotizacionSubview={cotizacionSubview}
-            onCotizacionSubviewChange={setCotizacionSubview}
           />
         )}
 
         {currentView === 'admin' && <AdminPanel />}
-
-        {currentView === 'cotizador' && (
-          <CotizadorView
-            onSuccessSubmit={() => { setCurrentView('portal'); scrollToTop(); }}
-          />
-        )}
 
         {currentView === 'planes' && (
           <div className="space-y-4">
@@ -147,7 +148,7 @@ const MainAppContent: React.FC = () => {
               </button>
             </div>
             <PlanesView
-              onSelectPlan={() => { setCurrentView('cotizador'); scrollToTop(); }}
+              onSelectPlan={() => openDashboardTab('cotizador')}
             />
           </div>
         )}
@@ -155,17 +156,6 @@ const MainAppContent: React.FC = () => {
 
       {/* Floating Action Buttons */}
       <aside aria-label="Acciones rápidas" className="fixed bottom-6 right-6 z-40 flex flex-col gap-3">
-        <button
-          onClick={() => { setCurrentView('cotizador'); scrollToTop(); }}
-          className="p-3.5 rounded-full bg-[#ffd56d] text-[#3e2e00] shadow-xl hover:bg-[#ffdf97] transition-all hover:scale-110 flex items-center justify-center cursor-pointer group"
-          title="Abrir Cotizador Inteligente"
-        >
-          <Calculator className="w-5 h-5" />
-          <span className="max-w-0 overflow-hidden whitespace-nowrap group-hover:max-w-xs transition-all duration-300 ease-in-out px-0 group-hover:px-2 text-xs font-bold font-display">
-            Cotizador en Vivo
-          </span>
-        </button>
-
         <button
           onClick={scrollToTop}
           className="p-3 rounded-full bg-[#1c1b1d] text-zinc-300 border border-white/10 shadow-lg hover:bg-[#201f21] hover:text-white transition cursor-pointer"
@@ -193,18 +183,9 @@ const MainAppContent: React.FC = () => {
           <div className="space-y-2 text-xs">
             <h4 className="font-bold uppercase tracking-wider text-white font-display mb-3">Módulos del Ecosistema</h4>
             <ul className="space-y-2 text-[#d1c5af]">
-              <li><button onClick={() => { setCurrentView('cotizador'); scrollToTop(); }} className="hover:text-[#ffd56d] transition cursor-pointer">Cotizador Dinámico &amp; Presupuesto</button></li>
+              <li><button onClick={() => openDashboardTab('cotizador')} className="hover:text-[#ffd56d] transition cursor-pointer">Cotizador Dinámico &amp; Presupuesto</button></li>
               <li><button onClick={() => { navigateTo('portal'); scrollToTop(); }} className="hover:text-[#ffd56d] transition cursor-pointer">Portal Ejecutivo de Clientes</button></li>
-              <li><button onClick={() => {
-                if (isAuthenticated) {
-                  setDashboardTab('cotizacion');
-                  setCotizacionSubview('planes');
-                  navigateTo('portal');
-                } else {
-                  navigateTo('planes');
-                }
-                scrollToTop();
-              }} className="hover:text-[#ffd56d] transition cursor-pointer">Matriz de Planes &amp; Soluciones</button></li>
+              <li><button onClick={() => { navigateTo('planes'); scrollToTop(); }} className="hover:text-[#ffd56d] transition cursor-pointer">Matriz de Planes &amp; Soluciones</button></li>
             </ul>
           </div>
 
@@ -227,6 +208,26 @@ const MainAppContent: React.FC = () => {
           </div>
         </div>
       </footer>
+
+      {/* Popup de inicio de sesión / registro */}
+      {authModal && !isAuthenticated && (
+        <AuthScreen
+          isModal
+          initialTab={authModal}
+          onClose={() => { setAuthModal(null); setPendingTab(null); }}
+          onSuccessAuth={(role) => {
+            setAuthModal(null);
+            if (pendingTab) {
+              setDashboardTab(pendingTab);
+              setPendingTab(null);
+              setCurrentView('portal');
+            } else {
+              setCurrentView(role === 'admin' || role === 'administrador' ? 'admin' : 'portal');
+            }
+            scrollToTop();
+          }}
+        />
+      )}
     </div>
   );
 };
