@@ -40,7 +40,7 @@ const ROTATING_WORDS = ['ideas', 'marcas', 'procesos', 'ventas'];
 
 const SERVICES = [
   'Marketing Digital', 'Video 4K', 'Branding', 'Apps Móviles', 'CRM & ERP',
-  'Automatización IA', 'Dashboards BI', 'Desarrollo Web', 'Pauta Omnicanal',
+  'Automatización de Procesos', 'Dashboards BI', 'Desarrollo Web', 'Pauta Omnicanal',
 ];
 
 const STATS = [

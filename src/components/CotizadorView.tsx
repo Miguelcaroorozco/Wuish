@@ -9,7 +9,7 @@ import {
   Globe,
   Smartphone,
   Database,
-  Bot,
+  Cpu,
   Shield,
   Clock,
   Send,
@@ -40,7 +40,7 @@ const AVAILABLE_SERVICES: ServiceItem[] = [
   { id: 'web', name: 'Desarrollo Web & E-Commerce', category: 'tecnologia', basePrice: 1800, description: 'Headless Next.js, pasarelas globales y alta velocidad', icon: Globe },
   { id: 'mobile', name: 'Apps Móviles (iOS & Android)', category: 'tecnologia', basePrice: 2600, description: 'Flutter / Swift nativo, offline-first y push notifications', icon: Smartphone },
   { id: 'erp', name: 'Software ERP / CRM a Medida', category: 'tecnologia', basePrice: 2900, description: 'Gestión de inventarios, roles RBAC y facturación multi-país', icon: Database },
-  { id: 'ia', name: 'Automatización con IA & BI', category: 'tecnologia', basePrice: 1600, description: 'Modelos predictivos, chatbots autónomos y dashboards', icon: Bot },
+  { id: 'automatizacion', name: 'Automatización & Business Intelligence', category: 'tecnologia', basePrice: 1600, description: 'Flujos automatizados, integraciones API y dashboards en tiempo real', icon: Cpu },
   { id: 'sec', name: 'Ciberseguridad & Auditoría Cloud', category: 'tecnologia', basePrice: 1350, description: 'Pentesting, SOC2, blindaje de datos y certificación', icon: Shield },
 ];
 

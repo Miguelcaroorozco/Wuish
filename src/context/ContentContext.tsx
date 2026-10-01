@@ -19,7 +19,7 @@ const DEFAULT_TESTIMONIALS: Testimonial[] = [
     name: 'Valeria Restrepo',
     company: 'Andina Logistics · VP de Operaciones',
     rating: 5,
-    text: 'La implementación de la plataforma a medida y las automatizaciones con IA revolucionaron nuestra operación diaria. La dedicación técnica y el acompañamiento estratégico son de primer nivel.',
+    text: 'La implementación de la plataforma a medida y la automatización de procesos revolucionaron nuestra operación diaria. La dedicación técnica y el acompañamiento estratégico son de primer nivel.',
     date: '2026-08-28T14:30:00.000Z',
     status: 'approved',
   },
@@ -80,8 +80,8 @@ const DEFAULT_PROJECTS: Project[] = [
     client: 'Andina Logistics',
     category: 'tecnologia',
     year: '2025',
-    description: 'Sistema ERP a medida para tracking de flotas en tiempo real, integración aduanera y automatizaciones operativas con IA.',
-    tags: ['ERP', 'IA', 'Dashboards BI', 'APIs'],
+    description: 'Sistema ERP a medida para tracking de flotas en tiempo real, integración aduanera y optimización operativa continua.',
+    tags: ['ERP', 'Logística', 'Dashboards BI', 'APIs'],
   },
   {
     id: 'prj-4',
@@ -127,10 +127,10 @@ interface ContentContextType {
 
 const ContentContext = createContext<ContentContextType | undefined>(undefined);
 
-const TESTIMONIALS_KEY = 'wuish_testimonios_v3';
-const PROJECTS_KEY = 'wuish_proyectos_v2';
+const TESTIMONIALS_KEY = 'wuish_testimonios_v4';
+const PROJECTS_KEY = 'wuish_proyectos_v3';
 const STATS_KEY = 'wuish_stats_v2';
-const PLANS_KEY = 'wuish_planes_v1';
+const PLANS_KEY = 'wuish_planes_v2';
 const CART_KEY = 'wuish_cart_v1';
 
 const load = <T,>(key: string): T[] => {
@@ -168,7 +168,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const saved = load<any>(PLANS_KEY);
     return saved.length > 0 ? saved : [
       { id: 'crecimiento', name: 'Crecimiento Digital', badge: 'Marca & pauta', price: '1850', highlight: false, features: ['Estrategia de comunicación', 'Pauta Meta & Google Ads', '4 videos al mes', 'Reporte mensual de ROAS'] },
-      { id: 'digitalizacion', name: 'Digitalización Operativa', badge: 'Sistemas', price: '2900', highlight: false, features: ['Web headless de alta velocidad', 'CRM o ERP a medida', 'Automatizaciones con IA', 'Soporte prioritario 12h'] },
+      { id: 'digitalizacion', name: 'Digitalización Operativa', badge: 'Sistemas', price: '2900', highlight: false, features: ['Web headless de alta velocidad', 'CRM o ERP a medida', 'Automatización de flujos y APIs', 'Soporte prioritario 12h'] },
       { id: 'optimizacion', name: 'Optimización & Escala', badge: 'Full suite', price: '4200', highlight: true, features: ['Todo lo anterior', 'Video 4K & motion graphics', 'App móvil o portal de clientes', 'Dashboard BI en tiempo real', 'SLA crítico < 2h'] },
       { id: 'transformacion', name: 'Transformación Integral', badge: 'Enterprise', price: null, highlight: false, features: ['Arquitectura multi-país', 'Equipo dedicado in-house', 'Cloud privada GCP/AWS', 'SLA 24/7'] },
     ];

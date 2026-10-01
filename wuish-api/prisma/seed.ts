@@ -40,7 +40,7 @@ async function main() {
       orden: 1,
     },
     {
-      contenido: 'La implementación de la plataforma a medida y las automatizaciones con IA revolucionaron nuestra operación diaria. La dedicación técnica y el acompañamiento estratégico son de primer nivel.',
+      contenido: 'La implementación de la plataforma a medida y la automatización de procesos revolucionaron nuestra operación diaria. La dedicación técnica y el acompañamiento estratégico son de primer nivel.',
       calificacion: 5,
       mostrar_en_pagina: true,
       orden: 2,

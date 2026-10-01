@@ -1,20 +1,45 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# WUISH — Plataforma de Comunicación y Soluciones Tecnológicas
 
-# Run and deploy your AI Studio app
+Ecosistema integral que fusiona tecnología de punta y comunicación estratégica. Plataforma moderna desarrollada con **React 19**, **NestJS**, **Prisma ORM** y **PostgreSQL**.
 
-This contains everything you need to run your app locally.
+---
 
-View your app in AI Studio: https://ai.studio/apps/d87b801f-cb82-40e3-b1ea-a7aa1a742c32
+## ⚡ Inicio Rápido en 3 Pasos
 
-## Run Locally
+### 1. Instalar dependencias
+```bash
+# Frontend
+npm install
 
-**Prerequisites:**  Node.js
+# Backend API
+cd wuish-api
+npm install
+cd ..
+```
 
+### 2. Configurar Base de Datos
+Asegúrate de tener PostgreSQL activo y ejecuta el script [wuish_database_schema.sql](wuish_database_schema.sql) en **pgAdmin 4** o mediante consola.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### 3. Iniciar la aplicación
+```bash
+npm run dev
+```
+- **Frontend Web:** `http://localhost:3000`
+- **Backend API:** `http://localhost:3001/api`
+
+---
+
+## 📖 Documentación Completa
+
+Para una guía detallada con explicación completa de variables de entorno (`.env`), todos los comandos disponibles, solución de errores y credenciales, consulta:
+
+👉 **[GUIA_INICIO.md](GUIA_INICIO.md)**
+
+---
+
+## 🔑 Credenciales de Prueba
+
+| Rol | Correo | Contraseña |
+|---|---|---|
+| **Administrador** | `admin@wuish.com` | `admin123` |
+| **Cliente** | `cliente@wuish.io` | `cliente123` |

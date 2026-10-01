@@ -28,7 +28,7 @@ const PILLARS = [
   { icon: Megaphone, title: 'Comunicación', desc: 'Narrativas corporativas de alto impacto y reputación.' },
   { icon: Terminal, title: 'Tecnología', desc: 'Infraestructura escalable y arquitecturas digitales sólidas.' },
   { icon: Compass, title: 'Estrategia', desc: 'Modelos de negocio ágiles orientados a expansión real.' },
-  { icon: BarChart3, title: 'Datos & IA', desc: 'Analítica predictiva y decisión informada en tiempo real.' },
+  { icon: BarChart3, title: 'Datos & Analítica', desc: 'Métricas de rendimiento y decisiones estratégicas en tiempo real.' },
 ];
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth, isModal = false }) => {
