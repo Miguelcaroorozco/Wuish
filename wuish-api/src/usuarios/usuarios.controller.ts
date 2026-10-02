@@ -29,7 +29,10 @@ export class UsuariosController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Actualizar perfil del usuario actual' })
-  updateMe(@Request() req, @Body() data: { nombres?: string; apellidos?: string; telefono?: string }) {
+  updateMe(
+    @Request() req,
+    @Body() data: { nombres?: string; apellidos?: string; telefono?: string; empresa?: string; cargo?: string },
+  ) {
     return this.usuariosService.update(req.user.sub, data);
   }
 

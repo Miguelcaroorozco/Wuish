@@ -36,8 +36,23 @@ export class SolicitudesController {
   @Post()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Crear nueva solicitud' })
-  create(@Request() req, @Body() data: { tipo: string; descripcion?: string; plan_id?: string }) {
+  @ApiOperation({ summary: 'Crear nueva solicitud / cotización' })
+  create(
+    @Request() req,
+    @Body()
+    data: {
+      tipo?: string;
+      descripcion?: string;
+      plan_id?: string;
+      empresa?: string;
+      telefono_contacto?: string;
+      servicios_seleccionados?: any;
+      presupuesto_min?: number;
+      presupuesto_max?: number;
+      velocidad_entrega?: string;
+      nivel_soporte?: string;
+    },
+  ) {
     return this.solicitudesService.create({
       usuario_id: req.user.sub,
       ...data,
@@ -55,26 +70,11 @@ export class SolicitudesController {
     return this.solicitudesService.updateEstado(id, data);
   }
 
-  @Post(':id/ajustes')
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Agregar ajuste a solicitud (admin)' })
-  addAjuste(
-    @Param('id') id: string,
-    @Request() req,
-    @Body() data: { descripcion_ajuste: string },
-  ) {
-    return this.solicitudesService.addAjuste(id, {
-      descripcion_ajuste: data.descripcion_ajuste,
-      respondido_por: req.user.sub,
-    });
-  }
-
   @Delete(':id')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Eliminar solicitud (admin)' })
-  remove(@Param('id') id: string) {
+  delete(@Param('id') id: string) {
     return this.solicitudesService.delete(id);
   }
 }

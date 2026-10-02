@@ -19,7 +19,10 @@ export class UsuariosService {
     return sanitized;
   }
 
-  async update(id: string, data: { nombres?: string; apellidos?: string; telefono?: string; correo?: string }) {
+  async update(
+    id: string,
+    data: { nombres?: string; apellidos?: string; telefono?: string; correo?: string; empresa?: string; cargo?: string },
+  ) {
     const user = await this.prisma.usuario.update({
       where: { id },
       data: { ...data, updated_at: new Date() },

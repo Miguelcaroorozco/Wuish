@@ -4,12 +4,12 @@ import { InfoGeneralService } from './info-general.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 
-@ApiTags('Info General')
+@ApiTags('Info General & Contenido')
 @Controller()
 export class InfoGeneralController {
   constructor(private infoService: InfoGeneralService) {}
 
-  // ========== INFO GENERAL (Público) ==========
+  // ========== INFO GENERAL (CMS) ==========
   @Get('info-general')
   @ApiOperation({ summary: 'Obtener toda la información general (público)' })
   findAllInfo() {
@@ -30,88 +30,129 @@ export class InfoGeneralController {
     return this.infoService.upsertInfo(data.seccion, data.contenido, req.user.sub);
   }
 
-  // ========== EQUIPO (Público + Admin CRUD) ==========
-  @Get('equipo')
-  @ApiOperation({ summary: 'Obtener miembros del equipo (público)' })
-  findAllEquipo() {
-    return this.infoService.findAllEquipo();
+  // ========== MÓDULOS DEL COTIZADOR ==========
+  @Get('cotizador-modulos')
+  @ApiOperation({ summary: 'Obtener módulos y opciones del cotizador (público / admin)' })
+  findAllCotizadorModulos(@Query('all') all?: string) {
+    const activeOnly = all !== 'true';
+    return this.infoService.findAllCotizadorModulos(activeOnly);
   }
 
-  @Post('equipo')
+  @Put('cotizador-modulos')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Agregar miembro al equipo (admin)' })
-  createEquipo(@Body() data: { nombre: string; cargo?: string; foto_url?: string; descripcion?: string; orden?: number }) {
-    return this.infoService.createEquipo(data);
+  @ApiOperation({ summary: 'Crear o actualizar módulo del cotizador (admin)' })
+  upsertCotizadorModulo(
+    @Body()
+    data: {
+      id: string;
+      nombre: string;
+      categoria: string;
+      precio_base: number;
+      descripcion: string;
+      activo?: boolean;
+      orden?: number;
+    },
+  ) {
+    return this.infoService.upsertCotizadorModulo(data);
   }
 
-  @Put('equipo/:id')
+  @Delete('cotizador-modulos/:id')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Actualizar miembro del equipo (admin)' })
-  updateEquipo(@Param('id') id: string, @Body() data: any) {
-    return this.infoService.updateEquipo(id, data);
+  @ApiOperation({ summary: 'Eliminar módulo del cotizador (admin)' })
+  deleteCotizadorModulo(@Param('id') id: string) {
+    return this.infoService.deleteCotizadorModulo(id);
   }
 
-  @Delete('equipo/:id')
+  // ========== PROYECTOS / PORTAFOLIO ==========
+  @Get('proyectos-portafolio')
+  @ApiOperation({ summary: 'Obtener proyectos del portafolio' })
+  findAllProyectos(@Query('all') all?: string) {
+    const activeOnly = all !== 'true';
+    return this.infoService.findAllProyectos(activeOnly);
+  }
+
+  @Post('proyectos-portafolio')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Eliminar miembro del equipo (admin)' })
-  deleteEquipo(@Param('id') id: string) {
-    return this.infoService.deleteEquipo(id);
+  @ApiOperation({ summary: 'Crear proyecto en el portafolio (admin)' })
+  createProyecto(@Body() data: any) {
+    return this.infoService.createProyecto(data);
   }
 
-  // ========== RESULTADOS (Público + Admin CRUD) ==========
+  @Put('proyectos-portafolio/:id')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Actualizar proyecto en el portafolio (admin)' })
+  updateProyecto(@Param('id') id: string, @Body() data: any) {
+    return this.infoService.updateProyecto(id, data);
+  }
+
+  @Delete('proyectos-portafolio/:id')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Eliminar proyecto del portafolio (admin)' })
+  deleteProyecto(@Param('id') id: string) {
+    return this.infoService.deleteProyecto(id);
+  }
+
+  // Compatibilidad con endpoint /resultados
   @Get('resultados')
-  @ApiOperation({ summary: 'Obtener resultados/portfolio (público)' })
-  findAllResultados(@Query('all') all?: string) {
-    return this.infoService.findAllResultados(all !== 'true');
+  findAllResultadosLegacy(@Query('all') all?: string) {
+    return this.findAllProyectos(all);
   }
 
   @Post('resultados')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Crear resultado (admin)' })
-  createResultado(@Body() data: { titulo: string; descripcion?: string; imagen_url?: string; orden?: number }) {
-    return this.infoService.createResultado(data);
+  createResultadoLegacy(@Body() data: any) {
+    return this.createProyecto(data);
   }
 
   @Put('resultados/:id')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Actualizar resultado (admin)' })
-  updateResultado(@Param('id') id: string, @Body() data: any) {
-    return this.infoService.updateResultado(id, data);
+  updateResultadoLegacy(@Param('id') id: string, @Body() data: any) {
+    return this.updateProyecto(id, data);
   }
 
   @Delete('resultados/:id')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Eliminar resultado (admin)' })
-  deleteResultado(@Param('id') id: string) {
-    return this.infoService.deleteResultado(id);
+  deleteResultadoLegacy(@Param('id') id: string) {
+    return this.deleteProyecto(id);
   }
 
-  // ========== PASOS DEL PROCESO (Público + Admin) ==========
-  @Get('pasos-proceso')
-  @ApiOperation({ summary: 'Obtener pasos del proceso (público)' })
-  findAllPasos() {
-    return this.infoService.findAllPasos();
+  // ========== MÉTRICAS DE LA LANDING ==========
+  @Get('metricas-landing')
+  @ApiOperation({ summary: 'Obtener métricas clave de la landing (público)' })
+  findAllMetricas(@Query('all') all?: string) {
+    const activeOnly = all !== 'true';
+    return this.infoService.findAllMetricas(activeOnly);
   }
 
-  @Put('pasos-proceso')
+  @Post('metricas-landing')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Crear o actualizar paso del proceso (admin)' })
-  upsertPaso(@Body() data: { numero_paso: number; titulo: string; descripcion?: string; icono?: string }) {
-    return this.infoService.upsertPaso(data);
+  @ApiOperation({ summary: 'Crear métrica (admin)' })
+  createMetrica(@Body() data: { valor: number; sufijo?: string; etiqueta: string; orden?: number }) {
+    return this.infoService.createMetrica(data);
   }
 
-  @Delete('pasos-proceso/:id')
+  @Put('metricas-landing/:id')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Eliminar paso del proceso (admin)' })
-  deletePaso(@Param('id') id: string) {
-    return this.infoService.deletePaso(id);
+  @ApiOperation({ summary: 'Actualizar métrica (admin)' })
+  updateMetrica(@Param('id') id: string, @Body() data: any) {
+    return this.infoService.updateMetrica(id, data);
+  }
+
+  @Delete('metricas-landing/:id')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Eliminar métrica (admin)' })
+  deleteMetrica(@Param('id') id: string) {
+    return this.infoService.deleteMetrica(id);
   }
 }

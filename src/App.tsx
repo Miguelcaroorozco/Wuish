@@ -21,6 +21,7 @@ const MainAppContent: React.FC = () => {
   const [dashboardTab, setDashboardTab] = useState<DashboardTab>('resumen');
   // Pestaña a abrir después de iniciar sesión (ej. el usuario quiso cotizar sin sesión)
   const [pendingTab, setPendingTab] = useState<DashboardTab | null>(null);
+  const [selectedPlanForCotizador, setSelectedPlanForCotizador] = useState<string | null>(null);
   const [authModal, setAuthModal] = useState<'login' | 'register' | null>(null);
 
   const [currentView, setCurrentView] = useState<ViewMode>(() => {
@@ -57,7 +58,10 @@ const MainAppContent: React.FC = () => {
   };
 
   // Abre una pestaña del portal; si no hay sesión, manda a iniciar sesión y la abre al entrar
-  const openDashboardTab = (tab: DashboardTab) => {
+  const openDashboardTab = (tab: DashboardTab, planId?: string | null) => {
+    if (planId !== undefined) {
+      setSelectedPlanForCotizador(planId);
+    }
     if (!isAuthenticated) {
       setPendingTab(tab);
       if (tab === 'cotizador') {
@@ -125,6 +129,7 @@ const MainAppContent: React.FC = () => {
           <ClientDashboard
             activeTab={dashboardTab}
             onTabChange={setDashboardTab}
+            initialPlanId={selectedPlanForCotizador}
           />
         )}
 
@@ -148,7 +153,7 @@ const MainAppContent: React.FC = () => {
               </button>
             </div>
             <PlanesView
-              onSelectPlan={() => openDashboardTab('cotizador')}
+              onSelectPlan={(planId) => openDashboardTab('cotizador', planId)}
             />
           </div>
         )}

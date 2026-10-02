@@ -9,13 +9,13 @@ import {
   Shield,
   Briefcase,
   Sliders,
-  KeyRound,
   LayoutDashboard,
+  ClipboardList,
   CreditCard,
   Calculator
 } from 'lucide-react';
 
-export type DashboardTab = 'resumen' | 'planes' | 'cotizador' | 'ajustes';
+export type DashboardTab = 'resumen' | 'solicitudes' | 'planes' | 'cotizador' | 'ajustes';
 
 interface HeaderNavProps {
   currentView: 'landing' | 'portal' | 'admin' | 'planes' | 'auth';
@@ -26,6 +26,7 @@ interface HeaderNavProps {
 
 const DASHBOARD_TABS = [
   { id: 'resumen', label: 'Resumen', icon: LayoutDashboard },
+  { id: 'solicitudes', label: 'Solicitudes', icon: ClipboardList },
   { id: 'planes', label: 'Planes', icon: CreditCard },
   { id: 'cotizador', label: 'Cotizador', icon: Calculator },
 ] as const;
@@ -49,7 +50,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   return (
-    <header className="sticky top-0 left-0 right-0 z-40 bg-[#0e0e10]/95 backdrop-blur-xl border-b border-white/10 shadow-[0_1px_16px_rgba(0,0,0,0.5)]">
+    <header className="sticky top-0 left-0 right-0 z-50 bg-[#0e0e10] border-b border-white/10 shadow-[0_1px_16px_rgba(0,0,0,0.5)]">
       <div className="h-16 sm:h-20 w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
         
         {/* Left: Brand Logo & Navigation Links */}

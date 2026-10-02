@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ComentariosService } from './comentarios.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -25,7 +25,7 @@ export class ComentariosController {
 
   @Post()
   @ApiOperation({ summary: 'Crear comentario (público o autenticado)' })
-  create(@Request() req, @Body() data: { contenido: string; calificacion?: number; usuario_id?: string }) {
+  create(@Body() data: { contenido: string; calificacion?: number; usuario_id?: string }) {
     return this.comentariosService.create({
       usuario_id: data.usuario_id || undefined,
       contenido: data.contenido,

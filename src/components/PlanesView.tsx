@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { planesApi, carritoApi } from '../lib/api';
+import { planesApi, infoGeneralApi } from '../lib/api';
 import { CoverflowCarousel } from './CoverflowCarousel';
 import {
   Check,
@@ -10,7 +10,6 @@ import {
   Rocket,
   ShieldCheck,
   ChevronRight,
-  ShoppingCart,
   Loader2,
 } from 'lucide-react';
 
@@ -22,30 +21,30 @@ export const PlanesView: React.FC<PlanesViewProps> = ({ onSelectPlan }) => {
   const { showToast } = useToast();
   const { isAuthenticated } = useAuth();
   const [planes, setPlanes] = useState<any[]>([]);
+  const [recomendadoId, setRecomendadoId] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    planesApi.getAll()
-      .then(setPlanes)
+    Promise.allSettled([
+      planesApi.getAll(),
+      infoGeneralApi.getAll(),
+    ])
+      .then(([plsRes, infoRes]) => {
+        if (plsRes.status === 'fulfilled') {
+          setPlanes(plsRes.value);
+        }
+        if (infoRes.status === 'fulfilled' && Array.isArray(infoRes.value)) {
+          const rec = infoRes.value.find((i: any) => i.seccion === 'plan_recomendado_id')?.contenido || '';
+          setRecomendadoId(rec);
+        }
+      })
       .catch(err => console.error('Error cargando planes:', err))
       .finally(() => setLoading(false));
   }, []);
 
-  const handleAddToCart = async (planId: string, planName: string) => {
-    if (!isAuthenticated) {
-      showToast('Inicia Sesión', 'Debes iniciar sesión para agregar planes al carrito', 'error');
-      return;
-    }
-    try {
-      await carritoApi.addItem(planId);
-      showToast('Agregado al Carrito', `"${planName}" se agregó a tu carrito`, 'success');
-    } catch (err: any) {
-      showToast('Error', err.message || 'No se pudo agregar al carrito', 'error');
-    }
-  };
-
-  // El plan del medio es el recomendado y el carrusel arranca en él
-  const featuredIndex = Math.floor(planes.length / 2);
+  // El plan recomendado es el guardado desde el Admin; si no hay uno fijado, usa el del medio
+  const foundIndex = planes.findIndex(p => p.id === recomendadoId);
+  const featuredIndex = foundIndex !== -1 ? foundIndex : Math.floor(planes.length / 2);
 
   const formatPrice = (precio: any) => {
     if (!precio) return 'Personalizado';
@@ -66,6 +65,74 @@ export const PlanesView: React.FC<PlanesViewProps> = ({ onSelectPlan }) => {
     );
   }
 
+  const renderPlanCard = (p: any, isActive = false) => {
+    const features = getFeatures(p);
+    const isFeatured = p.id === recomendadoId || (!recomendadoId && planes.indexOf(p) === featuredIndex);
+
+    return (
+      <div
+        key={p.id}
+        className={`w-full p-7 rounded-2xl flex flex-col justify-between transition-all duration-300 relative ${
+          isActive
+            ? 'bg-[#201f21] border-2 border-[#ffd56d] shadow-[0_20px_50px_rgba(255,213,109,0.2)]'
+            : 'bg-[#181719] border border-white/10'
+        }`}
+      >
+        {isFeatured && (
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3.5 py-0.5 rounded-full bg-[#ffd56d] text-[#3e2e00] text-[10px] font-black uppercase tracking-widest font-display shadow-lg shadow-[#ffd56d]/30 whitespace-nowrap">
+            RECOMENDADO
+          </div>
+        )}
+
+        <div>
+          <span className="text-[10px] uppercase font-bold text-[#ffd56d] tracking-wider font-display">
+            {p.tipo_servicio?.nombre || 'Plan'}
+          </span>
+          <h2 className="text-xl font-bold text-white mt-1 font-display">{p.nombre}</h2>
+          <p className="text-xs text-[#9a907c] mt-2 leading-relaxed min-h-[44px]">
+            {p.descripcion || 'Solución integral para tu negocio'}
+          </p>
+
+          <div className="mt-5 pt-4 border-t border-white/5 flex items-baseline gap-1">
+            <span className="text-3xl sm:text-4xl font-black text-white font-display">
+              {formatPrice(p.precio)}
+            </span>
+            {p.precio && <span className="text-xs text-[#9a907c] font-semibold">COP</span>}
+          </div>
+
+          {features.length > 0 && (
+            <div className="mt-6 space-y-2.5 text-xs text-[#d1c5af]">
+              {features.map((f: string, fIdx: number) => (
+                <div key={fIdx} className="flex items-start gap-2.5">
+                  <Check className="w-4 h-4 text-[#ffd56d] shrink-0 mt-0.5" />
+                  <span className="leading-snug">{f}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-8 pt-4 border-t border-white/5">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isAuthenticated) showToast(`Plan Seleccionado: ${p.nombre}`, 'Cargando configurador...');
+              onSelectPlan(p.id);
+            }}
+            className={`w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer ${
+              isActive
+                ? 'bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] shadow-md shadow-[#ffd56d]/20 font-black'
+                : 'bg-[#2a2a2c] hover:bg-[#353437] text-white border border-white/10'
+            }`}
+          >
+            <span>Seleccionar y Cotizar</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="w-full max-w-[1560px] mx-auto p-4 sm:p-6 lg:p-10 space-y-12">
       {/* Header */}
@@ -81,7 +148,7 @@ export const PlanesView: React.FC<PlanesViewProps> = ({ onSelectPlan }) => {
         </p>
       </div>
 
-      {/* Grid of Plans */}
+      {/* Grid or Carousel of Plans */}
       {planes.length === 0 ? (
         <div className="text-center py-16">
           <Rocket className="w-12 h-12 text-[#ffd56d]/50 mx-auto mb-4" />
@@ -93,82 +160,10 @@ export const PlanesView: React.FC<PlanesViewProps> = ({ onSelectPlan }) => {
           items={planes}
           getKey={(p: any) => String(p.id)}
           initialIndex={featuredIndex}
-          autoplay={4500}
+          autoplay={5000}
           controls
           ariaLabel="Planes disponibles"
-          renderItem={(p: any, active) => {
-            const features = getFeatures(p);
-            const isFeatured = planes.indexOf(p) === featuredIndex;
-
-            return (
-              <div
-                className={`w-full p-7 rounded-2xl flex flex-col justify-between transition-colors duration-200 relative ${
-                  isFeatured
-                    ? 'bg-[#201f21] border-2 border-[#ffd56d] shadow-2xl shadow-[#ffd56d]/10'
-                    : `bg-[#1c1b1d] border ${active ? 'border-[#ffd56d]/40' : 'border-white/5'}`
-                }`}
-              >
-                {isFeatured && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-[#ffd56d] text-[#3e2e00] text-[10px] font-extrabold uppercase tracking-widest font-display shadow">
-                    RECOMENDADO
-                  </div>
-                )}
-
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-[#ffd56d] tracking-wider font-display">
-                    {p.tipo_servicio?.nombre || 'Plan'}
-                  </span>
-                  <h2 className="text-xl font-bold text-white mt-1 font-display">{p.nombre}</h2>
-                  <p className="text-xs text-[#9a907c] mt-2 leading-relaxed min-h-[44px]">
-                    {p.descripcion || 'Solución integral para tu negocio'}
-                  </p>
-
-                  <div className="mt-5 pt-4 border-t border-white/5 flex items-baseline gap-1">
-                    <span className="text-3xl sm:text-4xl font-black text-white font-display">
-                      {formatPrice(p.precio)}
-                    </span>
-                    {p.precio && <span className="text-xs text-[#9a907c] font-semibold">COP</span>}
-                  </div>
-
-                  {features.length > 0 && (
-                    <div className="mt-6 space-y-2.5 text-xs text-[#d1c5af]">
-                      {features.map((f: string, fIdx: number) => (
-                        <div key={fIdx} className="flex items-start gap-2.5">
-                          <Check className="w-4 h-4 text-[#ffd56d] shrink-0 mt-0.5" />
-                          <span className="leading-snug">{f}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-8 pt-4 border-t border-white/5 space-y-2">
-                  <button
-                    onClick={() => {
-                      if (isAuthenticated) showToast(`Plan Seleccionado: ${p.nombre}`, 'Cargando configurador...');
-                      onSelectPlan(p.id);
-                    }}
-                    className={`w-full py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                      isFeatured
-                        ? 'bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] shadow-md'
-                        : 'bg-[#2a2a2c] hover:bg-[#353437] text-white border border-white/10'
-                    }`}
-                  >
-                    <span>Seleccionar y Cotizar</span>
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-
-                  <button
-                    onClick={() => handleAddToCart(p.id, p.nombre)}
-                    className="w-full py-2.5 rounded-xl text-xs font-semibold text-[#ffd56d] hover:bg-[#ffd56d]/10 transition flex items-center justify-center gap-1.5 cursor-pointer border border-[#ffd56d]/20"
-                  >
-                    <ShoppingCart className="w-3.5 h-3.5" />
-                    <span>Agregar al Carrito</span>
-                  </button>
-                </div>
-              </div>
-            );
-          }}
+          renderItem={(p: any, active: boolean) => renderPlanCard(p, active)}
         />
       )}
 

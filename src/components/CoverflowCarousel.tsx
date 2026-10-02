@@ -3,9 +3,6 @@ import { motion, useReducedMotion } from 'motion/react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const SPRING = { type: 'spring', stiffness: 220, damping: 30, mass: 0.9 } as const;
-// Con menos tarjetas se repite la lista, así el salto de un extremo al otro ocurre fuera de vista
-const MIN_SLOTS = 6;
-const VISIBLE_RANGE = 2.5;
 
 interface CoverflowCarouselProps<T> {
   items: T[];
@@ -39,13 +36,16 @@ export function CoverflowCarousel<T>({
   const [width, setWidth] = useState(1024);
 
   const count = items.length;
-  const copies = count > 1 ? Math.ceil(MIN_SLOTS / count) : 1;
-  const slots = Array.from({ length: count * copies }, (_, i) => ({ item: items[i % count], copy: Math.floor(i / count) }));
+  // Cada ítem se muestra exactamente una sola vez, sin multiplicar ni duplicar
+  const slots = items.map((item) => ({ item }));
   const total = slots.length;
   const canSlide = count > 1;
 
-  // Separación entre tarjetas según el ancho disponible
-  const step = Math.min(210, Math.max(90, width * 0.22));
+  // Rango visible: exactamente 3 tarjetas (la central en foco y 1 a cada lado atrás)
+  const visibleRange = 1.35;
+
+  // Separación calibrada para que las tarjetas laterales no queden tapadas ni cortadas
+  const step = width < 640 ? Math.min(320, width * 0.85) : Math.min(390, Math.max(320, width * 0.32));
 
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -112,42 +112,42 @@ export function CoverflowCarousel<T>({
         setTimeout(() => (dragged.current = false), 0);
       }}
       onClickCapture={(e) => {
-        // Un arrastre no debe disparar el click de la tarjeta
         if (dragged.current) {
           e.stopPropagation();
           e.preventDefault();
         }
       }}
-      className={`relative grid place-items-center overflow-hidden py-8 outline-none select-none touch-pan-y ${
+      className={`relative grid place-items-center overflow-hidden py-10 outline-none select-none touch-pan-y ${
         canSlide ? 'cursor-grab active:cursor-grabbing' : ''
       }`}
     >
-      {slots.map(({ item, copy }, slot) => {
+      {slots.map(({ item }, slot) => {
         const pos = offsetOf(slot) + dragX / step;
         const dist = Math.abs(pos);
         const active = !dragging && offsetOf(slot) === 0;
-        const hidden = dist > VISIBLE_RANGE;
+        const hidden = dist > visibleRange;
         return (
           <motion.div
-            key={`${getKey(item)}-${copy}`}
+            key={getKey(item)}
             aria-hidden={!active}
             initial={false}
             animate={{
               x: pos * step,
-              scale: Math.max(0.6, 1 - dist * 0.14),
-              opacity: hidden ? 0 : 1,
-              filter: `brightness(${Math.max(0.35, 1 - dist * 0.35)})`,
+              scale: active ? 1.05 : 0.88,
+              y: active ? -12 : 14,
+              opacity: hidden ? 0 : active ? 1 : 0.65,
+              filter: `brightness(${active ? 1 : 0.65})`,
             }}
             transition={dragging || reduceMotion ? { duration: 0 } : SPRING}
-            style={{ zIndex: 100 - Math.round(dist * 10), gridArea: '1 / 1' }}
+            style={{ zIndex: active ? 20 : 10 - Math.round(dist * 2), gridArea: '1 / 1' }}
             onClick={() => {
-              // Un click en una tarjeta lateral la trae al centro
+              // Un click en una tarjeta lateral la trae suavemente al centro
               const d = offsetOf(slot);
               if (d !== 0) setIndex((i) => i + d);
             }}
-            className={`w-[min(280px,78vw)] sm:w-[340px] h-full flex ${hidden ? 'pointer-events-none' : ''}`}
+            className={`w-[min(300px,85vw)] sm:w-[350px] h-full flex transition-opacity ${hidden ? 'pointer-events-none' : 'cursor-pointer'}`}
           >
-            <div className={`w-full flex ${active ? '' : 'pointer-events-none'}`}>{renderItem(item, active)}</div>
+            <div className="w-full flex">{renderItem(item, active)}</div>
           </motion.div>
         );
       })}

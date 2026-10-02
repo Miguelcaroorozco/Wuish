@@ -7,13 +7,12 @@ import {
   solicitudesApi,
   infoGeneralApi,
   comentariosApi,
-  resultadosApi,
+  cotizadorModulosApi,
   mensajesApi,
 } from '../lib/api';
 import {
   Search,
   Trash2,
-  Save,
   Plus,
   Download,
   Eye,
@@ -25,13 +24,119 @@ import {
   TrendingUp,
   MessageSquare,
   Briefcase,
-  Tag,
-  FolderOpen,
   CreditCard,
   Pencil,
+  Sliders,
+  Sparkles,
+  Target,
+  Save,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
+import {
+  DEFAULT_COTIZADOR_SERVICES,
+  CotizadorServiceItem,
+} from '../lib/cotizadorDefaults';
 
 const ESTADOS = ['pendiente', 'en_revision', 'en_proceso', 'aprobada', 'finalizada'] as const;
+
+interface PaginationProps {
+  currentPage: number;
+  totalItems: number;
+  itemsPerPage: number;
+  onPageChange: (page: number) => void;
+  itemName?: string;
+}
+
+const Pagination: React.FC<PaginationProps> = ({
+  currentPage,
+  totalItems,
+  itemsPerPage,
+  onPageChange,
+  itemName = 'elementos',
+}) => {
+  if (totalItems === 0) return null;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const startItem = (currentPage - 1) * itemsPerPage + 1;
+  const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    if (totalPages <= 5) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (currentPage <= 3) {
+        pages.push(1, 2, 3, 4, '...', totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+      }
+    }
+    return pages;
+  };
+
+  return (
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-white/5 text-xs text-[#9a907c]">
+      <div className="text-[11px]">
+        Mostrando <span className="font-semibold text-white">{startItem}</span> –{' '}
+        <span className="font-semibold text-white">{endItem}</span> de{' '}
+        <span className="font-semibold text-[#ffd56d]">{totalItems}</span> {itemName}
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
+          disabled={currentPage <= 1}
+          className="px-2.5 py-1.5 rounded-lg bg-[#201f21] border border-white/5 text-[#d1c5af] hover:text-white hover:border-[#ffd56d]/30 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer flex items-center gap-1 font-semibold text-xs"
+          title="Página anterior"
+        >
+          <ChevronLeft className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Anterior</span>
+        </button>
+
+        <div className="flex items-center gap-1">
+          {getPageNumbers().map((p, idx) => {
+            if (typeof p === 'string') {
+              return (
+                <span key={`ell-${idx}`} className="px-1 text-zinc-600 font-mono text-xs">
+                  ...
+                </span>
+              );
+            }
+            const isActive = p === currentPage;
+            return (
+              <button
+                key={p}
+                type="button"
+                onClick={() => onPageChange(p)}
+                className={`min-w-[30px] h-7 px-2 rounded-lg font-mono text-xs font-bold transition cursor-pointer flex items-center justify-center ${
+                  isActive
+                    ? 'bg-[#ffd56d] text-[#3e2e00] shadow-sm'
+                    : 'bg-[#201f21] text-[#d1c5af] hover:text-white hover:bg-white/5 border border-white/5'
+                }`}
+              >
+                {p}
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
+          disabled={currentPage >= totalPages}
+          className="px-2.5 py-1.5 rounded-lg bg-[#201f21] border border-white/5 text-[#d1c5af] hover:text-white hover:border-[#ffd56d]/30 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer flex items-center gap-1 font-semibold text-xs"
+          title="Página siguiente"
+        >
+          <span className="hidden sm:inline">Siguiente</span>
+          <ChevronRight className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 export const AdminPanel: React.FC = () => {
   const { showToast } = useToast();
@@ -48,7 +153,7 @@ export const AdminPanel: React.FC = () => {
     removeTestimonial,
   } = useContent();
 
-  const [activeTab, setActiveTab] = useState<'solicitudes' | 'mensajes' | 'planes' | 'cms' | 'resultados' | 'comentarios'>('solicitudes');
+  const [activeTab, setActiveTab] = useState<'solicitudes' | 'mensajes' | 'planes' | 'cotizador_admin' | 'cms' | 'resultados' | 'comentarios'>('solicitudes');
 
   // Data states
   const [solicitudes, setSolicitudes] = useState<any[]>([]);
@@ -59,8 +164,15 @@ export const AdminPanel: React.FC = () => {
   const [sendingReply, setSendingReply] = useState(false);
   const [searchMsgTerm, setSearchMsgTerm] = useState('');
 
+  // Cotizador Options state
+  const [cotizadorOptions, setCotizadorOptions] = useState<CotizadorServiceItem[]>(DEFAULT_COTIZADOR_SERVICES);
+  const [editingOption, setEditingOption] = useState<CotizadorServiceItem | null>(null);
+  const [isCreatingOption, setIsCreatingOption] = useState(false);
+  const [showOptionModal, setShowOptionModal] = useState(false);
+  const [savingOption, setSavingOption] = useState(false);
+
   // CMS state
-  const [cms, setCms] = useState({ slogan: '', manifesto: '', mision: '' });
+  const [cms, setCms] = useState({ slogan: '', vision: '', mision: '' });
   const [savingCms, setSavingCms] = useState(false);
 
   // Planes state
@@ -70,12 +182,10 @@ export const AdminPanel: React.FC = () => {
   // Planes (incluye inactivos) y plan en edición (null = creando uno nuevo)
   const [planes, setPlanes] = useState<any[]>([]);
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+  const [recomendadoPlanId, setRecomendadoPlanId] = useState<string>('');
 
-  // Testimonios & Resultados state
+  // Testimonios state
   const [comentarios, setComentarios] = useState<any[]>([]);
-  const [resultados, setResultados] = useState<any[]>([]);
-  const [newRes, setNewRes] = useState({ titulo: '', descripcion: '' });
-  const [savingRes, setSavingRes] = useState(false);
 
   // Nuevo Proyecto (Portafolio del Inicio)
   const [newProject, setNewProject] = useState<{
@@ -122,12 +232,11 @@ export const AdminPanel: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [sol, info, tipos, com, res, msg, pls] = await Promise.allSettled([
+      const [sol, info, tipos, com, msg, pls] = await Promise.allSettled([
         solicitudesApi.getAll(),
         infoGeneralApi.getAll(),
         tiposServicioApi.getAll(),
         comentariosApi.getAll(),
-        resultadosApi.getAll(true),
         mensajesApi.getAll(),
         planesApi.getAll(true),
       ]);
@@ -140,7 +249,6 @@ export const AdminPanel: React.FC = () => {
         if (tipos.value.length > 0) setNewPlan(p => ({ ...p, tipo_id: tipos.value[0].id }));
       }
       if (com.status === 'fulfilled') setComentarios(com.value);
-      if (res.status === 'fulfilled') setResultados(res.value);
       if (msg.status === 'fulfilled') {
         setAllMessages(msg.value);
         if (msg.value.length > 0 && !selectedClientId) {
@@ -148,9 +256,31 @@ export const AdminPanel: React.FC = () => {
         }
       }
       if (info.status === 'fulfilled') {
-        const list = info.value as any[];
+        const list = (info.value || []) as any[];
         const getSec = (k: string) => list.find((i: any) => i.seccion === k)?.contenido || '';
-        setCms({ slogan: getSec('slogan'), manifesto: getSec('manifesto'), mision: getSec('mision') });
+        setCms({
+          slogan: getSec('slogan') || 'Ecosistema integral que fusiona tecnología de punta y comunicación estratégica para empresas en crecimiento.',
+          vision: getSec('vision') || getSec('manifesto') || 'Creemos en la velocidad, en el código robusto y en historias memorables que impulsan organizaciones hacia el futuro.',
+          mision: getSec('mision') || 'Potenciar a negocios y líderes corporativos con soluciones digitales vanguardistas y resultados medibles.',
+        });
+        setRecomendadoPlanId(getSec('plan_recomendado_id'));
+
+        // Cargar opciones del cotizador desde la base de datos
+        try {
+          const dbModulos = await cotizadorModulosApi.getAll(true);
+          if (Array.isArray(dbModulos) && dbModulos.length > 0) {
+            setCotizadorOptions(
+              dbModulos.map((m: any) => ({
+                id: m.id,
+                name: m.nombre,
+                category: m.categoria,
+                basePrice: Number(m.precio_base),
+                description: m.descripcion,
+                activo: m.activo,
+              }))
+            );
+          }
+        } catch {}
       }
     } catch (err) {
       console.error('Error loading admin data:', err);
@@ -248,7 +378,8 @@ export const AdminPanel: React.FC = () => {
     try {
       await Promise.all([
         infoGeneralApi.upsert('slogan', cms.slogan),
-        infoGeneralApi.upsert('manifesto', cms.manifesto),
+        infoGeneralApi.upsert('vision', cms.vision),
+        infoGeneralApi.upsert('manifesto', cms.vision),
         infoGeneralApi.upsert('mision', cms.mision),
       ]);
       showToast('CMS Guardado', 'Información corporativa actualizada.', 'success');
@@ -257,6 +388,156 @@ export const AdminPanel: React.FC = () => {
     } finally {
       setSavingCms(false);
     }
+  };
+
+  const handleOpenCreateOption = () => {
+    setIsCreatingOption(true);
+    setEditingOption({
+      id: '',
+      name: '',
+      basePrice: 1000,
+      category: 'tecnologia',
+      description: '',
+    });
+    setShowOptionModal(true);
+  };
+
+  const handleOpenEditOption = (opt: CotizadorServiceItem) => {
+    setIsCreatingOption(false);
+    setEditingOption({ ...opt });
+    setShowOptionModal(true);
+  };
+
+  const handleSaveOption = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingOption || !editingOption.name.trim()) return;
+    setSavingOption(true);
+    try {
+      if (isCreatingOption) {
+        const baseSlug = editingOption.name
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]/g, '_')
+          .replace(/^_+|_+$/g, '');
+        const tempId = baseSlug || `modulo_${Date.now()}`;
+        const finalId = cotizadorOptions.some(o => o.id === tempId) ? `${tempId}_${Date.now()}` : tempId;
+        
+        await cotizadorModulosApi.upsert({
+          id: finalId,
+          nombre: editingOption.name.trim(),
+          categoria: editingOption.category || 'tecnologia',
+          precio_base: Number(editingOption.basePrice) || 0,
+          descripcion: editingOption.description.trim(),
+          activo: editingOption.activo !== false,
+        });
+      } else {
+        await cotizadorModulosApi.upsert({
+          id: editingOption.id,
+          nombre: editingOption.name.trim(),
+          categoria: editingOption.category || 'tecnologia',
+          precio_base: Number(editingOption.basePrice) || 0,
+          descripcion: editingOption.description.trim(),
+          activo: editingOption.activo !== false,
+        });
+      }
+
+      const refreshed = await cotizadorModulosApi.getAll(true);
+      if (Array.isArray(refreshed) && refreshed.length > 0) {
+        setCotizadorOptions(
+          refreshed.map((m: any) => ({
+            id: m.id,
+            name: m.nombre,
+            category: m.categoria,
+            basePrice: Number(m.precio_base),
+            description: m.descripcion,
+            activo: m.activo,
+          }))
+        );
+      }
+      setShowOptionModal(false);
+      setEditingOption(null);
+      setIsCreatingOption(false);
+      showToast(
+        isCreatingOption ? 'Módulo Añadido' : 'Módulo Actualizado',
+        `"${editingOption.name}" se guardó exitosamente en la base de datos.`,
+        'success'
+      );
+    } catch (err: any) {
+      showToast('Error', err.message || 'No se pudo guardar la opción', 'error');
+    } finally {
+      setSavingOption(false);
+    }
+  };
+
+  const handleToggleOptionVisibility = async (id: string) => {
+    try {
+      const target = cotizadorOptions.find((o) => o.id === id);
+      if (!target) return;
+      const nextActivo = target.activo === false ? true : false;
+      await cotizadorModulosApi.upsert({
+        id: target.id,
+        nombre: target.name,
+        categoria: target.category,
+        precio_base: target.basePrice,
+        descripcion: target.description,
+        activo: nextActivo,
+      });
+
+      const refreshed = await cotizadorModulosApi.getAll(true);
+      if (Array.isArray(refreshed) && refreshed.length > 0) {
+        setCotizadorOptions(
+          refreshed.map((m: any) => ({
+            id: m.id,
+            name: m.nombre,
+            category: m.categoria,
+            basePrice: Number(m.precio_base),
+            description: m.descripcion,
+            activo: m.activo,
+          }))
+        );
+      }
+      showToast(
+        nextActivo ? 'Módulo Visible' : 'Módulo Ocultado',
+        `"${target?.name}" ahora está ${nextActivo ? 'visible' : 'oculto'} en el cotizador.`,
+        'success'
+      );
+    } catch (err: any) {
+      showToast('Error', err.message || 'No se pudo cambiar la visibilidad', 'error');
+    }
+  };
+
+  const handleDeleteOption = async (id: string, name: string) => {
+    if (!window.confirm(`¿Eliminar el módulo "${name}" del cotizador?`)) return;
+    try {
+      await cotizadorModulosApi.delete(id);
+      const refreshed = await cotizadorModulosApi.getAll(true);
+      setCotizadorOptions(
+        refreshed.map((m: any) => ({
+          id: m.id,
+          name: m.nombre,
+          category: m.categoria,
+          basePrice: Number(m.precio_base),
+          description: m.descripcion,
+          activo: m.activo,
+        }))
+      );
+      showToast('Módulo Eliminado', `"${name}" fue eliminado del cotizador.`, 'success');
+    } catch (err: any) {
+      showToast('Error', err.message || 'No se pudo eliminar el módulo', 'error');
+    }
+  };
+
+  const toggleFeatureModule = (optName: string) => {
+    const currentLines = newPlan.features.split('\n').map(l => l.trim()).filter(Boolean);
+    const exists = currentLines.some(l => l.toLowerCase() === optName.toLowerCase() || l.toLowerCase().includes(optName.toLowerCase()));
+    let nextLines: string[];
+    if (exists) {
+      nextLines = currentLines.filter(l => l.toLowerCase() !== optName.toLowerCase() && !l.toLowerCase().includes(optName.toLowerCase()));
+    } else {
+      nextLines = [...currentLines, optName];
+    }
+    setNewPlan({ ...newPlan, features: nextLines.join('\n') });
   };
 
   const getPlanFeatures = (plan: any): string[] => {
@@ -333,6 +614,16 @@ export const AdminPanel: React.FC = () => {
       reloadPlanes();
     } catch (err: any) {
       showToast('Error', err.message || 'No se pudo actualizar el plan.', 'error');
+    }
+  };
+
+  const handleSetRecomendado = async (plan: any) => {
+    try {
+      await infoGeneralApi.upsert('plan_recomendado_id', plan.id);
+      setRecomendadoPlanId(plan.id);
+      showToast('Plan Recomendado Actualizado', `"${plan.nombre}" ahora es el plan recomendado oficial en la web.`, 'success');
+    } catch (err: any) {
+      showToast('Error', err.message || 'No se pudo actualizar el plan recomendado.', 'error');
     }
   };
 
@@ -457,49 +748,61 @@ export const AdminPanel: React.FC = () => {
     showToast('Métrica Eliminada', `"${label}" fue removida del inicio.`, 'info');
   };
 
-  const handleCreateResultado = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newRes.titulo) return;
-    setSavingRes(true);
-    try {
-      const created = await resultadosApi.create({ ...newRes });
-      setResultados(prev => [created, ...prev]);
-      setNewRes({ titulo: '', descripcion: '' });
-      showToast('Métrica Agregada', 'Publicada en la landing.', 'success');
-    } catch (err: any) {
-      showToast('Error', err.message, 'error');
-    } finally {
-      setSavingRes(false);
-    }
-  };
 
-  const handleDeleteResultado = async (id: string) => {
-    try {
-      await resultadosApi.delete(id);
-      setResultados(prev => prev.filter(r => r.id !== id));
-      showToast('Métrica Eliminada', 'Removida exitosamente.', 'info');
-    } catch (err: any) {
-      showToast('Error', err.message, 'error');
-    }
-  };
 
   const handleExportCSV = () => {
+    const csvDelimiter = ';';
+    const escapeCsvCell = (value: unknown) => {
+      if (value === null || value === undefined) return '';
+      const normalized = String(value).replace(/\r\n|\r|\n/g, ' ');
+      return new RegExp(`[${csvDelimiter}"\\n\\r]`).test(normalized)
+        ? `"${normalized.replace(/"/g, '""')}"`
+        : normalized;
+    };
+
+    const getSelectedServices = (value: unknown) => {
+      if (!Array.isArray(value)) return '';
+      return value
+        .map((service: any) => {
+          if (typeof service === 'string') return service;
+          return service?.name || service?.nombre || service?.id || '';
+        })
+        .filter(Boolean)
+        .join(' | ');
+    };
+
     const rows = [
-      ['ID', 'Cliente', 'Email', 'Tipo', 'Estado', 'Descripción'],
-      ...solicitudes.map(r => [
-        r.id?.slice(0, 8),
-        `${r.usuario?.nombres || ''} ${r.usuario?.apellidos || ''}`,
+      ['ID', 'Cliente', 'Email', 'Empresa', 'Tipo', 'Estado', 'Plan', 'Servicios seleccionados', 'Presupuesto mínimo', 'Presupuesto máximo', 'Velocidad', 'Soporte', 'Fecha', 'Descripción'],
+      ...solicitudes.map((r) => [
+        r.id || '',
+        `${r.usuario?.nombres || ''} ${r.usuario?.apellidos || ''}`.trim(),
         r.usuario?.correo || '',
-        r.tipo,
-        r.estado,
-        `"${(r.descripcion || '').replace(/"/g, '""')}"`,
+        r.empresa || r.usuario?.empresa || '',
+        r.tipo || '',
+        r.estado || '',
+        r.plan?.nombre || '',
+        getSelectedServices(r.servicios_seleccionados),
+        r.presupuesto_min ?? '',
+        r.presupuesto_max ?? '',
+        r.velocidad_entrega || '',
+        r.nivel_soporte || '',
+        r.created_at || r.fecha_solicitud || '',
+        r.descripcion || '',
       ]),
     ];
-    const blob = new Blob([rows.map(e => e.join(',')).join('\n')], { type: 'text/csv;charset=utf-8;' });
+
+    // BOM + CRLF ensure correct accents and columns when opening the file in Excel.
+    // Excel en configuraciones regionales hispanas usa punto y coma como separador.
+    const csv = `\uFEFF${rows.map((row) => row.map(escapeCsvCell).join(csvDelimiter)).join('\r\n')}\r\n`;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `solicitudes_wuish_${Date.now()}.csv`;
+    const objectUrl = URL.createObjectURL(blob);
+    link.href = objectUrl;
+    link.download = `solicitudes_wuish_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
     link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
     showToast('Exportación', 'CSV descargado exitosamente.', 'success');
   };
 
@@ -512,6 +815,71 @@ export const AdminPanel: React.FC = () => {
       (r.descripcion || '').toLowerCase().includes(t)
     );
   });
+
+  // Paginación y límites por sección
+  const SOLICITUDES_PER_PAGE = 8;
+  const PLANES_PER_PAGE = 6;
+  const COTIZADOR_PER_PAGE = 8;
+  const RESULTADOS_PER_PAGE = 6;
+  const TESTIMONIOS_PER_PAGE = 6;
+
+  const [solicitudesPage, setSolicitudesPage] = useState(1);
+  const [planesPage, setPlanesPage] = useState(1);
+  const [cotizadorPage, setCotizadorPage] = useState(1);
+  const [resultadosPage, setResultadosPage] = useState(1);
+  const [testimoniosPage, setTestimoniosPage] = useState(1);
+
+  // Control de límites de página al filtrar o eliminar elementos
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(filteredSolicitudes.length / SOLICITUDES_PER_PAGE));
+    if (solicitudesPage > maxPage) setSolicitudesPage(maxPage);
+  }, [filteredSolicitudes.length, solicitudesPage]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(planes.length / PLANES_PER_PAGE));
+    if (planesPage > maxPage) setPlanesPage(maxPage);
+  }, [planes.length, planesPage]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(cotizadorOptions.length / COTIZADOR_PER_PAGE));
+    if (cotizadorPage > maxPage) setCotizadorPage(maxPage);
+  }, [cotizadorOptions.length, cotizadorPage]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(projects.length / RESULTADOS_PER_PAGE));
+    if (resultadosPage > maxPage) setResultadosPage(maxPage);
+  }, [projects.length, resultadosPage]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(allComentarios.length / TESTIMONIOS_PER_PAGE));
+    if (testimoniosPage > maxPage) setTestimoniosPage(maxPage);
+  }, [allComentarios.length, testimoniosPage]);
+
+  // Listados paginados memorizados
+  const paginatedSolicitudes = useMemo(() => {
+    const start = (solicitudesPage - 1) * SOLICITUDES_PER_PAGE;
+    return filteredSolicitudes.slice(start, start + SOLICITUDES_PER_PAGE);
+  }, [filteredSolicitudes, solicitudesPage]);
+
+  const paginatedPlanes = useMemo(() => {
+    const start = (planesPage - 1) * PLANES_PER_PAGE;
+    return planes.slice(start, start + PLANES_PER_PAGE);
+  }, [planes, planesPage]);
+
+  const paginatedCotizador = useMemo(() => {
+    const start = (cotizadorPage - 1) * COTIZADOR_PER_PAGE;
+    return cotizadorOptions.slice(start, start + COTIZADOR_PER_PAGE);
+  }, [cotizadorOptions, cotizadorPage]);
+
+  const paginatedProjects = useMemo(() => {
+    const start = (resultadosPage - 1) * RESULTADOS_PER_PAGE;
+    return projects.slice(start, start + RESULTADOS_PER_PAGE);
+  }, [projects, resultadosPage]);
+
+  const paginatedComentarios = useMemo(() => {
+    const start = (testimoniosPage - 1) * TESTIMONIOS_PER_PAGE;
+    return allComentarios.slice(start, start + TESTIMONIOS_PER_PAGE);
+  }, [allComentarios, testimoniosPage]);
 
   const kpis = [
     { label: 'Total Solicitudes', val: solicitudes.length, color: 'text-white' },
@@ -570,7 +938,8 @@ export const AdminPanel: React.FC = () => {
         {[
           { id: 'solicitudes', label: 'Solicitudes', icon: ClipboardList, count: solicitudes.length },
           { id: 'mensajes', label: 'Mensajes de Clientes', icon: MessageSquare, count: conversations.reduce((a, c) => a + c.unreadCount, 0) },
-          { id: 'planes', label: 'Planes', icon: CreditCard, count: planes.filter(p => p.activo).length },
+          { id: 'planes', label: 'Planes (Plantillas)', icon: CreditCard, count: planes.filter(p => p.activo).length },
+          { id: 'cotizador_admin', label: 'Opciones Cotizador', icon: Sliders, count: cotizadorOptions.length },
           { id: 'cms', label: 'CMS Institucional', icon: FileText },
           { id: 'resultados', label: 'Resultados & Portafolio', icon: TrendingUp, count: projects.length },
           { id: 'comentarios', label: 'Testimonios', icon: Star, count: allComentarios.length },
@@ -611,7 +980,10 @@ export const AdminPanel: React.FC = () => {
                 type="text"
                 placeholder="Buscar cliente, correo, tipo..."
                 value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
+                onChange={e => {
+                  setSearchTerm(e.target.value);
+                  setSolicitudesPage(1);
+                }}
                 className="pl-9 pr-4 py-2 rounded-xl bg-[#0e0e10] border border-white/10 text-xs text-white placeholder:text-zinc-500 focus:border-[#ffd56d] focus:outline-none w-64"
               />
             </div>
@@ -633,14 +1005,31 @@ export const AdminPanel: React.FC = () => {
                 {filteredSolicitudes.length === 0 ? (
                   <tr><td colSpan={6} className="py-8 text-center text-zinc-500">No hay solicitudes registradas.</td></tr>
                 ) : (
-                  filteredSolicitudes.map(r => (
+                  paginatedSolicitudes.map(r => (
                     <tr key={r.id} className="hover:bg-[#201f21]/70 transition-colors">
                       <td className="py-3.5 pr-4 font-mono font-bold text-[#ffd56d]">#{r.id?.slice(0, 8)}</td>
                       <td className="py-3.5 pr-4">
                         <div className="font-semibold text-white">{r.usuario?.nombres} {r.usuario?.apellidos}</div>
                         <div className="text-[11px] text-[#9a907c]">{r.usuario?.correo}</div>
+                        {(r.empresa || r.usuario?.empresa) && (
+                          <div className="text-[10px] text-[#ffd56d] font-medium mt-0.5">
+                            🏢 {r.empresa || r.usuario?.empresa}
+                          </div>
+                        )}
                       </td>
-                      <td className="py-3.5 pr-4 capitalize text-[#d1c5af]">{r.tipo}</td>
+                      <td className="py-3.5 pr-4">
+                        <div className="capitalize text-[#d1c5af] font-semibold">{r.tipo}</div>
+                        {r.plan?.nombre && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#ffd56d]/15 text-[#ffd56d] font-bold border border-[#ffd56d]/20 inline-block mt-0.5">
+                            {r.plan.nombre}
+                          </span>
+                        )}
+                        {r.presupuesto_min && r.presupuesto_max && (
+                          <div className="text-[10px] font-mono text-[#ffd56d] font-bold mt-1">
+                            ${Number(r.presupuesto_min).toLocaleString()} - ${Number(r.presupuesto_max).toLocaleString()} USD
+                          </div>
+                        )}
+                      </td>
                       <td className="py-3.5 pr-4 max-w-xs truncate text-[#d1c5af]">{r.descripcion || '—'}</td>
                       <td className="py-3.5 pr-4 text-[#9a907c]">{new Date(r.created_at).toLocaleDateString('es-CO')}</td>
                       <td className="py-3.5 text-right">
@@ -660,6 +1049,14 @@ export const AdminPanel: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          <Pagination
+            currentPage={solicitudesPage}
+            totalItems={filteredSolicitudes.length}
+            itemsPerPage={SOLICITUDES_PER_PAGE}
+            onPageChange={setSolicitudesPage}
+            itemName="solicitudes"
+          />
         </div>
       )}
 
@@ -765,44 +1162,178 @@ export const AdminPanel: React.FC = () => {
 
       {/* TAB: CMS */}
       {activeTab === 'cms' && (
-        <form onSubmit={handleSaveCms} className="p-6 rounded-2xl bg-[#1c1b1d] border border-white/5 space-y-4 max-w-2xl text-xs">
-          <h3 className="text-lg font-bold text-white font-display">CMS Institucional</h3>
-          <div>
-            <label className="block font-semibold text-zinc-300 mb-1">Eslogan Principal</label>
-            <input
-              type="text"
-              value={cms.slogan}
-              onChange={e => setCms({ ...cms, slogan: e.target.value })}
-              className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
-            />
+        <div className="space-y-6">
+          {/* Header banner */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl bg-[#1c1b1d] border border-white/5">
+            <div>
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-[#ffd56d]" />
+                <h3 className="text-xl font-bold text-white font-display">Identidad & CMS Institucional</h3>
+              </div>
+              <p className="text-xs text-zinc-400 mt-1 max-w-xl">
+                Personaliza la narrativa de marca, el eslogan del Hero y las tarjetas de Visión y Misión mostradas públicamente en la plataforma.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#ffd56d]/10 border border-[#ffd56d]/30 text-[#ffd56d] text-xs font-semibold self-start sm:self-auto">
+              <span className="w-2 h-2 rounded-full bg-[#ffd56d] animate-pulse" />
+              Sincronizado con la Landing
+            </div>
           </div>
-          <div>
-            <label className="block font-semibold text-zinc-300 mb-1">Manifiesto</label>
-            <textarea
-              rows={3}
-              value={cms.manifesto}
-              onChange={e => setCms({ ...cms, manifesto: e.target.value })}
-              className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
-            />
+
+          {/* Grid Layout: 7 cols Formulario + 5 cols Vista Previa en Vivo */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Columna Izquierda: Formulario de Edición */}
+            <form onSubmit={handleSaveCms} className="lg:col-span-7 space-y-4">
+              {/* Eslogan Card */}
+              <div className="p-5 rounded-2xl bg-[#1c1b1d] border border-white/5 space-y-2 hover:border-[#ffd56d]/20 transition-colors">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-zinc-200">
+                    <Sparkles className="w-4 h-4 text-[#ffd56d]" />
+                    Eslogan Principal (Hero)
+                  </label>
+                  <span className="text-[10px] text-zinc-400 uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded border border-white/5">
+                    Portada de Inicio
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-400">
+                  Subtítulo de alto impacto visual debajo del titular animado en el Hero de bienvenida.
+                </p>
+                <textarea
+                  rows={2}
+                  value={cms.slogan}
+                  onChange={e => setCms({ ...cms, slogan: e.target.value })}
+                  placeholder="Ecosistema integral que fusiona tecnología de punta y comunicación estratégica..."
+                  className="w-full bg-[#0e0e10] text-white p-3 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d] text-xs leading-relaxed transition-colors"
+                />
+              </div>
+
+              {/* Visión Card */}
+              <div className="p-5 rounded-2xl bg-[#1c1b1d] border border-white/5 space-y-2 hover:border-[#ffd56d]/20 transition-colors">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-zinc-200">
+                    <Eye className="w-4 h-4 text-[#ffd56d]" />
+                    Visión Corporativa
+                  </label>
+                  <span className="text-[10px] text-zinc-400 uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded border border-white/5">
+                    Tarjeta 01
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-400">
+                  Proyección a futuro y aspiración de impacto que guía la dirección estratégica de Wuish.
+                </p>
+                <textarea
+                  rows={3}
+                  value={cms.vision}
+                  onChange={e => setCms({ ...cms, vision: e.target.value })}
+                  placeholder="Creemos en la velocidad, en el código robusto y en historias memorables..."
+                  className="w-full bg-[#0e0e10] text-white p-3 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d] text-xs leading-relaxed transition-colors"
+                />
+              </div>
+
+              {/* Misión Card */}
+              <div className="p-5 rounded-2xl bg-[#1c1b1d] border border-white/5 space-y-2 hover:border-[#ffd56d]/20 transition-colors">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-zinc-200">
+                    <Target className="w-4 h-4 text-[#ffd56d]" />
+                    Misión y Propósito
+                  </label>
+                  <span className="text-[10px] text-zinc-400 uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded border border-white/5">
+                    Tarjeta 02
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-400">
+                  El compromiso fundamental de valor entregado a clientes y organizaciones aliadas.
+                </p>
+                <textarea
+                  rows={3}
+                  value={cms.mision}
+                  onChange={e => setCms({ ...cms, mision: e.target.value })}
+                  placeholder="Potenciar a negocios y líderes corporativos con soluciones digitales vanguardistas..."
+                  className="w-full bg-[#0e0e10] text-white p-3 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d] text-xs leading-relaxed transition-colors"
+                />
+              </div>
+
+              {/* Action Button */}
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={savingCms}
+                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-extrabold uppercase tracking-wider text-xs flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ffd56d]/15 hover:shadow-[#ffd56d]/30 transition-all disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{savingCms ? 'Guardando Cambios...' : 'Guardar Cambios'}</span>
+                </button>
+              </div>
+            </form>
+
+            {/* Columna Derecha: Vista Previa en Vivo */}
+            <div className="lg:col-span-5 space-y-4">
+              <div className="p-5 rounded-2xl bg-[#1c1b1d] border border-white/5 space-y-4 sticky top-6">
+                <div className="flex items-center justify-between pb-3 border-b border-white/5">
+                  <div className="flex items-center gap-2">
+                    <Eye className="w-4 h-4 text-[#ffd56d]" />
+                    <span className="text-xs font-bold text-white uppercase tracking-wider font-display">
+                      Vista Previa en Vivo
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-[#ffd56d] bg-[#ffd56d]/10 border border-[#ffd56d]/20 px-2 py-0.5 rounded-full font-semibold">
+                    Así se ve en la web
+                  </span>
+                </div>
+
+                {/* Previsualización 1: Hero Subtitle */}
+                <div className="p-4 rounded-xl bg-[#0e0e10] border border-white/5 space-y-2">
+                  <span className="text-[10px] font-bold text-[#ffd56d] uppercase tracking-wider block">
+                    1. Hero (Portada)
+                  </span>
+                  <div className="text-sm font-extrabold text-white font-display leading-tight">
+                    Convertimos tus <span className="text-[#ffd56d]">marcas</span> en crecimiento.
+                  </div>
+                  <p className="text-xs text-[#d1c5af] font-light italic border-l-2 border-[#ffd56d]/60 pl-2.5 py-0.5 mt-1 leading-relaxed">
+                    {cms.slogan || <span className="text-zinc-600">(Sin eslogan definido)</span>}
+                  </p>
+                </div>
+
+                {/* Previsualización 2: Tarjetas Institucionales */}
+                <div className="space-y-2.5">
+                  <span className="text-[10px] font-bold text-[#ffd56d] uppercase tracking-wider block">
+                    2. Tarjetas Institucionales
+                  </span>
+
+                  {/* Tarjeta Visión */}
+                  <div className="p-4 rounded-xl bg-[#121113] border border-[#ffd56d]/30 relative overflow-hidden">
+                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#ffd56d]/10 border border-[#ffd56d]/30 text-[#ffd56d] text-[9px] font-bold uppercase tracking-wider mb-2">
+                      <span className="w-1 h-1 rounded-full bg-[#ffd56d] animate-pulse" />
+                      Nuestra Visión
+                    </div>
+                    <p className="text-white text-xs leading-relaxed font-light italic">
+                      "{cms.vision || 'Sin visión especificada...'}"
+                    </p>
+                    <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between text-[10px] text-zinc-500">
+                      <span>Wuish Visión</span>
+                      <span className="text-[#ffd56d] font-bold">01</span>
+                    </div>
+                  </div>
+
+                  {/* Tarjeta Misión */}
+                  <div className="p-4 rounded-xl bg-[#121113] border border-white/10 relative overflow-hidden">
+                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[#d1c5af] text-[9px] font-bold uppercase tracking-wider mb-2">
+                      <span className="w-1 h-1 rounded-full bg-[#ffd56d]" />
+                      Nuestra Misión
+                    </div>
+                    <p className="text-[#d1c5af] text-xs leading-relaxed">
+                      {cms.mision || 'Sin misión especificada...'}
+                    </p>
+                    <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between text-[10px] text-zinc-500">
+                      <span>Wuish Propósito</span>
+                      <span className="text-[#ffd56d] font-bold">02</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="block font-semibold text-zinc-300 mb-1">Misión</label>
-            <textarea
-              rows={2}
-              value={cms.mision}
-              onChange={e => setCms({ ...cms, mision: e.target.value })}
-              className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={savingCms}
-            className="px-5 py-2.5 rounded-xl bg-[#ffd56d] text-[#3e2e00] font-bold uppercase flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-          >
-            <Save className="w-4 h-4" />
-            <span>{savingCms ? 'Guardando...' : 'Guardar Cambios'}</span>
-          </button>
-        </form>
+        </div>
       )}
 
       {/* TAB: Resultados & Portafolio */}
@@ -922,7 +1453,7 @@ export const AdminPanel: React.FC = () => {
 
             {/* Listado de Proyectos Activos en el Inicio */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {projects.map((p) => (
+              {paginatedProjects.map((p) => (
                 <div key={p.id} className="p-4 rounded-xl bg-[#201f21] border border-white/5 flex flex-col justify-between text-xs space-y-3 group hover:border-[#ffd56d]/30 transition">
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-1.5">
@@ -958,6 +1489,14 @@ export const AdminPanel: React.FC = () => {
                 </div>
               ))}
             </div>
+
+            <Pagination
+              currentPage={resultadosPage}
+              totalItems={projects.length}
+              itemsPerPage={RESULTADOS_PER_PAGE}
+              onPageChange={setResultadosPage}
+              itemName="proyectos"
+            />
           </div>
 
           {/* SECCIÓN 2: Métricas de Impacto (Cifras del Inicio) */}
@@ -1127,7 +1666,7 @@ export const AdminPanel: React.FC = () => {
           )}
 
           <div className="space-y-3">
-            {allComentarios.map(c => (
+            {paginatedComentarios.map(c => (
               <div key={c.id} className="p-4 rounded-xl bg-[#201f21] border border-white/5 flex items-start justify-between gap-4 text-xs group hover:border-[#ffd56d]/20 transition">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
@@ -1164,6 +1703,14 @@ export const AdminPanel: React.FC = () => {
               </div>
             ))}
           </div>
+
+          <Pagination
+            currentPage={testimoniosPage}
+            totalItems={allComentarios.length}
+            itemsPerPage={TESTIMONIOS_PER_PAGE}
+            onPageChange={setTestimoniosPage}
+            itemName="testimonios"
+          />
         </div>
       )}
 
@@ -1173,7 +1720,9 @@ export const AdminPanel: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h3 className="text-lg font-bold text-white font-display">Gestión de Planes</h3>
-              <p className="text-xs text-[#9a907c]">Edita los planes del catálogo o quítalos para que los clientes dejen de verlos.</p>
+              <p className="text-xs text-[#9a907c]">
+                Administra precios, descripciones y características. Los cambios aquí actualizan automáticamente tanto la vista de Planes como las soluciones del Cotizador Dinámico.
+              </p>
             </div>
             <button
               onClick={openCreatePlan}
@@ -1187,79 +1736,315 @@ export const AdminPanel: React.FC = () => {
           {planes.length === 0 ? (
             <div className="py-10 text-center text-xs text-[#9a907c]">No hay planes registrados todavía.</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {planes.map(plan => {
-                const features = getPlanFeatures(plan);
-                return (
-                  <div
-                    key={plan.id}
-                    className={`p-5 rounded-2xl border flex flex-col gap-3 transition ${
-                      plan.activo ? 'bg-[#201f21] border-white/10' : 'bg-[#161617] border-white/5 opacity-60'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <span className="text-[10px] uppercase font-bold text-[#ffd56d] tracking-wider font-display">
-                          {plan.tipo_servicio?.nombre || 'Plan'}
-                        </span>
-                        <h4 className="text-sm font-bold text-white truncate">{plan.nombre}</h4>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {paginatedPlanes.map(plan => {
+                  const features = getPlanFeatures(plan);
+                  return (
+                    <div
+                      key={plan.id}
+                      className={`p-5 rounded-2xl border flex flex-col gap-3 transition ${
+                        plan.id === recomendadoPlanId
+                          ? 'bg-[#201f21] border-[#ffd56d] shadow-lg shadow-[#ffd56d]/10'
+                          : plan.activo
+                          ? 'bg-[#201f21] border-white/10'
+                          : 'bg-[#161617] border-white/5 opacity-60'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <span className="text-[10px] uppercase font-bold text-[#ffd56d] tracking-wider font-display">
+                            {plan.tipo_servicio?.nombre || 'Plan'}
+                          </span>
+                          <h4 className="text-sm font-bold text-white truncate">{plan.nombre}</h4>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {plan.id === recomendadoPlanId && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-[#ffd56d] text-[#3e2e00] border border-[#ffd56d] shadow-sm flex items-center gap-1">
+                              <Star className="w-2.5 h-2.5 fill-[#3e2e00]" />
+                              Recomendado
+                            </span>
+                          )}
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                              plan.activo
+                                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                                : 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30'
+                            }`}
+                          >
+                            {plan.activo ? 'Visible' : 'Oculto'}
+                          </span>
+                        </div>
                       </div>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 border ${
-                          plan.activo
-                            ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                            : 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30'
-                        }`}
-                      >
-                        {plan.activo ? 'Visible' : 'Oculto'}
+
+                      <div className="text-xl font-extrabold text-white font-display">
+                        {plan.precio != null ? `$${parseFloat(plan.precio).toLocaleString('es-CO')}` : 'Personalizado'}
+                        {plan.precio != null && <span className="text-[10px] text-[#9a907c] font-semibold ml-1">COP</span>}
+                      </div>
+
+                      <p className="text-xs text-[#9a907c] line-clamp-2 min-h-[32px]">{plan.descripcion || 'Sin descripción'}</p>
+                      <span className="text-[11px] text-[#d1c5af]">{features.length} {features.length === 1 ? 'característica' : 'características'}</span>
+
+                      <div className="space-y-2 pt-3 mt-auto border-t border-white/5">
+                        <button
+                          onClick={() => handleSetRecomendado(plan)}
+                          disabled={plan.id === recomendadoPlanId}
+                          className={`w-full py-2 px-3 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer border ${
+                            plan.id === recomendadoPlanId
+                              ? 'bg-[#ffd56d]/15 text-[#ffd56d] border-[#ffd56d]/40 font-bold cursor-default'
+                              : 'bg-[#252427] hover:bg-[#ffd56d] hover:text-[#3e2e00] text-[#d1c5af] border-white/5'
+                          }`}
+                        >
+                          <Star className={`w-3.5 h-3.5 ${plan.id === recomendadoPlanId ? 'fill-[#ffd56d]' : ''}`} />
+                          <span>{plan.id === recomendadoPlanId ? '★ Plan Recomendado Oficial' : 'Fijar como Recomendado'}</span>
+                        </button>
+
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => openEditPlan(plan)}
+                            className="flex-1 py-2 rounded-lg bg-[#2a2a2c] hover:bg-[#353437] text-white text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => handleTogglePlan(plan)}
+                            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer border ${
+                              plan.activo
+                                ? 'text-rose-400 border-rose-500/30 hover:bg-rose-500/10'
+                                : 'text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10'
+                            }`}
+                          >
+                            {plan.activo ? <Trash2 className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            {plan.activo ? 'Quitar' : 'Reactivar'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <Pagination
+                currentPage={planesPage}
+                totalItems={planes.length}
+                itemsPerPage={PLANES_PER_PAGE}
+                onPageChange={setPlanesPage}
+                itemName="planes"
+              />
+            </>
+          )}
+        </div>
+      )}
+
+      {/* TAB: Opciones del Cotizador */}
+      {activeTab === 'cotizador_admin' && (
+        <div className="p-6 rounded-2xl bg-[#1c1b1d] border border-white/5 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/5">
+            <div>
+              <div className="flex items-center gap-2">
+                <Sliders className="w-5 h-5 text-[#ffd56d]" />
+                <h3 className="text-lg font-bold text-white font-display">Módulos &amp; Opciones del Cotizador</h3>
+              </div>
+              <p className="text-xs text-[#9a907c] mt-1 max-w-2xl">
+                Gestiona y añade los servicios y capacidades disponibles en el Cotizador Dinámico. Estas opciones sirven además como características para estructurar los Planes.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleOpenCreateOption}
+              className="px-4 py-2 rounded-xl bg-[#ffd56d] hover:bg-[#ffe082] text-[#3e2e00] text-xs font-bold transition flex items-center gap-2 cursor-pointer self-start sm:self-auto shadow-md shadow-[#ffd56d]/10"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Añadir Módulo</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            {paginatedCotizador.map((opt) => {
+              const isVisible = opt.activo !== false;
+              return (
+                <div
+                  key={opt.id}
+                  className={`p-5 rounded-2xl border transition flex flex-col justify-between gap-3 ${
+                    isVisible
+                      ? 'bg-[#201f21] border-white/5 hover:border-white/20'
+                      : 'bg-[#181719] border-amber-500/20 opacity-60 hover:opacity-100'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] uppercase font-bold text-[#ffd56d] font-mono tracking-wider">
+                          {opt.category === 'comunicacion' ? 'Comunicación' : 'Tecnología'}
+                        </span>
+                        {!isVisible && (
+                          <span className="text-[9px] uppercase font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                            Oculto
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs font-extrabold text-[#ffd56d] font-mono">
+                        ${opt.basePrice} USD
                       </span>
                     </div>
-
-                    <div className="text-xl font-extrabold text-white font-display">
-                      {plan.precio != null ? `$${parseFloat(plan.precio).toLocaleString('es-CO')}` : 'Personalizado'}
-                      {plan.precio != null && <span className="text-[10px] text-[#9a907c] font-semibold ml-1">COP</span>}
-                    </div>
-
-                    <p className="text-xs text-[#9a907c] line-clamp-2 min-h-[32px]">{plan.descripcion || 'Sin descripción'}</p>
-                    <span className="text-[11px] text-[#d1c5af]">{features.length} {features.length === 1 ? 'característica' : 'características'}</span>
-
-                    <div className="flex gap-2 pt-3 mt-auto border-t border-white/5">
-                      <button
-                        onClick={() => openEditPlan(plan)}
-                        className="flex-1 py-2 rounded-lg bg-[#2a2a2c] hover:bg-[#353437] text-white text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => handleTogglePlan(plan)}
-                        className={`flex-1 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer border ${
-                          plan.activo
-                            ? 'text-rose-400 border-rose-500/30 hover:bg-rose-500/10'
-                            : 'text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10'
-                        }`}
-                      >
-                        {plan.activo ? <Trash2 className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                        {plan.activo ? 'Quitar' : 'Reactivar'}
-                      </button>
-                    </div>
+                    <h4 className="text-sm font-bold text-white leading-snug">{opt.name}</h4>
+                    <p className="text-xs text-[#9a907c] mt-1.5 leading-relaxed line-clamp-2">
+                      {opt.description}
+                    </p>
                   </div>
-                );
-              })}
+
+                  <div className="pt-3 border-t border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleOptionVisibility(opt.id)}
+                        className={`px-2 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border flex items-center gap-1.5 ${
+                          isVisible
+                            ? 'bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white border-white/10'
+                            : 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border-amber-500/30'
+                        }`}
+                        title={isVisible ? 'Ocultar módulo del cotizador' : 'Hacer visible el módulo en el cotizador'}
+                      >
+                        {isVisible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                        <span className="text-[11px]">{isVisible ? 'Visible' : 'Oculto'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteOption(opt.id, opt.name)}
+                        className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 text-xs transition cursor-pointer border border-red-500/20"
+                        title="Eliminar módulo"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditOption(opt)}
+                      className="px-3 py-1.5 rounded-lg bg-[#ffd56d]/15 hover:bg-[#ffd56d]/25 text-[#ffd56d] text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border border-[#ffd56d]/30"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      <span>Editar</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <Pagination
+            currentPage={cotizadorPage}
+            totalItems={cotizadorOptions.length}
+            itemsPerPage={COTIZADOR_PER_PAGE}
+            onPageChange={setCotizadorPage}
+            itemName="módulos"
+          />
+        </div>
+      )}
+
+      {/* Modal: Editar Opción del Cotizador */}
+      {showOptionModal && editingOption && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#1c1b1d] border border-[#ffd56d]/30 rounded-2xl max-w-md w-full p-6 text-left shadow-2xl relative text-xs">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+              <h3 className="text-base font-bold text-white font-display">
+                {isCreatingOption ? 'Añadir Nuevo Módulo al Cotizador' : 'Editar Módulo del Cotizador'}
+              </h3>
+              <button onClick={() => setShowOptionModal(false)} className="text-[#9a907c] hover:text-white">✕</button>
             </div>
-          )}
+            <form onSubmit={handleSaveOption} className="space-y-3">
+              <div>
+                <label className="block text-zinc-300 font-semibold mb-1">Nombre del Servicio / Módulo</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej: Infraestructura Cloud & DevOps"
+                  value={editingOption.name}
+                  onChange={e => setEditingOption({ ...editingOption, name: e.target.value })}
+                  className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-zinc-300 font-semibold mb-1">Precio Base (USD)</label>
+                  <input
+                    type="number"
+                    required
+                    value={editingOption.basePrice}
+                    onChange={e => setEditingOption({ ...editingOption, basePrice: parseFloat(e.target.value) || 0 })}
+                    className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-zinc-300 font-semibold mb-1">Categoría</label>
+                  <select
+                    value={editingOption.category}
+                    onChange={e => setEditingOption({ ...editingOption, category: e.target.value as any })}
+                    className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+                  >
+                    <option value="tecnologia">Tecnología</option>
+                    <option value="comunicacion">Comunicación</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-zinc-300 font-semibold mb-1">Descripción corta</label>
+                <textarea
+                  rows={2}
+                  required
+                  placeholder="Breve descripción de las tecnologías o alcance..."
+                  value={editingOption.description}
+                  onChange={e => setEditingOption({ ...editingOption, description: e.target.value })}
+                  className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+                />
+              </div>
+              <div className="flex items-center gap-2 pt-1 pb-1">
+                <input
+                  type="checkbox"
+                  id="opt_activo"
+                  checked={editingOption.activo !== false}
+                  onChange={e => setEditingOption({ ...editingOption, activo: e.target.checked })}
+                  className="accent-[#ffd56d] w-4 h-4 rounded cursor-pointer"
+                />
+                <label htmlFor="opt_activo" className="text-zinc-300 font-semibold cursor-pointer select-none text-xs">
+                  Visible en el Cotizador (desmarcar para ocultar a los clientes)
+                </label>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowOptionModal(false)}
+                  className="px-4 py-2 rounded-xl text-zinc-400 hover:text-white"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingOption}
+                  className="px-5 py-2 rounded-xl bg-[#ffd56d] text-[#3e2e00] font-bold cursor-pointer disabled:opacity-50"
+                >
+                  {savingOption ? 'Guardando...' : isCreatingOption ? 'Añadir Módulo' : 'Guardar Cambios'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
       {/* Modal: Crear / Editar Plan */}
       {showPlanModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#1c1b1d] border border-[#ffd56d]/30 rounded-2xl max-w-md w-full p-6 text-left shadow-2xl relative text-xs">
+          <div className="bg-[#1c1b1d] border border-[#ffd56d]/30 rounded-2xl max-w-lg w-full p-6 text-left shadow-2xl relative text-xs max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
-              <h3 className="text-base font-bold text-white font-display">{editingPlanId ? 'Editar Plan' : 'Nuevo Plan Corporativo'}</h3>
+              <div>
+                <h3 className="text-base font-bold text-white font-display">{editingPlanId ? 'Editar Plan (Plantilla)' : 'Nuevo Plan Corporativo'}</h3>
+                <p className="text-[11px] text-[#9a907c] mt-0.5">Define los módulos del cotizador que componen este paquete.</p>
+              </div>
               <button onClick={() => setShowPlanModal(false)} className="text-[#9a907c] hover:text-white">✕</button>
             </div>
-            <form onSubmit={handleSavePlan} className="space-y-3">
+            <form onSubmit={handleSavePlan} className="space-y-4">
               <div>
                 <label className="block text-zinc-300 font-semibold mb-1">Nombre</label>
                 <input
@@ -1306,17 +2091,52 @@ export const AdminPanel: React.FC = () => {
                   className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
                 />
               </div>
+
+              {/* Características del Plan (Módulos del Cotizador) */}
               <div>
-                <label className="block text-zinc-300 font-semibold mb-1">Características (una por línea)</label>
-                <textarea
-                  rows={3}
-                  value={newPlan.features}
-                  onChange={e => setNewPlan({ ...newPlan, features: e.target.value })}
-                  placeholder="Característica 1&#10;Característica 2"
-                  className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
-                />
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-zinc-300 font-semibold">
+                    Características del Plan (Módulos del Cotizador):
+                  </label>
+                  <span className="text-[11px] text-[#ffd56d] font-mono font-semibold">
+                    {newPlan.features.split('\n').filter(Boolean).length} seleccionados
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 rounded-xl bg-[#0e0e10] border border-white/10 max-h-60 overflow-y-auto">
+                  {cotizadorOptions.map((opt) => {
+                    const isChecked = newPlan.features
+                      .split('\n')
+                      .map((l) => l.trim().toLowerCase())
+                      .filter(Boolean)
+                      .some((l) => l === opt.name.toLowerCase() || l.includes(opt.name.toLowerCase()));
+                    return (
+                      <label
+                        key={opt.id}
+                        className={`flex items-center gap-2.5 p-2.5 rounded-lg text-xs cursor-pointer border transition select-none ${
+                          isChecked
+                            ? 'bg-[#ffd56d]/15 border-[#ffd56d]/50 text-white'
+                            : 'bg-[#181719] border-white/5 text-zinc-400 hover:text-white hover:border-white/15'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleFeatureModule(opt.name)}
+                          className="accent-[#ffd56d] w-4 h-4 rounded cursor-pointer"
+                        />
+                        <span className="truncate flex-1 font-medium">{opt.name}</span>
+                        {opt.activo === false && (
+                          <span className="text-[9px] text-amber-400 font-mono bg-amber-500/10 px-1 py-0.5 rounded border border-amber-500/20">
+                            Oculto
+                          </span>
+                        )}
+                        <span className="text-[11px] font-mono font-bold text-[#ffd56d]">${opt.basePrice}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-end gap-2 pt-2 border-t border-white/10">
                 <button type="button" onClick={() => setShowPlanModal(false)} className="px-4 py-2 rounded-xl text-zinc-400 hover:text-white">Cancelar</button>
                 <button type="submit" className="px-5 py-2 rounded-xl bg-[#ffd56d] text-[#3e2e00] font-bold cursor-pointer">{editingPlanId ? 'Guardar Cambios' : 'Guardar'}</button>
               </div>

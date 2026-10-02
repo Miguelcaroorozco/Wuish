@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -31,64 +31,100 @@ export class InfoGeneralService {
     });
   }
 
-  // ========== EQUIPO ==========
-  async findAllEquipo() {
-    return this.prisma.equipo.findMany({
-      orderBy: { orden: 'asc' },
-    });
-  }
-
-  async createEquipo(data: { nombre: string; cargo?: string; foto_url?: string; descripcion?: string; orden?: number }) {
-    return this.prisma.equipo.create({ data });
-  }
-
-  async updateEquipo(id: string, data: { nombre?: string; cargo?: string; foto_url?: string; descripcion?: string; orden?: number }) {
-    return this.prisma.equipo.update({ where: { id }, data });
-  }
-
-  async deleteEquipo(id: string) {
-    return this.prisma.equipo.delete({ where: { id } });
-  }
-
-  // ========== RESULTADOS ==========
-  async findAllResultados(activeOnly = true) {
-    return this.prisma.resultado.findMany({
+  // ========== MÓDULOS DEL COTIZADOR ==========
+  async findAllCotizadorModulos(activeOnly = false) {
+    return this.prisma.cotizadorModulo.findMany({
       where: activeOnly ? { activo: true } : undefined,
       orderBy: { orden: 'asc' },
     });
   }
 
-  async createResultado(data: { titulo: string; descripcion?: string; imagen_url?: string; orden?: number }) {
-    return this.prisma.resultado.create({ data: { ...data, activo: true } });
-  }
-
-  async updateResultado(id: string, data: { titulo?: string; descripcion?: string; imagen_url?: string; activo?: boolean; orden?: number }) {
-    return this.prisma.resultado.update({ where: { id }, data });
-  }
-
-  async deleteResultado(id: string) {
-    return this.prisma.resultado.delete({ where: { id } });
-  }
-
-  // ========== PASOS DEL PROCESO ==========
-  async findAllPasos() {
-    return this.prisma.pasoProceso.findMany({
-      orderBy: { numero_paso: 'asc' },
+  async upsertCotizadorModulo(data: {
+    id: string;
+    nombre: string;
+    categoria: string;
+    precio_base: number;
+    descripcion: string;
+    activo?: boolean;
+    orden?: number;
+  }) {
+    const existing = await this.prisma.cotizadorModulo.findUnique({ where: { id: data.id } });
+    if (existing) {
+      return this.prisma.cotizadorModulo.update({
+        where: { id: data.id },
+        data: {
+          nombre: data.nombre,
+          categoria: data.categoria,
+          precio_base: data.precio_base,
+          descripcion: data.descripcion,
+          activo: data.activo !== undefined ? data.activo : existing.activo,
+          orden: data.orden !== undefined ? data.orden : existing.orden,
+        },
+      });
+    }
+    return this.prisma.cotizadorModulo.create({
+      data: {
+        id: data.id,
+        nombre: data.nombre,
+        categoria: data.categoria,
+        precio_base: data.precio_base,
+        descripcion: data.descripcion,
+        activo: data.activo !== undefined ? data.activo : true,
+        orden: data.orden || 0,
+      },
     });
   }
 
-  async upsertPaso(data: { numero_paso: number; titulo: string; descripcion?: string; icono?: string }) {
-    const existing = await this.prisma.pasoProceso.findFirst({ where: { numero_paso: data.numero_paso } });
-    if (existing) {
-      return this.prisma.pasoProceso.update({
-        where: { id: existing.id },
-        data,
-      });
-    }
-    return this.prisma.pasoProceso.create({ data });
+  async deleteCotizadorModulo(id: string) {
+    return this.prisma.cotizadorModulo.delete({ where: { id } });
   }
 
-  async deletePaso(id: string) {
-    return this.prisma.pasoProceso.delete({ where: { id } });
+  // ========== PROYECTOS / PORTAFOLIO ==========
+  async findAllProyectos(activeOnly = false) {
+    return this.prisma.proyectoPortafolio.findMany({
+      where: activeOnly ? { activo: true } : undefined,
+      orderBy: { orden: 'asc' },
+    });
+  }
+
+  async createProyecto(data: {
+    titulo: string;
+    cliente?: string;
+    categoria: string;
+    anio?: string;
+    descripcion?: string;
+    imagen_url?: string;
+    tags?: any;
+    orden?: number;
+  }) {
+    return this.prisma.proyectoPortafolio.create({ data });
+  }
+
+  async updateProyecto(id: string, data: any) {
+    return this.prisma.proyectoPortafolio.update({ where: { id }, data });
+  }
+
+  async deleteProyecto(id: string) {
+    return this.prisma.proyectoPortafolio.delete({ where: { id } });
+  }
+
+  // ========== MÉTRICAS DE LA LANDING ==========
+  async findAllMetricas(activeOnly = false) {
+    return this.prisma.metricaLanding.findMany({
+      where: activeOnly ? { activo: true } : undefined,
+      orderBy: { orden: 'asc' },
+    });
+  }
+
+  async createMetrica(data: { valor: number; sufijo?: string; etiqueta: string; orden?: number }) {
+    return this.prisma.metricaLanding.create({ data });
+  }
+
+  async updateMetrica(id: string, data: any) {
+    return this.prisma.metricaLanding.update({ where: { id }, data });
+  }
+
+  async deleteMetrica(id: string) {
+    return this.prisma.metricaLanding.delete({ where: { id } });
   }
 }

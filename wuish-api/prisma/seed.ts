@@ -4,9 +4,9 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('--- SEEDING WUISH DATABASE ---');
+  console.log('--- SEEDING & SYNCING WUISH REORGANIZED DATABASE ---');
 
-  // 1. Get or create a sample client user for the comments
+  // 1. Seed or find sample user
   let user = await prisma.usuario.findFirst({
     where: { correo: 'cliente@wuish.io' },
   });
@@ -19,6 +19,8 @@ async function main() {
         correo: 'cliente@wuish.io',
         numero_cedula: '1020304050',
         tipo_documento: 'CC',
+        empresa: 'Grupo Nexo Capital',
+        cargo: 'CEO & Founder',
         fecha_nacimiento: new Date('1990-05-15'),
         telefono: '+57 300 123 4567',
         password_hash: '$2b$10$abcdefghijklmnopqrstuv',
@@ -28,97 +30,173 @@ async function main() {
     console.log('Created sample user:', user.nombres);
   }
 
-  // 2. Check and seed Comentarios (Testimonios)
-  const countComentarios = await prisma.comentario.count();
-  console.log(`Current comentarios count: ${countComentarios}`);
+  // 2. Seed Cotizador Modulos
+  const countModulos = await prisma.cotizadorModulo.count();
+  console.log(`Current cotizadorModulos count: ${countModulos}`);
 
-  const testimoniosData = [
+  const defaultServices = [
     {
-      contenido: 'WUISH reestructuró por completo nuestra infraestructura digital y la narrativa de marca. Redujimos tiempos de respuesta en un 40% y el impacto ante nuestros inversores fue inmediato.',
-      calificacion: 5,
-      mostrar_en_pagina: true,
+      id: 'ads',
+      nombre: 'Marketing & Pauta Omnicanal',
+      categoria: 'comunicacion',
+      precio_base: 1200,
+      descripcion: 'Meta, Google Ads, LinkedIn B2B + ROAS Tracking',
+      activo: true,
       orden: 1,
     },
     {
-      contenido: 'La implementación de la plataforma a medida y la automatización de procesos revolucionaron nuestra operación diaria. La dedicación técnica y el acompañamiento estratégico son de primer nivel.',
-      calificacion: 5,
-      mostrar_en_pagina: true,
+      id: 'video',
+      nombre: 'Producción de Video Cinemático',
+      categoria: 'comunicacion',
+      precio_base: 1450,
+      descripcion: 'Brand films 4K, Motion Design y comerciales 3D',
+      activo: true,
       orden: 2,
     },
     {
-      contenido: 'Excelente nivel de ingeniería y estándares de seguridad corporativa. Cumplieron cada hito de entrega y construyeron una arquitectura sólida, escalable y sin fisuras.',
-      calificacion: 5,
-      mostrar_en_pagina: true,
+      id: 'branding',
+      nombre: 'Identidad & Branding Corporativo',
+      categoria: 'comunicacion',
+      precio_base: 950,
+      descripcion: 'Manual de marca, tipografía y activos gráficos',
+      activo: true,
       orden: 3,
     },
     {
-      contenido: 'Unificar producción audiovisual 4K y desarrollo tecnológico en un solo socio estratégico nos otorgó una ventaja competitiva decisiva en el mercado internacional.',
-      calificacion: 5,
-      mostrar_en_pagina: true,
+      id: 'web',
+      nombre: 'Desarrollo Web & E-Commerce',
+      categoria: 'tecnologia',
+      precio_base: 1800,
+      descripcion: 'Headless Next.js, pasarelas globales y alta velocidad',
+      activo: true,
       orden: 4,
     },
     {
-      contenido: 'El portal corporativo y los tableros analíticos en tiempo real nos permitieron triplicar la tasa de conversión en nuestro canal B2B durante el último trimestre.',
-      calificacion: 5,
-      mostrar_en_pagina: true,
+      id: 'mobile',
+      nombre: 'Apps Móviles (iOS & Android)',
+      categoria: 'tecnologia',
+      precio_base: 2600,
+      descripcion: 'Flutter / Swift nativo, offline-first y push notifications',
+      activo: true,
       orden: 5,
+    },
+    {
+      id: 'erp',
+      nombre: 'Software ERP / CRM a Medida',
+      categoria: 'tecnologia',
+      precio_base: 2900,
+      descripcion: 'Gestión de inventarios, roles RBAC y facturación multi-país',
+      activo: true,
+      orden: 6,
+    },
+    {
+      id: 'automatizacion',
+      nombre: 'Automatización & Business Intelligence',
+      categoria: 'tecnologia',
+      precio_base: 1600,
+      descripcion: 'Flujos automatizados, integraciones API y dashboards en tiempo real',
+      activo: true,
+      orden: 7,
+    },
+    {
+      id: 'sec',
+      nombre: 'Ciberseguridad & Auditoría Cloud',
+      categoria: 'tecnologia',
+      precio_base: 1350,
+      descripcion: 'Pentesting, SOC2, blindaje de datos y certificación',
+      activo: true,
+      orden: 8,
     },
   ];
 
-  if (countComentarios === 0) {
-    for (const t of testimoniosData) {
-      await prisma.comentario.create({
-        data: {
-          usuario_id: user.id,
-          contenido: t.contenido,
-          calificacion: t.calificacion,
-          mostrar_en_pagina: t.mostrar_en_pagina,
-          orden: t.orden,
-        },
-      });
-    }
-    console.log(`Successfully seeded ${testimoniosData.length} testimonios in database.`);
-  } else {
-    // Ensure existing comentarios have mostrar_en_pagina: true
-    await prisma.comentario.updateMany({
-      data: { mostrar_en_pagina: true },
+  for (const s of defaultServices) {
+    await prisma.cotizadorModulo.upsert({
+      where: { id: s.id },
+      create: s,
+      update: {
+        nombre: s.nombre,
+        categoria: s.categoria,
+        precio_base: s.precio_base,
+        descripcion: s.descripcion,
+      },
     });
-    console.log('Updated existing comentarios to mostrar_en_pagina: true.');
   }
+  console.log('Seeded 8 Cotizador Modulos in database.');
 
-  // 3. Seed Resultados
-  const countResultados = await prisma.resultado.count();
-  console.log(`Current resultados count: ${countResultados}`);
+  // 3. Seed Proyectos Portafolio
+  const countProyectos = await prisma.proyectoPortafolio.count();
+  console.log(`Current proyectosPortafolio count: ${countProyectos}`);
 
-  const resultadosData = [
-    { titulo: '120+', descripcion: 'Proyectos Corporativos Ejecutados', orden: 1 },
-    { titulo: '98%', descripcion: 'Tasa de Retención de Clientes', orden: 2 },
-    { titulo: '3x', descripcion: 'Retorno de Inversión (ROI) Promedio', orden: 3 },
-    { titulo: '72h', descripcion: 'Kickoff Técnico y Despliegue', orden: 4 },
-  ];
+  if (countProyectos === 0) {
+    const defaultProjects = [
+      {
+        titulo: 'Ecosistema Transaccional & Core Digital',
+        cliente: 'Nexo Capital',
+        categoria: 'tecnologia',
+        anio: '2026',
+        descripcion: 'Arquitectura escalable en microservicios, portal de clientes con encriptación bancaria y liquidación de operaciones en tiempo real.',
+        tags: ['Next.js', 'NestJS', 'PostgreSQL', 'Cloud'],
+        orden: 1,
+      },
+      {
+        titulo: 'Campaña Global de Rebranding & Video 4K',
+        cliente: 'Krea Brands',
+        categoria: 'comunicacion',
+        anio: '2026',
+        descripcion: 'Producción audiovisual cinematográfica, manual de identidad corporativa y estrategia de pauta omnicanal de alto impacto.',
+        tags: ['Video 4K', 'Branding', 'Estrategia', 'Pauta'],
+        orden: 2,
+      },
+      {
+        titulo: 'Automatización Logística & ERP Cloud',
+        cliente: 'Andina Logistics',
+        categoria: 'tecnologia',
+        anio: '2025',
+        descripcion: 'Sistema ERP a medida para tracking de flotas en tiempo real, integración aduanera y optimización operativa continua.',
+        tags: ['ERP', 'Logística', 'Dashboards BI', 'APIs'],
+        orden: 3,
+      },
+      {
+        titulo: 'Estrategia de Comunicación Institucional & PR',
+        cliente: 'Fintech Aurora',
+        categoria: 'comunicacion',
+        anio: '2025',
+        descripcion: 'Relacionamiento estratégico, media training y posicionamiento de marca en medios económicos internacionales.',
+        tags: ['PR', 'Comunicación', 'Medios', 'B2B'],
+        orden: 4,
+      },
+    ];
 
-  if (countResultados === 0) {
-    for (const r of resultadosData) {
-      await prisma.resultado.create({
-        data: {
-          titulo: r.titulo,
-          descripcion: r.descripcion,
-          activo: true,
-          orden: r.orden,
-        },
-      });
+    for (const p of defaultProjects) {
+      await prisma.proyectoPortafolio.create({ data: p });
     }
-    console.log(`Successfully seeded ${resultadosData.length} resultados in database.`);
+    console.log('Seeded 4 default portfolio projects in database.');
   }
 
-  console.log('--- SEED COMPLETED ---');
+  // 4. Seed Metricas Landing
+  const countMetricas = await prisma.metricaLanding.count();
+  console.log(`Current metricasLanding count: ${countMetricas}`);
+
+  if (countMetricas === 0) {
+    const defaultMetricas = [
+      { valor: 120, sufijo: '+', etiqueta: 'Proyectos Corporativos', orden: 1 },
+      { valor: 98, sufijo: '%', etiqueta: 'Retención de Clientes', orden: 2 },
+      { valor: 3, sufijo: 'x', etiqueta: 'ROI Promedio Garantizado', orden: 3 },
+      { valor: 72, sufijo: 'h', etiqueta: 'Kickoff y Despliegue', orden: 4 },
+    ];
+
+    for (const m of defaultMetricas) {
+      await prisma.metricaLanding.create({ data: m });
+    }
+    console.log('Seeded 4 default landing metrics in database.');
+  }
+
+  console.log('--- SEEDING COMPLETED SUCCESSFULLY ---');
 }
 
 main()
   .catch((e) => {
-    console.error('Error seeding database:', e);
+    console.error(e);
     process.exit(1);
   })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+  .finally(() => prisma.$disconnect());

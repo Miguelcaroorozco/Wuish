@@ -1,20 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence, animate, useInView, useScroll, useTransform } from 'motion/react';
-import {
-  Rocket,
-  ArrowRight,
-  CheckCircle2,
-  XCircle,
-  UserPlus,
-  Calculator,
-  LayoutDashboard
-} from 'lucide-react';
+import { motion, AnimatePresence, animate, useInView } from 'motion/react';
+import { Rocket } from 'lucide-react';
 import { ProjectPipeline } from './ProjectPipeline';
 import { PortfolioSection } from './PortfolioSection';
 import { TestimonialsSection } from './TestimonialsSection';
 
 import { useAuth } from '../context/AuthContext';
 import { useContent } from '../context/ContentContext';
+import { infoGeneralApi } from '../lib/api';
 
 interface LandingViewProps {
   onNavigateToCotizador: () => void;
@@ -43,20 +36,9 @@ const SERVICES = [
   'Automatización de Procesos', 'Dashboards BI', 'Desarrollo Web', 'Pauta Omnicanal',
 ];
 
-const STATS = [
-  { value: 120, suffix: '+', label: 'Proyectos' },
-  { value: 98, suffix: '%', label: 'Retención' },
-  { value: 3, suffix: 'x', label: 'ROI promedio' },
-  { value: 72, suffix: 'h', label: 'Kickoff' },
-];
 
 
 
-const BEFORE_AFTER = [
-  { before: 'Ventas manuales por chat', after: 'E-commerce conectado al ERP' },
-  { before: 'Publicaciones sin estrategia', after: 'Campañas segmentadas con ROI' },
-  { before: 'Excel desactualizado', after: 'Dashboard en tiempo real' },
-];
 
 /* ---------- Piezas pequeñas ---------- */
 
@@ -65,8 +47,9 @@ const ParticleCanvas: React.FC = () => {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    if (!canvas || !ctx) return;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
     let frame: number;
     let width = (canvas.width = canvas.parentElement?.clientWidth || window.innerWidth);
@@ -77,69 +60,117 @@ const ParticleCanvas: React.FC = () => {
       width = canvas.width = canvas.parentElement.clientWidth;
       height = canvas.height = canvas.parentElement.clientHeight;
     };
-    window.addEventListener('resize', handleResize);
+    window.addEventListener('resize', handleResize, { passive: true });
 
-    const nodes = Array.from({ length: Math.max(25, Math.floor((width * height) / 18000)) }, () => ({
+    // 30 a 42 partículas dinámicas: visible, llamativo y 100% fluido
+    const nodeCount = Math.min(42, Math.max(22, Math.floor(width / 45)));
+    const nodes = Array.from({ length: nodeCount }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      vx: (Math.random() - 0.5) * 0.5,
-      vy: (Math.random() - 0.5) * 0.5,
-      size: Math.random() * 2 + 1,
+      vx: (Math.random() - 0.5) * 0.45,
+      vy: (Math.random() - 0.5) * 0.45,
+      size: Math.random() * 2 + 1.8,
     }));
 
     let running = true;
-    // Solo anima mientras el hero está en pantalla (ahorra CPU y batería en móvil)
-    const observer = new IntersectionObserver(([entry]) => {
-      const visible = entry.isIntersecting;
-      if (visible && !running) {
-        running = true;
-        frame = requestAnimationFrame(render);
-      } else if (!visible) {
-        running = false;
-        cancelAnimationFrame(frame);
-      }
-    });
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        running = entry.isIntersecting;
+        if (running) {
+          cancelAnimationFrame(frame);
+          frame = requestAnimationFrame(render);
+        } else {
+          cancelAnimationFrame(frame);
+        }
+      },
+      { threshold: 0.05 }
+    );
     observer.observe(canvas);
 
-    const render = () => {
+    let lastTime = 0;
+    const render = (time: number) => {
       if (!running) return;
+      if (time - lastTime < 16) {
+        frame = requestAnimationFrame(render);
+        return;
+      }
+      lastTime = time;
+
       ctx.clearRect(0, 0, width, height);
+
+      // Conexiones doradas vivas y bien definidas
+      ctx.lineWidth = 0.8;
       for (let i = 0; i < nodes.length; i++) {
+        const ni = nodes[i];
         for (let j = i + 1; j < nodes.length; j++) {
-          const dist = Math.hypot(nodes[i].x - nodes[j].x, nodes[i].y - nodes[j].y);
-          if (dist < 110) {
+          const nj = nodes[j];
+          const dx = ni.x - nj.x;
+          const dy = ni.y - nj.y;
+          const distSq = dx * dx + dy * dy;
+          if (distSq < 16900) { // 130px de radio de conexión
+            const dist = Math.sqrt(distSq);
             ctx.beginPath();
-            ctx.moveTo(nodes[i].x, nodes[i].y);
-            ctx.lineTo(nodes[j].x, nodes[j].y);
-            ctx.strokeStyle = `rgba(255, 213, 109, ${0.4 * (1 - dist / 110)})`;
-            ctx.lineWidth = 0.6;
+            ctx.moveTo(ni.x, ni.y);
+            ctx.lineTo(nj.x, nj.y);
+            ctx.strokeStyle = `rgba(255, 213, 109, ${0.6 * (1 - dist / 130)})`;
             ctx.stroke();
           }
         }
       }
-      for (const n of nodes) {
+
+      // Partículas con destello visible
+      for (let i = 0; i < nodes.length; i++) {
+        const n = nodes[i];
         n.x += n.vx;
         n.y += n.vy;
         if (n.x < 0 || n.x > width) n.vx *= -1;
         if (n.y < 0 || n.y > height) n.vy *= -1;
+
+        // Punto central
         ctx.beginPath();
         ctx.arc(n.x, n.y, n.size, 0, Math.PI * 2);
         ctx.fillStyle = '#ffd56d';
         ctx.fill();
+
+        // Resplandor exterior en partículas
+        if (n.size > 2.6) {
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, n.size * 2.2, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255, 213, 109, 0.22)';
+          ctx.fill();
+        }
       }
+
       frame = requestAnimationFrame(render);
     };
-    render();
+
+    let scrollTimeout: any;
+    const handleScroll = () => {
+      if (running) {
+        running = false;
+        cancelAnimationFrame(frame);
+      }
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        running = true;
+        frame = requestAnimationFrame(render);
+      }, 150);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    frame = requestAnimationFrame(render);
 
     return () => {
       running = false;
       cancelAnimationFrame(frame);
+      clearTimeout(scrollTimeout);
       observer.disconnect();
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleScroll);
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="w-full h-full" />;
+  return <canvas ref={canvasRef} className="w-full h-full pointer-events-none" />;
 };
 
 const RotatingWord: React.FC = () => {
@@ -205,35 +236,48 @@ export const LandingView: React.FC<LandingViewProps> = ({
 }) => {
   const { isAuthenticated } = useAuth();
   const { stats } = useContent();
-  const heroRef = useRef<HTMLElement>(null);
-  const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
-  const heroY = useTransform(scrollYProgress, [0, 1], [0, 140]);
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
+
+  const [cms, setCms] = useState({
+    slogan: 'Comunicación y tecnología a la medida de tu negocio.',
+    vision: '',
+    mision: '',
+  });
+
+  useEffect(() => {
+    infoGeneralApi
+      .getAll()
+      .then((items) => {
+        if (!Array.isArray(items)) return;
+        const getSec = (k: string) => items.find((i: any) => i.seccion === k)?.contenido;
+        const slogan = getSec('slogan');
+        const vision = getSec('vision') || getSec('manifesto');
+        const mision = getSec('mision');
+        setCms({
+          slogan: slogan || 'Comunicación y tecnología a la medida de tu negocio.',
+          vision: vision || '',
+          mision: mision || '',
+        });
+      })
+      .catch(() => {});
+  }, []);
 
 
-  const [withWuish, setWithWuish] = useState(true);
-
-  const onboarding = [
-    { icon: UserPlus, title: 'Crea tu cuenta', sub: 'En menos de un minuto', action: () => onNavigateToAuth() },
-    { icon: Calculator, title: 'Cotiza tu proyecto', sub: 'Precio estimado al instante', action: onNavigateToCotizador },
-    { icon: LayoutDashboard, title: 'Síguelo en tu panel', sub: 'Avances y chat con el equipo', action: () => onNavigateToAuth() },
-  ];
 
   return (
     <div className="w-full pb-16 sm:pb-24 overflow-x-hidden">
       {/* HERO */}
-      <section ref={heroRef} className="relative min-h-[80svh] sm:min-h-[88vh] flex items-center justify-center px-4 sm:px-6 lg:px-8 py-16 overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none opacity-40">
+      <section className="relative min-h-[80svh] sm:min-h-[88vh] flex items-center justify-center px-4 sm:px-6 lg:px-8 py-16 overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none opacity-90">
           <ParticleCanvas />
         </div>
-        <motion.div
-          animate={{ scale: [1, 1.15, 1], opacity: [0.6, 1, 0.6] }}
-          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[320px] h-[200px] sm:w-[650px] sm:h-[320px] bg-[#ffd56d]/15 blur-[80px] sm:blur-[120px] rounded-full pointer-events-none"
+        <div
+          className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[360px] h-[240px] sm:w-[750px] sm:h-[400px] rounded-full pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse at center, rgba(255, 213, 109, 0.22) 0%, rgba(255, 213, 109, 0.07) 50%, transparent 75%)',
+          }}
         />
 
         <motion.div
-          style={{ y: heroY, opacity: heroOpacity }}
           variants={stagger(0.12)}
           initial="hidden"
           animate="show"
@@ -258,8 +302,8 @@ export const LandingView: React.FC<LandingViewProps> = ({
             en <span className="text-[#ffd56d]">crecimiento</span>.
           </motion.h1>
 
-          <motion.p variants={reveal} className="mt-6 text-base sm:text-lg text-[#d1c5af] max-w-xl font-light">
-            Comunicación y tecnología a la medida de tu negocio.
+          <motion.p variants={reveal} className="mt-6 text-base sm:text-lg text-[#d1c5af] max-w-2xl font-light">
+            {cms.slogan}
           </motion.p>
 
           <motion.div variants={reveal} className="mt-8 sm:mt-10 flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
@@ -278,6 +322,15 @@ export const LandingView: React.FC<LandingViewProps> = ({
             >
               <Rocket className="w-4 h-4" />
               {isAuthenticated ? 'Ir a mi panel' : 'Empezar ahora'}
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={onNavigateToCotizador}
+              className="w-full sm:w-auto px-8 py-4 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/10 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition"
+            >
+              <span>Cotizar Proyecto</span>
             </motion.button>
           </motion.div>
         </motion.div>
@@ -318,6 +371,63 @@ export const LandingView: React.FC<LandingViewProps> = ({
           </motion.div>
         ))}
       </motion.section>
+
+      {/* CMS INSTITUCIONAL: VISIÓN & MISIÓN */}
+      {(cms.vision || cms.mision) && (
+        <motion.section
+          variants={stagger()}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: '-80px' }}
+          className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-20"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {cms.vision && (
+              <motion.div
+                variants={reveal}
+                className="relative overflow-hidden p-7 sm:p-9 rounded-3xl bg-gradient-to-br from-[#1c1b1d] to-[#121113] border border-[#ffd56d]/25 hover:border-[#ffd56d]/50 transition-all shadow-xl shadow-black/40 flex flex-col justify-between"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[#ffd56d]/5 rounded-full blur-2xl pointer-events-none" />
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#ffd56d]/10 border border-[#ffd56d]/30 text-[#ffd56d] text-[10px] font-bold uppercase tracking-widest font-display mb-4">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#ffd56d] animate-pulse" />
+                    Nuestra Visión
+                  </div>
+                  <p className="text-white text-base sm:text-lg leading-relaxed font-light font-display italic">
+                    "{cms.vision}"
+                  </p>
+                </div>
+                <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between text-xs text-[#9a907c]">
+                  <span>Wuish Visión</span>
+                  <span className="text-[#ffd56d] font-bold">01</span>
+                </div>
+              </motion.div>
+            )}
+
+            {cms.mision && (
+              <motion.div
+                variants={reveal}
+                className="relative overflow-hidden p-7 sm:p-9 rounded-3xl bg-gradient-to-br from-[#1c1b1d] to-[#121113] border border-white/10 hover:border-[#ffd56d]/40 transition-all shadow-xl shadow-black/40 flex flex-col justify-between"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[#ffd56d]/5 rounded-full blur-2xl pointer-events-none" />
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[#d1c5af] text-[10px] font-bold uppercase tracking-widest font-display mb-4">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#ffd56d]" />
+                    Nuestra Misión
+                  </div>
+                  <p className="text-[#d1c5af] text-sm sm:text-base leading-relaxed">
+                    {cms.mision}
+                  </p>
+                </div>
+                <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between text-xs text-[#9a907c]">
+                  <span>Wuish Propósito</span>
+                  <span className="text-[#ffd56d] font-bold">02</span>
+                </div>
+              </motion.div>
+            )}
+          </div>
+        </motion.section>
+      )}
 
 
 

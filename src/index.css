@@ -6,6 +6,7 @@
     /* clip (no hidden) para no romper position: sticky */
     overflow-x: clip;
     -webkit-tap-highlight-color: transparent;
+    text-rendering: optimizeSpeed;
   }
 
   /* iOS hace zoom al enfocar campos con texto menor a 16px */

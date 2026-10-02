@@ -80,7 +80,7 @@ export const authApi = {
 export const usuariosApi = {
   getMe: () => request<any>('/usuarios/me'),
 
-  updateMe: (data: { nombres?: string; apellidos?: string; telefono?: string }) =>
+  updateMe: (data: { nombres?: string; apellidos?: string; telefono?: string; empresa?: string; cargo?: string }) =>
     request<any>('/usuarios/me', {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -153,7 +153,18 @@ export const solicitudesApi = {
 
   getById: (id: string) => request<any>(`/solicitudes/${id}`),
 
-  create: (data: { tipo: string; descripcion?: string; plan_id?: string }) =>
+  create: (data: {
+    tipo?: string;
+    descripcion?: string;
+    plan_id?: string;
+    empresa?: string;
+    telefono_contacto?: string;
+    servicios_seleccionados?: any;
+    presupuesto_min?: number;
+    presupuesto_max?: number;
+    velocidad_entrega?: string;
+    nivel_soporte?: string;
+  }) =>
     request<any>('/solicitudes', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -166,12 +177,6 @@ export const solicitudesApi = {
       body: JSON.stringify(body),
     });
   },
-
-  addAjuste: (id: string, descripcion_ajuste: string) =>
-    request<any>(`/solicitudes/${id}/ajustes`, {
-      method: 'POST',
-      body: JSON.stringify({ descripcion_ajuste }),
-    }),
 
   delete: (id: string) =>
     request<any>(`/solicitudes/${id}`, { method: 'DELETE' }),
@@ -234,47 +239,62 @@ export const comentariosApi = {
     request<any>(`/comentarios/${id}`, { method: 'DELETE' }),
 };
 
-// ========== RESULTADOS ==========
-export const resultadosApi = {
-  getAll: (includeInactive = false) =>
-    request<any[]>(`/resultados${includeInactive ? '?all=true' : ''}`),
+// ========== COTIZADOR MÓDULOS ==========
+export const cotizadorModulosApi = {
+  getAll: (includeAll = false) =>
+    request<any[]>(`/cotizador-modulos${includeAll ? '?all=true' : ''}`),
 
-  create: (data: { titulo: string; descripcion?: string; imagen_url?: string; orden?: number }) =>
-    request<any>('/resultados', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-
-  update: (id: string, data: any) =>
-    request<any>(`/resultados/${id}`, {
+  upsert: (data: any) =>
+    request<any>('/cotizador-modulos', {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
 
   delete: (id: string) =>
-    request<any>(`/resultados/${id}`, { method: 'DELETE' }),
+    request<any>(`/cotizador-modulos/${id}`, { method: 'DELETE' }),
 };
 
+// ========== PROYECTOS / PORTAFOLIO ==========
+export const proyectosApi = {
+  getAll: (includeAll = false) =>
+    request<any[]>(`/proyectos-portafolio${includeAll ? '?all=true' : ''}`),
 
-// ========== CARRITO ==========
-export const carritoApi = {
-  get: () => request<any[]>('/carrito'),
-
-  addItem: (plan_id: string, cantidad = 1) =>
-    request<any>('/carrito', {
+  create: (data: any) =>
+    request<any>('/proyectos-portafolio', {
       method: 'POST',
-      body: JSON.stringify({ plan_id, cantidad }),
+      body: JSON.stringify(data),
     }),
 
-  updateCantidad: (id: string, cantidad: number) =>
-    request<any>(`/carrito/${id}`, {
+  update: (id: string, data: any) =>
+    request<any>(`/proyectos-portafolio/${id}`, {
       method: 'PUT',
-      body: JSON.stringify({ cantidad }),
+      body: JSON.stringify(data),
     }),
 
-  removeItem: (id: string) =>
-    request<any>(`/carrito/${id}`, { method: 'DELETE' }),
+  delete: (id: string) =>
+    request<any>(`/proyectos-portafolio/${id}`, { method: 'DELETE' }),
+};
 
-  clear: () =>
-    request<any>('/carrito', { method: 'DELETE' }),
+// Alias para compatibilidad
+export const resultadosApi = proyectosApi;
+
+// ========== MÉTRICAS LANDING ==========
+export const metricasApi = {
+  getAll: (includeAll = false) =>
+    request<any[]>(`/metricas-landing${includeAll ? '?all=true' : ''}`),
+
+  create: (data: { valor: number; sufijo?: string; etiqueta: string; orden?: number }) =>
+    request<any>('/metricas-landing', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: any) =>
+    request<any>(`/metricas-landing/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    request<any>(`/metricas-landing/${id}`, { method: 'DELETE' }),
 };

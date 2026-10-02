@@ -8,7 +8,6 @@ import { SolicitudesModule } from './solicitudes/solicitudes.module';
 import { MensajesModule } from './mensajes/mensajes.module';
 import { InfoGeneralModule } from './info-general/info-general.module';
 import { ComentariosModule } from './comentarios/comentarios.module';
-import { CarritoModule } from './carrito/carrito.module';
 
 @Module({
   imports: [
@@ -21,7 +20,6 @@ import { CarritoModule } from './carrito/carrito.module';
     MensajesModule,
     InfoGeneralModule,
     ComentariosModule,
-    CarritoModule,
   ],
 })
 export class AppModule {}

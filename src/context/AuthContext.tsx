@@ -12,6 +12,8 @@ export interface AuthUser {
   fecha_nacimiento: string;
   telefono: string | null;
   correo: string;
+  empresa?: string | null;
+  cargo?: string | null;
   rol: string;
   created_at: string;
   updated_at: string;

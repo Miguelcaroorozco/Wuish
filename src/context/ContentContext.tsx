@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Project, Testimonial, StatItem } from '../types';
-import { comentariosApi } from '../lib/api';
+import { comentariosApi, proyectosApi, metricasApi } from '../lib/api';
 
 const DEFAULT_TESTIMONIALS: Testimonial[] = [
   {
@@ -177,14 +177,15 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [cart, setCart] = useState<{ id: string; name: string; type: 'plan' | 'service'; price: number | string }[]>(() => load(CART_KEY));
 
   useEffect(() => {
+    // 1. Testimonios desde PostgreSQL
     comentariosApi.getPublicos()
       .then((apiComments) => {
         if (Array.isArray(apiComments) && apiComments.length > 0) {
           const mapped: Testimonial[] = apiComments.map((c) => ({
             id: c.id,
             userId: c.usuario_id || '',
-            name: c.usuario ? `${c.usuario.nombres} ${c.usuario.apellidos}`.trim() : 'Cliente Wuish',
-            company: c.usuario?.empresa || 'Empresa Aliada',
+            name: c.nombre_autor || (c.usuario ? `${c.usuario.nombres} ${c.usuario.apellidos}`.trim() : 'Cliente Wuish'),
+            company: c.empresa_autor || c.usuario?.empresa || 'Empresa Aliada',
             rating: c.calificacion || 5,
             text: c.contenido,
             date: c.fecha_creacion || new Date().toISOString(),
@@ -198,6 +199,36 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       })
       .catch(() => {});
+
+    // 2. Proyectos del portafolio desde PostgreSQL
+    proyectosApi.getAll().then((apiProjects) => {
+      if (Array.isArray(apiProjects) && apiProjects.length > 0) {
+        const mapped: Project[] = apiProjects.map((p) => ({
+          id: p.id,
+          title: p.titulo,
+          client: p.cliente || 'Wuish Client',
+          category: (p.categoria === 'comunicacion' ? 'comunicacion' : 'tecnologia') as any,
+          year: p.anio || '2026',
+          description: p.descripcion || '',
+          imageUrl: p.imagen_url || undefined,
+          tags: Array.isArray(p.tags) ? p.tags : [],
+        }));
+        setProjects(mapped);
+      }
+    }).catch(() => {});
+
+    // 3. Métricas clave desde PostgreSQL
+    metricasApi.getAll().then((apiMetricas) => {
+      if (Array.isArray(apiMetricas) && apiMetricas.length > 0) {
+        const mapped: StatItem[] = apiMetricas.map((m) => ({
+          id: m.id,
+          value: m.valor,
+          suffix: m.sufijo || '+',
+          label: m.etiqueta,
+        }));
+        setStats(mapped);
+      }
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -241,14 +272,28 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const addProject: ContentContextType['addProject'] = (data) => {
-    setProjects((prev) => [{ ...data, id: `prj-${Date.now()}` }, ...prev]);
+    proyectosApi.create({
+      titulo: data.title,
+      cliente: data.client,
+      categoria: data.category,
+      anio: data.year,
+      descripcion: data.description,
+      imagen_url: data.imageUrl,
+      tags: data.tags,
+    }).then((created) => {
+      setProjects((prev) => [{ ...data, id: created.id }, ...prev]);
+    }).catch(() => {
+      setProjects((prev) => [{ ...data, id: `prj-${Date.now()}` }, ...prev]);
+    });
   };
 
   const updateProject = (id: string, data: Partial<Project>) => {
+    proyectosApi.update(id, data).catch(() => {});
     setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...data } : p)));
   };
 
   const removeProject = (id: string) => {
+    proyectosApi.delete(id).catch(() => {});
     setProjects((prev) => prev.filter((p) => p.id !== id));
   };
 
