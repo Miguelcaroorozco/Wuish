@@ -101,8 +101,7 @@ CREATE TABLE IF NOT EXISTS solicitudes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     usuario_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
     tipo VARCHAR(30) NOT NULL,
-    estado VARCHAR(30) NOT NULL DEFAULT 'pendiente' 
-        CHECK (estado IN ('pendiente', 'en_proceso', 'revision', 'completada', 'cancelada')),
+    estado VARCHAR(30) NOT NULL DEFAULT 'pendiente',
     descripcion TEXT,
     plan_id UUID REFERENCES planes(id) ON DELETE SET NULL,
     admin_asignado_id UUID REFERENCES usuarios(id) ON DELETE SET NULL,
@@ -115,6 +114,21 @@ CREATE TABLE IF NOT EXISTS solicitudes (
 CREATE INDEX IF NOT EXISTS idx_solicitudes_usuario ON solicitudes(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_solicitudes_estado ON solicitudes(estado);
 CREATE INDEX IF NOT EXISTS idx_solicitudes_admin ON solicitudes(admin_asignado_id);
+
+-- Estados válidos de una solicitud (deben coincidir con ESTADOS_SOLICITUD en
+-- wuish-api/src/solicitudes/estados.ts y src/types.ts).
+-- Se define con ALTER (y no inline en el CREATE TABLE) para que, en una base
+-- ya existente, baste con ejecutar este bloque y el de historial más abajo para
+-- actualizar la restricción y migrar los estados viejos (revision -> en_revision,
+-- completada -> finalizada). Ojo: re-ejecutar el script completo duplica los
+-- datos semilla que usan uuid_generate_v4().
+ALTER TABLE solicitudes DROP CONSTRAINT IF EXISTS solicitudes_estado_check;
+
+UPDATE solicitudes SET estado = 'en_revision' WHERE estado = 'revision';
+UPDATE solicitudes SET estado = 'finalizada'  WHERE estado = 'completada';
+
+ALTER TABLE solicitudes ADD CONSTRAINT solicitudes_estado_check
+    CHECK (estado IN ('pendiente', 'en_revision', 'en_proceso', 'aprobada', 'finalizada', 'cancelada'));
 
 -- ==============================================================================
 -- 9. TABLA: SOLICITUD AJUSTES (Retroalimentación y Cambios)
@@ -160,6 +174,12 @@ CREATE TABLE IF NOT EXISTS solicitud_historial_estados (
 );
 
 CREATE INDEX IF NOT EXISTS idx_historial_solicitud ON solicitud_historial_estados(solicitud_id);
+
+-- Migra estados antiguos registrados en el historial
+UPDATE solicitud_historial_estados SET estado_anterior = 'en_revision' WHERE estado_anterior = 'revision';
+UPDATE solicitud_historial_estados SET estado_anterior = 'finalizada'  WHERE estado_anterior = 'completada';
+UPDATE solicitud_historial_estados SET estado_nuevo    = 'en_revision' WHERE estado_nuevo    = 'revision';
+UPDATE solicitud_historial_estados SET estado_nuevo    = 'finalizada'  WHERE estado_nuevo    = 'completada';
 
 -- ==============================================================================
 -- 12. TABLA: COMENTARIOS (Testimonios y Calificaciones)

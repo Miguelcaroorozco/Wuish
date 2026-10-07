@@ -30,8 +30,8 @@ import {
   CreditCard,
   Pencil,
 } from 'lucide-react';
+import { ESTADOS_SOLICITUD, ESTADO_SOLICITUD_LABELS } from '../types';
 
-const ESTADOS = ['pendiente', 'en_revision', 'en_proceso', 'aprobada', 'finalizada'] as const;
 
 export const AdminPanel: React.FC = () => {
   const { showToast } = useToast();
@@ -649,8 +649,8 @@ export const AdminPanel: React.FC = () => {
                           onChange={e => handleStatusChange(r.id, e.target.value)}
                           className="px-2.5 py-1 rounded-lg bg-[#201f21] border border-white/10 text-[11px] font-semibold text-[#ffd56d] focus:outline-none cursor-pointer"
                         >
-                          {ESTADOS.map(st => (
-                            <option key={st} value={st}>{st.replace('_', ' ').toUpperCase()}</option>
+                          {ESTADOS_SOLICITUD.map(st => (
+                            <option key={st} value={st}>{ESTADO_SOLICITUD_LABELS[st].toUpperCase()}</option>
                           ))}
                         </select>
                       </td>

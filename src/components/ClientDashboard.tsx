@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext';
 import { solicitudesApi, mensajesApi, usuariosApi } from '../lib/api';
 import { PlanesView } from './PlanesView';
 import { CotizadorView } from './CotizadorView';
+import { ESTADO_SOLICITUD_LABELS, ESTADOS_SOLICITUD_CERRADOS, EstadoSolicitud } from '../types';
 import {
   Wallet,
   MessageSquareText,
@@ -37,7 +38,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
     setInternalTab(tab);
   };
 
-  const [filterStatus, setFilterStatus] = useState<string>('Todas');
+  const [filterStatus, setFilterStatus] = useState<EstadoSolicitud | 'Todas'>('Todas');
   const [solicitudes, setSolicitudes] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
   const [chatInput, setChatInput] = useState('');
@@ -167,7 +168,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       title: 'Operaciones Activas',
       value: solicitudes.length.toString().padStart(2, '0'),
       unit: 'registradas',
-      detail: `${solicitudes.filter((s) => s.estado !== 'finalizada').length} en curso`,
+      detail: `${solicitudes.filter((s) => !ESTADOS_SOLICITUD_CERRADOS.includes(s.estado)).length} en curso`,
       icon: FolderKanban,
       color: 'text-[#ffd56d]',
     },
@@ -287,8 +288,8 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                   </p>
                 </div>
 
-                <div className="flex items-center gap-1.5 p-1 bg-[#131315] rounded-xl border border-white/5 text-xs">
-                  {['Todas', 'En Proceso', 'En Revisión', 'Aprobada'].map((st) => (
+                <div className="flex flex-wrap items-center gap-1.5 p-1 bg-[#131315] rounded-xl border border-white/5 text-xs">
+                  {(['Todas', 'pendiente', 'en_revision', 'en_proceso', 'aprobada', 'finalizada'] as const).map((st) => (
                     <button
                       key={st}
                       onClick={() => setFilterStatus(st)}
@@ -298,7 +299,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                           : 'text-[#d1c5af] hover:text-white'
                       }`}
                     >
-                      {st === 'Todas' ? `Todas (${solicitudes.length})` : st}
+                      {st === 'Todas' ? `Todas (${solicitudes.length})` : ESTADO_SOLICITUD_LABELS[st]}
                     </button>
                   ))}
                 </div>
@@ -356,11 +357,13 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                                   ? 'bg-[#ffd56d]/15 text-[#ffd56d] border border-[#ffd56d]/30'
                                   : item.estado === 'en_revision' || item.estado === 'pendiente'
                                   ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                                  : item.estado === 'cancelada'
+                                  ? 'bg-red-500/15 text-red-400 border border-red-500/30'
                                   : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
                               }`}
                             >
                               <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                              {item.estado}
+                              {ESTADO_SOLICITUD_LABELS[item.estado as EstadoSolicitud] ?? item.estado}
                             </span>
                           </td>
                         </tr>

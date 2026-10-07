@@ -50,7 +50,7 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({ onSuccessSubmit })
   const { user } = useAuth();
   const { showToast } = useToast();
 
-  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(['ads', 'web']);
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [timelineSpeed, setTimelineSpeed] = useState<'standard' | 'express' | 'urgent'>('standard');
   const [supportLevel, setSupportLevel] = useState<'tier1' | 'tier2' | 'concierge'>('tier1');
 

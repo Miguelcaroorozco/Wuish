@@ -118,7 +118,7 @@ export function CoverflowCarousel<T>({
           e.preventDefault();
         }
       }}
-      className={`relative grid place-items-center overflow-hidden py-8 outline-none select-none touch-pan-y ${
+      className={`relative z-0 grid place-items-center overflow-hidden py-8 outline-none select-none touch-pan-y ${
         canSlide ? 'cursor-grab active:cursor-grabbing' : ''
       }`}
     >
@@ -139,7 +139,7 @@ export function CoverflowCarousel<T>({
               filter: `brightness(${Math.max(0.35, 1 - dist * 0.35)})`,
             }}
             transition={dragging || reduceMotion ? { duration: 0 } : SPRING}
-            style={{ zIndex: 100 - Math.round(dist * 10), gridArea: '1 / 1' }}
+            style={{ zIndex: 50 - Math.round(dist * 10), gridArea: '1 / 1' }}
             onClick={() => {
               // Un click en una tarjeta lateral la trae al centro
               const d = offsetOf(slot);
