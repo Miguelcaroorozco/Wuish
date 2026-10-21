@@ -42,9 +42,12 @@ export const PlanesView: React.FC<PlanesViewProps> = ({ onSelectPlan }) => {
       .finally(() => setLoading(false));
   }, []);
 
+  // Filtrar únicamente planes activos (los planes ocultos no se muestran al público)
+  const planesActivos = planes.filter((p: any) => p.activo !== false);
+
   // El plan recomendado es el guardado desde el Admin; si no hay uno fijado, usa el del medio
-  const foundIndex = planes.findIndex(p => p.id === recomendadoId);
-  const featuredIndex = foundIndex !== -1 ? foundIndex : Math.floor(planes.length / 2);
+  const foundIndex = planesActivos.findIndex(p => p.id === recomendadoId);
+  const featuredIndex = foundIndex !== -1 ? foundIndex : Math.max(0, Math.floor(planesActivos.length / 2));
 
   const formatPrice = (precio: any) => {
     if (!precio) return 'Personalizado';
@@ -67,7 +70,7 @@ export const PlanesView: React.FC<PlanesViewProps> = ({ onSelectPlan }) => {
 
   const renderPlanCard = (p: any, isActive = false) => {
     const features = getFeatures(p);
-    const isFeatured = p.id === recomendadoId || (!recomendadoId && planes.indexOf(p) === featuredIndex);
+    const isFeatured = p.id === recomendadoId || (!recomendadoId && planesActivos.indexOf(p) === featuredIndex);
 
     return (
       <div
@@ -149,7 +152,7 @@ export const PlanesView: React.FC<PlanesViewProps> = ({ onSelectPlan }) => {
       </div>
 
       {/* Grid or Carousel of Plans */}
-      {planes.length === 0 ? (
+      {planesActivos.length === 0 ? (
         <div className="text-center py-16">
           <Rocket className="w-12 h-12 text-[#ffd56d]/50 mx-auto mb-4" />
           <p className="text-lg font-semibold text-white">Planes próximamente</p>
@@ -157,7 +160,7 @@ export const PlanesView: React.FC<PlanesViewProps> = ({ onSelectPlan }) => {
         </div>
       ) : (
         <CoverflowCarousel
-          items={planes}
+          items={planesActivos}
           getKey={(p: any) => String(p.id)}
           initialIndex={featuredIndex}
           autoplay={5000}

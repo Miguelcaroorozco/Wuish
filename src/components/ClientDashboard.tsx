@@ -364,43 +364,6 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
     }, 400);
   };
 
-  const kpis = [
-    {
-      title: 'Operaciones Activas',
-      value: solicitudes.length.toString().padStart(2, '0'),
-      unit: 'registradas',
-      detail: `${solicitudes.filter((s) => !ESTADOS_SOLICITUD_CERRADOS.includes(s.estado)).length} en curso`,
-      icon: FolderKanban,
-      color: 'text-[#ffd56d]',
-    },
-    {
-      title: 'Presupuesto en Solicitudes',
-      value: solicitudes.length > 0
-        ? `$${solicitudes.reduce((acc, s) => acc + (s.plan?.precio ? parseFloat(s.plan.precio) : 0), 0).toLocaleString()}`
-        : '$0',
-      unit: 'USD',
-      detail: '100% auditado',
-      icon: Wallet,
-      color: 'text-[#ffd56d]',
-    },
-    {
-      title: 'Comunicaciones',
-      value: messages.length.toString().padStart(2, '0'),
-      unit: 'mensajes',
-      detail: 'Canal Activo',
-      icon: MessageSquareText,
-      color: 'text-[#ffd56d]',
-    },
-    {
-      title: 'Estado Global SLA',
-      value: '100%',
-      unit: 'Activo',
-      detail: 'En tiempo y forma',
-      icon: ShieldCheck,
-      color: 'text-emerald-400',
-    },
-  ];
-
   return (
     <div className="w-full max-w-[1560px] mx-auto p-4 sm:p-6 lg:p-10 space-y-6 animate-in fade-in duration-300">
 
@@ -427,8 +390,6 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                     <span className="text-white font-medium capitalize">{user?.rol || 'Cliente'}</span>
                     <span className="text-[#9a907c]">—</span>
                     <span className="text-[#ffd56d] font-medium">{user?.correo}</span>
-                    <span className="text-[#9a907c]">•</span>
-                    <span className="text-zinc-300">SLA Garantizado (100%)</span>
                   </p>
                 </div>
               </div>
@@ -443,35 +404,6 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                 </button>
               </div>
             </div>
-          </div>
-
-          {/* 4 KPI Metric Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {kpis.map((kpi, idx) => {
-              const Icon = kpi.icon;
-              return (
-                <div key={idx} className="p-5 rounded-2xl bg-[#1c1b1d] border border-white/5 flex flex-col justify-between hover:border-[#ffd56d]/30 transition-all">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <span className="text-xs text-[#9a907c] font-medium block">{kpi.title}</span>
-                      <div className="flex items-baseline gap-2 mt-1">
-                        <span className={`text-3xl font-extrabold font-display ${kpi.color}`}>
-                          {kpi.value}
-                        </span>
-                        <span className="text-xs text-zinc-400 font-mono">{kpi.unit}</span>
-                      </div>
-                    </div>
-                    <div className="w-10 h-10 rounded-xl bg-[#2a2a2c] flex items-center justify-center text-[#ffd56d]">
-                      <Icon className="w-5 h-5" />
-                    </div>
-                  </div>
-                  <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-xs text-[#d1c5af]">
-                    <span>{kpi.detail}</span>
-                    <span className="text-[#9a907c]">Portal Wuish</span>
-                  </div>
-                </div>
-              );
-            })}
           </div>
 
           {/* Main Two Columns: Requests vs Live Chat */}
@@ -1481,7 +1413,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                       </h3>
                       {activePlanRecord.presupuesto_min && activePlanRecord.presupuesto_max && (
                         <p className="text-sm font-semibold text-[#ffd56d]">
-                          Rango de Inversión: ${activePlanRecord.presupuesto_min.toLocaleString()} — ${activePlanRecord.presupuesto_max.toLocaleString()} USD
+                          Rango de Inversión: ${activePlanRecord.presupuesto_min.toLocaleString('es-CO')} — ${activePlanRecord.presupuesto_max.toLocaleString('es-CO')} COP
                         </p>
                       )}
                     </div>

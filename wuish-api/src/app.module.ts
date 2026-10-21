@@ -8,6 +8,10 @@ import { SolicitudesModule } from './solicitudes/solicitudes.module';
 import { MensajesModule } from './mensajes/mensajes.module';
 import { InfoGeneralModule } from './info-general/info-general.module';
 import { ComentariosModule } from './comentarios/comentarios.module';
+import { TiposServicioModule } from './tipos-servicio/tipos-servicio.module';
+import { CotizadorModulosModule } from './cotizador-modulos/cotizador-modulos.module';
+import { ProyectosPortafolioModule } from './proyectos-portafolio/proyectos-portafolio.module';
+import { MetricasLandingModule } from './metricas-landing/metricas-landing.module';
 
 @Module({
   imports: [
@@ -20,6 +24,10 @@ import { ComentariosModule } from './comentarios/comentarios.module';
     MensajesModule,
     InfoGeneralModule,
     ComentariosModule,
+    TiposServicioModule,
+    CotizadorModulosModule,
+    ProyectosPortafolioModule,
+    MetricasLandingModule,
   ],
 })
 export class AppModule {}

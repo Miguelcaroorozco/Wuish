@@ -32,13 +32,13 @@ import {
   Save,
   ChevronLeft,
   ChevronRight,
+  X,
 } from 'lucide-react';
 import {
   DEFAULT_COTIZADOR_SERVICES,
   CotizadorServiceItem,
 } from '../lib/cotizadorDefaults';
-
-const ESTADOS = ['pendiente', 'en_revision', 'en_proceso', 'aprobada', 'finalizada'] as const;
+import { ESTADOS_SOLICITUD, ESTADO_SOLICITUD_LABELS, Project, ProjectCategory } from '../types';
 
 interface PaginationProps {
   currentPage: number;
@@ -143,6 +143,7 @@ export const AdminPanel: React.FC = () => {
   const {
     projects,
     addProject,
+    updateProject,
     removeProject,
     stats,
     addStat,
@@ -151,6 +152,7 @@ export const AdminPanel: React.FC = () => {
     addTestimonial,
     approveTestimonial,
     removeTestimonial,
+    refreshTestimonials,
   } = useContent();
 
   const [activeTab, setActiveTab] = useState<'solicitudes' | 'mensajes' | 'planes' | 'cotizador_admin' | 'cms' | 'resultados' | 'comentarios'>('solicitudes');
@@ -186,6 +188,26 @@ export const AdminPanel: React.FC = () => {
 
   // Testimonios state
   const [comentarios, setComentarios] = useState<any[]>([]);
+
+  // Edición de Proyecto (Resultados / Portafolio)
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [editProjectForm, setEditProjectForm] = useState<{
+    title: string;
+    client: string;
+    category: ProjectCategory;
+    year: string;
+    description: string;
+    tags: string;
+    imageUrl: string;
+  }>({
+    title: '',
+    client: '',
+    category: 'tecnologia',
+    year: '',
+    description: '',
+    tags: '',
+    imageUrl: '',
+  });
 
   // Nuevo Proyecto (Portafolio del Inicio)
   const [newProject, setNewProject] = useState<{
@@ -600,16 +622,15 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
-  // El backend no borra planes (tienen solicitudes y carritos asociados): los desactiva y dejan de mostrarse
+  // El backend desactiva planes (activo = false) para ocultarlos
   const handleTogglePlan = async (plan: any) => {
     try {
       if (plan.activo) {
-        if (!window.confirm(`¿Quitar el plan "${plan.nombre}"? Dejará de mostrarse a los clientes.`)) return;
         await planesApi.delete(plan.id);
-        showToast('Plan Quitado', `"${plan.nombre}" ya no es visible para los clientes.`, 'success');
+        showToast('Plan Oculto', `"${plan.nombre}" ahora está oculto para los clientes.`, 'info');
       } else {
         await planesApi.update(plan.id, { activo: true });
-        showToast('Plan Reactivado', `"${plan.nombre}" vuelve a estar visible.`, 'success');
+        showToast('Plan Visible', `"${plan.nombre}" vuelve a estar visible para los clientes.`, 'success');
       }
       reloadPlanes();
     } catch (err: any) {
@@ -654,6 +675,7 @@ export const AdminPanel: React.FC = () => {
       }
       await comentariosApi.toggleMostrar(id, !current);
       setComentarios(prev => prev.map(c => c.id === id ? { ...c, mostrar_en_pagina: !current } : c));
+      await refreshTestimonials();
       showToast('Testimonio', !current ? 'Publicado en la web' : 'Ocultado de la web', 'info');
     } catch (err: any) {
       showToast('Error', err.message || 'No se pudo actualizar comentario', 'error');
@@ -678,6 +700,7 @@ export const AdminPanel: React.FC = () => {
       description: newProject.description.trim(),
       imageUrl: newProject.imageUrl.trim() || undefined,
       tags: tagsArray.length > 0 ? tagsArray : ['Estrategia', 'Wuish'],
+      activo: true,
     });
     showToast('Proyecto Agregado', `"${newProject.title}" ya es visible en el Portafolio del inicio.`, 'success');
     setNewProject({
@@ -689,6 +712,53 @@ export const AdminPanel: React.FC = () => {
       tags: '',
       imageUrl: '',
     });
+  };
+
+  const handleToggleProject = (p: Project) => {
+    const nuevoEstado = p.activo === false ? true : false;
+    updateProject(p.id, { activo: nuevoEstado });
+    showToast(
+      nuevoEstado ? 'Proyecto Visible' : 'Proyecto Oculto',
+      nuevoEstado ? `"${p.title}" ahora se muestra en el portafolio.` : `"${p.title}" ha sido ocultado del portafolio.`,
+      nuevoEstado ? 'success' : 'info'
+    );
+  };
+
+  const handleOpenEditProject = (p: Project) => {
+    setEditingProject(p);
+    setEditProjectForm({
+      title: p.title,
+      client: p.client,
+      category: p.category,
+      year: p.year,
+      description: p.description,
+      tags: Array.isArray(p.tags) ? p.tags.join(', ') : '',
+      imageUrl: p.imageUrl || '',
+    });
+  };
+
+  const handleSaveEditProject = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProject) return;
+    if (!editProjectForm.title.trim() || !editProjectForm.client.trim()) {
+      showToast('Campos requeridos', 'Ingresa título y cliente del proyecto', 'error');
+      return;
+    }
+    const tagsArray = editProjectForm.tags
+      .split(',')
+      .map(t => t.trim())
+      .filter(Boolean);
+    updateProject(editingProject.id, {
+      title: editProjectForm.title.trim(),
+      client: editProjectForm.client.trim(),
+      category: editProjectForm.category,
+      year: editProjectForm.year.trim() || new Date().getFullYear().toString(),
+      description: editProjectForm.description.trim(),
+      imageUrl: editProjectForm.imageUrl.trim() || undefined,
+      tags: tagsArray.length > 0 ? tagsArray : ['Estrategia', 'Wuish'],
+    });
+    showToast('Proyecto Actualizado', `"${editProjectForm.title}" ha sido modificado exitosamente.`, 'success');
+    setEditingProject(null);
   };
 
   const handleDeleteProject = (id: string, title: string) => {
@@ -703,6 +773,7 @@ export const AdminPanel: React.FC = () => {
       } else {
         await comentariosApi.delete(id);
         setComentarios(prev => prev.filter(c => c.id !== id));
+        await refreshTestimonials();
       }
       showToast('Testimonio Eliminado', 'Se removió el testimonio.', 'info');
     } catch (err: any) {
@@ -710,21 +781,26 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
-  const handleCreateTestimonial = (e: React.FormEvent) => {
+  const handleCreateTestimonial = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTestimonial.name.trim() || !newTestimonial.text.trim()) {
       showToast('Campos requeridos', 'Ingresa el nombre del cliente y el contenido.', 'error');
       return;
     }
-    addTestimonial({
-      name: newTestimonial.name.trim(),
-      company: newTestimonial.company.trim() || 'Cliente Wuish',
-      rating: Number(newTestimonial.rating) || 5,
-      text: newTestimonial.text.trim(),
-    });
-    setNewTestimonial({ name: '', company: '', rating: 5, text: '' });
-    setShowNewTestimonialForm(false);
-    showToast('Testimonio Publicado', 'Se añadió al carrusel de la página de inicio.', 'success');
+    try {
+      const created = await comentariosApi.create({
+        contenido: newTestimonial.text.trim(),
+        calificacion: Number(newTestimonial.rating) || 5,
+      });
+      await comentariosApi.toggleMostrar(created.id, true);
+      setComentarios(prev => [created, ...prev]);
+      await refreshTestimonials();
+      setNewTestimonial({ name: '', company: '', rating: 5, text: '' });
+      setShowNewTestimonialForm(false);
+      showToast('Testimonio Publicado', 'Se añadió al carrusel de la página de inicio.', 'success');
+    } catch (err: any) {
+      showToast('Error', err.message || 'No se pudo crear el testimonio', 'error');
+    }
   };
 
   const handleCreateStat = (e: React.FormEvent) => {
@@ -1026,7 +1102,7 @@ export const AdminPanel: React.FC = () => {
                         )}
                         {r.presupuesto_min && r.presupuesto_max && (
                           <div className="text-[10px] font-mono text-[#ffd56d] font-bold mt-1">
-                            ${Number(r.presupuesto_min).toLocaleString()} - ${Number(r.presupuesto_max).toLocaleString()} USD
+                            ${Number(r.presupuesto_min).toLocaleString('es-CO')} - ${Number(r.presupuesto_max).toLocaleString('es-CO')} COP
                           </div>
                         )}
                       </td>
@@ -1473,18 +1549,49 @@ export const AdminPanel: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[11px]">
-                    <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                      <Eye className="w-3.5 h-3.5" /> Visible en Inicio
-                    </span>
-                    <button
-                      onClick={() => handleDeleteProject(p.id, p.title)}
-                      className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-500/20 transition cursor-pointer flex items-center gap-1"
-                      title="Eliminar proyecto"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Eliminar</span>
-                    </button>
+                  <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[11px] gap-2">
+                    {p.activo !== false ? (
+                      <span className="text-emerald-400 font-semibold flex items-center gap-1 shrink-0">
+                        <Eye className="w-3.5 h-3.5" /> Visible
+                      </span>
+                    ) : (
+                      <span className="text-amber-400 font-semibold flex items-center gap-1 shrink-0">
+                        <EyeOff className="w-3.5 h-3.5" /> Oculto
+                      </span>
+                    )}
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleToggleProject(p)}
+                        className={`p-1.5 rounded-lg transition cursor-pointer flex items-center gap-1 text-[11px] ${
+                          p.activo !== false
+                            ? 'text-amber-400 hover:bg-amber-500/20'
+                            : 'text-emerald-400 hover:bg-emerald-500/20'
+                        }`}
+                        title={p.activo !== false ? 'Ocultar del inicio' : 'Mostrar en el inicio'}
+                      >
+                        {p.activo !== false ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        <span>{p.activo !== false ? 'Ocultar' : 'Mostrar'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleOpenEditProject(p)}
+                        className="p-1.5 rounded-lg text-sky-400 hover:bg-sky-500/20 transition cursor-pointer flex items-center gap-1 text-[11px]"
+                        title="Editar información del proyecto"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        <span>Editar</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteProject(p.id, p.title)}
+                        className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-500/20 transition cursor-pointer flex items-center gap-1 text-[11px]"
+                        title="Eliminar proyecto"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Eliminar</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1811,12 +1918,13 @@ export const AdminPanel: React.FC = () => {
                             onClick={() => handleTogglePlan(plan)}
                             className={`flex-1 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer border ${
                               plan.activo
-                                ? 'text-rose-400 border-rose-500/30 hover:bg-rose-500/10'
+                                ? 'text-amber-400 border-amber-500/30 hover:bg-amber-500/10'
                                 : 'text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10'
                             }`}
+                            title={plan.activo ? 'Ocultar plan a los clientes' : 'Hacer visible el plan a los clientes'}
                           >
-                            {plan.activo ? <Trash2 className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                            {plan.activo ? 'Quitar' : 'Reactivar'}
+                            {plan.activo ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            {plan.activo ? 'Ocultar' : 'Mostrar'}
                           </button>
                         </div>
                       </div>
@@ -1885,7 +1993,7 @@ export const AdminPanel: React.FC = () => {
                         )}
                       </div>
                       <span className="text-xs font-extrabold text-[#ffd56d] font-mono">
-                        ${opt.basePrice} USD
+                        ${opt.basePrice.toLocaleString('es-CO')} COP
                       </span>
                     </div>
                     <h4 className="text-sm font-bold text-white leading-snug">{opt.name}</h4>
@@ -1968,7 +2076,7 @@ export const AdminPanel: React.FC = () => {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-zinc-300 font-semibold mb-1">Precio Base (USD)</label>
+                  <label className="block text-zinc-300 font-semibold mb-1">Precio Base (COP)</label>
                   <input
                     type="number"
                     required
@@ -2058,7 +2166,7 @@ export const AdminPanel: React.FC = () => {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-zinc-300 font-semibold mb-1">Precio (USD/COP)</label>
+                  <label className="block text-zinc-300 font-semibold mb-1">Precio (COP)</label>
                   <input
                     type="number"
                     required
@@ -2139,6 +2247,123 @@ export const AdminPanel: React.FC = () => {
               <div className="flex justify-end gap-2 pt-2 border-t border-white/10">
                 <button type="button" onClick={() => setShowPlanModal(false)} className="px-4 py-2 rounded-xl text-zinc-400 hover:text-white">Cancelar</button>
                 <button type="submit" className="px-5 py-2 rounded-xl bg-[#ffd56d] text-[#3e2e00] font-bold cursor-pointer">{editingPlanId ? 'Guardar Cambios' : 'Guardar'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar Proyecto de Resultados */}
+      {editingProject && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#1c1b1d] border border-white/10 rounded-2xl p-6 w-full max-w-2xl space-y-4 shadow-2xl relative">
+            <div className="flex items-center justify-between pb-3 border-b border-white/5">
+              <div className="flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-[#ffd56d]" />
+                <h3 className="text-lg font-bold text-white font-display">Editar Proyecto de Resultados</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingProject(null)}
+                className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-white/5 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditProject} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] text-zinc-400 block mb-1">Título del Proyecto</label>
+                  <input
+                    type="text"
+                    required
+                    value={editProjectForm.title}
+                    onChange={e => setEditProjectForm({ ...editProjectForm, title: e.target.value })}
+                    className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-zinc-400 block mb-1">Cliente / Marca</label>
+                  <input
+                    type="text"
+                    required
+                    value={editProjectForm.client}
+                    onChange={e => setEditProjectForm({ ...editProjectForm, client: e.target.value })}
+                    className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] text-zinc-400 block mb-1">Categoría</label>
+                  <select
+                    value={editProjectForm.category}
+                    onChange={e => setEditProjectForm({ ...editProjectForm, category: e.target.value as any })}
+                    className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+                  >
+                    <option value="tecnologia">Tecnología</option>
+                    <option value="comunicacion">Comunicación</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] text-zinc-400 block mb-1">Año</label>
+                  <input
+                    type="text"
+                    value={editProjectForm.year}
+                    onChange={e => setEditProjectForm({ ...editProjectForm, year: e.target.value })}
+                    className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] text-zinc-400 block mb-1">Descripción del Logro</label>
+                <textarea
+                  rows={3}
+                  value={editProjectForm.description}
+                  onChange={e => setEditProjectForm({ ...editProjectForm, description: e.target.value })}
+                  className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] text-zinc-400 block mb-1">Etiquetas (separadas por coma)</label>
+                  <input
+                    type="text"
+                    value={editProjectForm.tags}
+                    onChange={e => setEditProjectForm({ ...editProjectForm, tags: e.target.value })}
+                    className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-zinc-400 block mb-1">URL de Portada (Opcional)</label>
+                  <input
+                    type="url"
+                    value={editProjectForm.imageUrl}
+                    onChange={e => setEditProjectForm({ ...editProjectForm, imageUrl: e.target.value })}
+                    className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setEditingProject(null)}
+                  className="px-4 py-2 rounded-xl text-zinc-400 hover:text-white cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-bold font-display shadow cursor-pointer flex items-center gap-1.5"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Guardar Cambios</span>
+                </button>
               </div>
             </form>
           </div>

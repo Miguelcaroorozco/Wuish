@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { ContentProvider } from './context/ContentContext';
@@ -27,6 +27,8 @@ const MainAppContent: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>(() => {
     return isAuthenticated ? (currentRole === 'admin' || currentRole === 'administrador' ? 'admin' : 'portal') : 'landing';
   });
+  const currentViewRef = useRef<ViewMode>(currentView);
+  useEffect(() => { currentViewRef.current = currentView; }, [currentView]);
 
   const isAdminRole = currentRole === 'admin' || currentRole === 'administrador';
 
@@ -53,6 +55,7 @@ const MainAppContent: React.FC = () => {
     } else if (view === 'admin' && isAuthenticated && !isAdminRole) {
       setCurrentView('portal');
     } else {
+      // Admin puede acceder al portal (Mi Dashboard) libremente
       setCurrentView(view);
     }
   };
@@ -77,14 +80,18 @@ const MainAppContent: React.FC = () => {
 
   useEffect(() => {
     const publicViews: ViewMode[] = ['landing', 'planes'];
-    if (isAuthenticated && publicViews.includes(currentView)) {
+    const cv = currentViewRef.current;
+    // Solo reaccionar a cambios de estado de autenticación (sin currentView como dep)
+    // para evitar condiciones de carrera cuando admin navega al portal
+    if (isAuthenticated && publicViews.includes(cv)) {
       setCurrentView(isAdminRole ? 'admin' : 'portal');
-    } else if (!isAuthenticated && (currentView === 'portal' || currentView === 'admin')) {
+    } else if (!isAuthenticated && (cv === 'portal' || cv === 'admin')) {
       // Al cerrar sesión se vuelve al inicio con el popup de login abierto
       setCurrentView('landing');
       openAuth('login');
     }
-  }, [isAuthenticated, currentView, isAdminRole]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, isAdminRole]);
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });

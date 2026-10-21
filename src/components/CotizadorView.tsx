@@ -99,7 +99,7 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({
   // Cargar opciones del cotizador guardadas en la base de datos y sincronizar plan si viene seleccionado
   useEffect(() => {
     Promise.all([
-      cotizadorModulosApi.getAll().catch(() => []),
+      cotizadorModulosApi.getAll(true).catch(() => []),
       initialPlanId ? planesApi.getAll().catch(() => []) : Promise.resolve([]),
     ]).then(([dbModulos, allPlanes]) => {
       let currentServices = DEFAULT_COTIZADOR_SERVICES;
@@ -112,8 +112,16 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({
           description: m.descripcion,
           activo: m.activo,
         }));
-        setAvailableServices(currentServices);
       }
+      setAvailableServices(currentServices);
+
+      // Deseleccionar módulos que estén inactivos u ocultos en la base de datos
+      setSelectedServiceIds((prev) =>
+        prev.filter((id) => {
+          const mod = currentServices.find((s) => s.id === id);
+          return mod && mod.activo !== false;
+        })
+      );
 
       if (initialPlanId && Array.isArray(allPlanes)) {
         const found = allPlanes.find((p: any) => p.id === initialPlanId);
@@ -177,6 +185,10 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({
     );
   };
 
+  const visibleServices = useMemo(() => {
+    return availableServices.filter((s) => s.activo !== false);
+  }, [availableServices]);
+
   const selectedServices = useMemo(() => {
     return availableServices
       .filter((s) => s.activo !== false)
@@ -236,7 +248,7 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({
         nivel_soporte: supportLevel,
         descripcion: challenge.trim() || (
           selectedServices.length > 0
-            ? `Cotización de ${userName} (${company.trim() || 'Sin empresa'}) para: ${selectedNames}. Presupuesto estimado: $${calculatedMin} – $${calculatedMax} USD`
+            ? `Cotización de ${userName} (${company.trim() || 'Sin empresa'}) para: ${selectedNames}. Presupuesto estimado: $${calculatedMin.toLocaleString('es-CO')} – $${calculatedMax.toLocaleString('es-CO')} COP`
             : `Solicitud de cancelación del plan de ${userName} (${company.trim() || 'Sin empresa'}).`
         ),
       });
@@ -363,48 +375,59 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              {availableServices.filter((s) => s.activo !== false).map((s) => {
-                const Icon = getServiceIcon(s.id, s.name);
-                const isSelected = selectedServiceIds.includes(s.id);
-                return (
-                  <div
-                    key={s.id}
-                    onClick={() => toggleService(s.id)}
-                    role="button"
-                    tabIndex={0}
-                    aria-pressed={isSelected}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        toggleService(s.id);
-                      }
-                    }}
-                    className={`p-4 rounded-xl border transition-all cursor-pointer flex items-start gap-3.5 ${
-                      isSelected
-                        ? 'bg-[#ffd56d]/10 border-[#ffd56d] shadow-md shadow-[#ffd56d]/10'
-                        : 'bg-[#201f21] border-white/5 hover:border-white/20'
-                    }`}
-                  >
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                      isSelected ? 'bg-[#ffd56d] text-[#3e2e00]' : 'bg-[#2a2a2c] text-zinc-400'
-                    }`}>
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-white block truncate">{s.name}</span>
-                        {isSelected && <Check className="w-4 h-4 text-[#ffd56d] shrink-0" />}
+            {visibleServices.length === 0 ? (
+              <div className="p-8 rounded-xl bg-[#201f21] border border-white/5 text-center space-y-2">
+                <p className="text-sm font-semibold text-zinc-300">
+                  No hay módulos disponibles en este momento
+                </p>
+                <p className="text-xs text-[#9a907c]">
+                  El equipo directivo está actualizando las opciones del cotizador. Todos los módulos se encuentran actualmente ocultos.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {visibleServices.map((s) => {
+                  const Icon = getServiceIcon(s.id, s.name);
+                  const isSelected = selectedServiceIds.includes(s.id);
+                  return (
+                    <div
+                      key={s.id}
+                      onClick={() => toggleService(s.id)}
+                      role="button"
+                      tabIndex={0}
+                      aria-pressed={isSelected}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          toggleService(s.id);
+                        }
+                      }}
+                      className={`p-4 rounded-xl border transition-all cursor-pointer flex items-start gap-3.5 ${
+                        isSelected
+                          ? 'bg-[#ffd56d]/10 border-[#ffd56d] shadow-md shadow-[#ffd56d]/10'
+                          : 'bg-[#201f21] border-white/5 hover:border-white/20'
+                      }`}
+                    >
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                        isSelected ? 'bg-[#ffd56d] text-[#3e2e00]' : 'bg-[#2a2a2c] text-zinc-400'
+                      }`}>
+                        <Icon className="w-5 h-5" />
                       </div>
-                      <p className="text-[11px] text-[#9a907c] line-clamp-1 mt-0.5">{s.description}</p>
-                      <span className="text-xs font-bold text-[#ffd56d] font-mono mt-1 block">
-                        ${s.basePrice.toLocaleString()} USD
-                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-white block truncate">{s.name}</span>
+                          {isSelected && <Check className="w-4 h-4 text-[#ffd56d] shrink-0" />}
+                        </div>
+                        <p className="text-[11px] text-[#9a907c] line-clamp-1 mt-0.5">{s.description}</p>
+                        <span className="text-xs font-bold text-[#ffd56d] font-mono mt-1 block">
+                          ${s.basePrice.toLocaleString('es-CO')} COP
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </section>
 
           {/* PASO 2: Tiempos y Gobernanza */}
@@ -538,16 +561,16 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({
           <div className="rounded-2xl bg-[#1c1b1d] border border-white/5 p-6 shadow-2xl space-y-5">
             <div className="flex items-center justify-between pb-2 border-b border-white/5">
               <span className="text-[10px] font-bold text-[#ffd56d] uppercase font-display">PRESUPUESTO ESTIMADO</span>
-              <span className="text-[11px] font-mono text-[#9a907c]">USD</span>
+              <span className="text-[11px] font-mono text-[#9a907c]">COP</span>
             </div>
 
             <div className="p-4 rounded-xl bg-[#0e0e10] border border-white/5">
               <span className="text-[10px] uppercase font-bold text-[#9a907c] block mb-1">RANGO PROYECTADO</span>
               <div className="flex items-baseline gap-2 flex-wrap">
-                <span className="text-3xl font-extrabold text-[#ffd56d] font-display">${calculatedMin.toLocaleString()}</span>
+                <span className="text-2xl sm:text-3xl font-extrabold text-[#ffd56d] font-display">${calculatedMin.toLocaleString('es-CO')}</span>
                 <span className="text-zinc-500 font-light">-</span>
-                <span className="text-2xl font-bold text-white font-display">${calculatedMax.toLocaleString()}</span>
-                <span className="text-xs text-[#9a907c] font-mono">USD</span>
+                <span className="text-xl sm:text-2xl font-bold text-white font-display">${calculatedMax.toLocaleString('es-CO')}</span>
+                <span className="text-xs text-[#9a907c] font-mono">COP</span>
               </div>
             </div>
 

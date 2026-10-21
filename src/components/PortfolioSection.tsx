@@ -33,7 +33,8 @@ export const PortfolioSection: React.FC = () => {
   const [filter, setFilter] = useState<Filter>('todos');
   const [selected, setSelected] = useState<Project | null>(null);
 
-  const visible = filter === 'todos' ? projects : projects.filter((p) => p.category === filter);
+  const activeProjects = projects.filter((p) => p.activo !== false);
+  const visible = filter === 'todos' ? activeProjects : activeProjects.filter((p) => p.category === filter);
 
   useEffect(() => {
     if (!selected) return;
@@ -42,7 +43,7 @@ export const PortfolioSection: React.FC = () => {
     return () => window.removeEventListener('keydown', onKey);
   }, [selected]);
 
-  if (projects.length === 0) {
+  if (activeProjects.length === 0) {
     return (
       <div className="p-10 rounded-2xl border border-dashed border-white/10 text-center">
         <FolderOpen className="w-10 h-10 text-[#ffd56d]/50 mx-auto" />

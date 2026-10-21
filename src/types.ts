@@ -108,6 +108,7 @@ export interface Project {
   imageUrl?: string;
   link?: string;
   tags: string[];
+  activo?: boolean;
 }
 
 export interface StatItem {

@@ -104,7 +104,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
                       key={id}
                       onClick={() => {
                         onSelectDashboardTab?.(id);
-                        onSelectView('portal');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
                       className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
                         isActive
@@ -204,7 +204,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
                   <div className="space-y-1 text-xs text-[#d1c5af]">
                     <button
                       onClick={() => {
-                        onSelectView('portal');
+                        onSelectDashboardTab?.('resumen');
                         setShowProfileMenu(false);
                       }}
                       className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#201f21] hover:text-white transition flex items-center gap-2 cursor-pointer"
@@ -215,7 +215,6 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
 
                     <button
                       onClick={() => {
-                        onSelectView('portal');
                         onSelectDashboardTab?.('ajustes');
                         setShowProfileMenu(false);
                       }}

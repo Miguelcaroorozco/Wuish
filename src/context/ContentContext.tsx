@@ -64,6 +64,7 @@ const DEFAULT_PROJECTS: Project[] = [
     year: '2026',
     description: 'Arquitectura escalable en microservicios, portal de clientes con encriptación bancaria y liquidación de operaciones en tiempo real.',
     tags: ['Next.js', 'NestJS', 'PostgreSQL', 'Cloud'],
+    activo: true,
   },
   {
     id: 'prj-2',
@@ -73,6 +74,7 @@ const DEFAULT_PROJECTS: Project[] = [
     year: '2026',
     description: 'Producción audiovisual cinematográfica, manual de identidad corporativa y estrategia de pauta omnicanal de alto impacto.',
     tags: ['Video 4K', 'Branding', 'Estrategia', 'Pauta'],
+    activo: true,
   },
   {
     id: 'prj-3',
@@ -82,6 +84,7 @@ const DEFAULT_PROJECTS: Project[] = [
     year: '2025',
     description: 'Sistema ERP a medida para tracking de flotas en tiempo real, integración aduanera y optimización operativa continua.',
     tags: ['ERP', 'Logística', 'Dashboards BI', 'APIs'],
+    activo: true,
   },
   {
     id: 'prj-4',
@@ -91,6 +94,7 @@ const DEFAULT_PROJECTS: Project[] = [
     year: '2025',
     description: 'Diseño de comunicaciones corporativas para ronda de inversión Serie A, relaciones públicas e informes ejecutivos de sostenibilidad.',
     tags: ['PR', 'Narrativa', 'Media Relations', 'Keynotes'],
+    activo: true,
   },
 ];
 
@@ -112,6 +116,7 @@ interface ContentContextType {
   approveTestimonial: (id: string) => void;
   removeTestimonial: (id: string) => void;
   updateTestimonial: (id: string, data: Partial<Testimonial>) => void;
+  refreshTestimonials: () => Promise<void>;
   addProject: (data: Omit<Project, 'id'>) => void;
   updateProject: (id: string, data: Partial<Project>) => void;
   removeProject: (id: string) => void;
@@ -143,14 +148,7 @@ const load = <T,>(key: string): T[] => {
 };
 
 export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [testimonials, setTestimonials] = useState<Testimonial[]>(() => {
-    const saved = load<Testimonial>(TESTIMONIALS_KEY);
-    const defaultIds = new Set(DEFAULT_TESTIMONIALS.map((d) => d.id));
-    const userReviews = (saved || []).filter((s) => !defaultIds.has(s.id));
-    // Normalize user reviews so they are visible
-    const normalizedUserReviews = userReviews.map((r) => ({ ...r, status: 'approved' as const }));
-    return [...DEFAULT_TESTIMONIALS, ...normalizedUserReviews];
-  });
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
 
   const [projects, setProjects] = useState<Project[]>(() => {
     const saved = load<Project>(PROJECTS_KEY);
@@ -176,32 +174,34 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const [cart, setCart] = useState<{ id: string; name: string; type: 'plan' | 'service'; price: number | string }[]>(() => load(CART_KEY));
 
+  const refreshTestimonials = async () => {
+    try {
+      const apiComments = await comentariosApi.getPublicos();
+      if (Array.isArray(apiComments)) {
+        const mapped: Testimonial[] = apiComments.map((c) => ({
+          id: c.id,
+          userId: c.usuario_id || '',
+          name: c.nombre_autor || (c.usuario ? `${c.usuario.nombres} ${c.usuario.apellidos}`.trim() : 'Cliente Wuish'),
+          company: c.empresa_autor || c.usuario?.empresa || 'Empresa Aliada',
+          rating: c.calificacion || 5,
+          text: c.contenido,
+          date: c.created_at || c.fecha_creacion || new Date().toISOString(),
+          status: 'approved',
+        }));
+        setTestimonials(mapped);
+      }
+    } catch {
+      // Fallback solo en caso de desconexión
+      setTestimonials((prev) => (prev.length > 0 ? prev : DEFAULT_TESTIMONIALS));
+    }
+  };
+
   useEffect(() => {
-    // 1. Testimonios desde PostgreSQL
-    comentariosApi.getPublicos()
-      .then((apiComments) => {
-        if (Array.isArray(apiComments) && apiComments.length > 0) {
-          const mapped: Testimonial[] = apiComments.map((c) => ({
-            id: c.id,
-            userId: c.usuario_id || '',
-            name: c.nombre_autor || (c.usuario ? `${c.usuario.nombres} ${c.usuario.apellidos}`.trim() : 'Cliente Wuish'),
-            company: c.empresa_autor || c.usuario?.empresa || 'Empresa Aliada',
-            rating: c.calificacion || 5,
-            text: c.contenido,
-            date: c.fecha_creacion || new Date().toISOString(),
-            status: 'approved',
-          }));
-          setTestimonials((prev) => {
-            const existingIds = new Set(prev.map((t) => t.id));
-            const newFromApi = mapped.filter((m) => !existingIds.has(m.id));
-            return [...prev, ...newFromApi];
-          });
-        }
-      })
-      .catch(() => {});
+    // 1. Testimonios públicos desde PostgreSQL
+    refreshTestimonials();
 
     // 2. Proyectos del portafolio desde PostgreSQL
-    proyectosApi.getAll().then((apiProjects) => {
+    proyectosApi.getAll(true).then((apiProjects) => {
       if (Array.isArray(apiProjects) && apiProjects.length > 0) {
         const mapped: Project[] = apiProjects.map((p) => ({
           id: p.id,
@@ -212,6 +212,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
           description: p.descripcion || '',
           imageUrl: p.imagen_url || undefined,
           tags: Array.isArray(p.tags) ? p.tags : [],
+          activo: p.activo !== false,
         }));
         setProjects(mapped);
       }
@@ -272,6 +273,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const addProject: ContentContextType['addProject'] = (data) => {
+    const projectWithActivo = { ...data, activo: data.activo !== false };
     proyectosApi.create({
       titulo: data.title,
       cliente: data.client,
@@ -280,15 +282,26 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       descripcion: data.description,
       imagen_url: data.imageUrl,
       tags: data.tags,
+      activo: true,
     }).then((created) => {
-      setProjects((prev) => [{ ...data, id: created.id }, ...prev]);
+      setProjects((prev) => [{ ...projectWithActivo, id: created.id }, ...prev]);
     }).catch(() => {
-      setProjects((prev) => [{ ...data, id: `prj-${Date.now()}` }, ...prev]);
+      setProjects((prev) => [{ ...projectWithActivo, id: `prj-${Date.now()}` }, ...prev]);
     });
   };
 
   const updateProject = (id: string, data: Partial<Project>) => {
-    proyectosApi.update(id, data).catch(() => {});
+    const apiPayload: any = {};
+    if (data.title !== undefined) apiPayload.titulo = data.title;
+    if (data.client !== undefined) apiPayload.cliente = data.client;
+    if (data.category !== undefined) apiPayload.categoria = data.category;
+    if (data.year !== undefined) apiPayload.anio = data.year;
+    if (data.description !== undefined) apiPayload.descripcion = data.description;
+    if (data.imageUrl !== undefined) apiPayload.imagen_url = data.imageUrl;
+    if (data.tags !== undefined) apiPayload.tags = data.tags;
+    if (data.activo !== undefined) apiPayload.activo = data.activo;
+
+    proyectosApi.update(id, apiPayload).catch(() => {});
     setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...data } : p)));
   };
 
@@ -343,6 +356,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
         approveTestimonial,
         removeTestimonial,
         updateTestimonial,
+        refreshTestimonials,
         addProject,
         updateProject,
         removeProject,
