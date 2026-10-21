@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ESTADOS_SOLICITUD, isEstadoSolicitud } from './estados';
 
 @Injectable()
 export class SolicitudesService {
@@ -101,6 +102,10 @@ export class SolicitudesService {
     motivo?: string;
     admin_asignado_id?: string;
   }) {
+    if (!isEstadoSolicitud(data.estado)) {
+      throw new BadRequestException(`Estado inválido. Valores permitidos: ${ESTADOS_SOLICITUD.join(', ')}`);
+    }
+
     const current = await this.prisma.solicitud.findUnique({ where: { id } });
     if (!current) throw new NotFoundException('Solicitud no encontrada');
 

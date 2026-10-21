@@ -117,9 +117,8 @@ export function CoverflowCarousel<T>({
           e.preventDefault();
         }
       }}
-      className={`relative grid place-items-center overflow-hidden py-10 outline-none select-none touch-pan-y ${
-        canSlide ? 'cursor-grab active:cursor-grabbing' : ''
-      }`}
+      className={`relative grid place-items-center overflow-hidden py-10 outline-none select-none touch-pan-y ${canSlide ? 'cursor-grab active:cursor-grabbing' : ''
+        }`}
     >
       {slots.map(({ item }, slot) => {
         const pos = offsetOf(slot) + dragX / step;
@@ -174,9 +173,8 @@ export function CoverflowCarousel<T>({
               onClick={() => goTo(i)}
               aria-label={`Ir al elemento ${i + 1}`}
               aria-current={i === activeItem}
-              className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                i === activeItem ? 'w-6 bg-[#ffd56d]' : 'w-1.5 bg-white/20 hover:bg-white/40'
-              }`}
+              className={`h-1.5 rounded-full transition-all cursor-pointer ${i === activeItem ? 'w-6 bg-[#ffd56d]' : 'w-1.5 bg-white/20 hover:bg-white/40'
+                }`}
             />
           ))}
         </div>

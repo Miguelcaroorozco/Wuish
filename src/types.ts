@@ -16,6 +16,32 @@ export interface User {
   docNumber?: string;
 }
 
+// Estados válidos de una solicitud. Deben coincidir con el CHECK
+// solicitudes_estado_check de wuish_database_schema.sql y con
+// wuish-api/src/solicitudes/estados.ts.
+export const ESTADOS_SOLICITUD = [
+  'pendiente',
+  'en_revision',
+  'en_proceso',
+  'aprobada',
+  'finalizada',
+  'cancelada',
+] as const;
+
+export type EstadoSolicitud = (typeof ESTADOS_SOLICITUD)[number];
+
+export const ESTADO_SOLICITUD_LABELS: Record<EstadoSolicitud, string> = {
+  pendiente: 'Pendiente',
+  en_revision: 'En Revisión',
+  en_proceso: 'En Proceso',
+  aprobada: 'Aprobada',
+  finalizada: 'Finalizada',
+  cancelada: 'Cancelada',
+};
+
+// Estados que ya no cuentan como trabajo en curso
+export const ESTADOS_SOLICITUD_CERRADOS: readonly EstadoSolicitud[] = ['finalizada', 'cancelada'];
+
 export interface Solicitud {
   id: string;
   code: string;
@@ -23,7 +49,7 @@ export interface Solicitud {
   subtitle: string;
   date: string;
   plan: string;
-  status: 'En Proceso' | 'En Revisión' | 'Aprobada' | 'Finalizada';
+  status: EstadoSolicitud;
   assignedTo?: string;
   budget?: string;
 }
