@@ -15,24 +15,105 @@ type ViewMode = 'landing' | 'portal' | 'admin' | 'planes';
 // 'auth' no es una vista: abre el popup de inicio de sesión sobre la vista actual
 type NavTarget = ViewMode | 'auth';
 
+// Helpers para sincronización de URL en el navegador
+const getPathForState = (view: ViewMode, tab: DashboardTab): string => {
+  if (view === 'landing') return '/';
+  if (view === 'planes') return '/planes';
+  if (view === 'admin') return '/admin';
+  if (view === 'portal') {
+    if (tab === 'resumen') return '/portal';
+    return `/portal/${tab}`;
+  }
+  return '/';
+};
+
+const getStateFromPath = (pathname: string): { view: ViewMode; tab: DashboardTab; isLogin?: boolean } => {
+  const p = pathname.toLowerCase().replace(/\/+$/, '') || '/';
+  if (p === '/admin' || p.startsWith('/admin/')) {
+    return { view: 'admin', tab: 'resumen' };
+  }
+  if (p === '/planes') {
+    return { view: 'planes', tab: 'planes' };
+  }
+  if (p === '/portal/solicitudes' || p === '/solicitudes') {
+    return { view: 'portal', tab: 'solicitudes' };
+  }
+  if (p === '/portal/planes') {
+    return { view: 'portal', tab: 'planes' };
+  }
+  if (p === '/portal/cotizador' || p === '/cotizador') {
+    return { view: 'portal', tab: 'cotizador' };
+  }
+  if (p === '/portal/ajustes' || p === '/ajustes') {
+    return { view: 'portal', tab: 'ajustes' };
+  }
+  if (p === '/portal' || p === '/portal/resumen' || p === '/dashboard') {
+    return { view: 'portal', tab: 'resumen' };
+  }
+  if (p === '/login') {
+    return { view: 'landing', tab: 'resumen', isLogin: true };
+  }
+  return { view: 'landing', tab: 'resumen' };
+};
+
 const MainAppContent: React.FC = () => {
   const { isAuthenticated, currentRole } = useAuth();
   const { showToast } = useToast();
-  const [dashboardTab, setDashboardTab] = useState<DashboardTab>('resumen');
+  const isAdminRole = currentRole === 'admin' || currentRole === 'administrador';
+
+  const initialRoute = getStateFromPath(window.location.pathname);
+  const [dashboardTab, setDashboardTab] = useState<DashboardTab>(() => initialRoute.tab);
   // Pestaña a abrir después de iniciar sesión (ej. el usuario quiso cotizar sin sesión)
   const [pendingTab, setPendingTab] = useState<DashboardTab | null>(null);
   const [selectedPlanForCotizador, setSelectedPlanForCotizador] = useState<string | null>(null);
-  const [authModal, setAuthModal] = useState<'login' | 'register' | null>(null);
+  const [authModal, setAuthModal] = useState<'login' | 'register' | null>(() => initialRoute.isLogin ? 'login' : null);
 
   const [currentView, setCurrentView] = useState<ViewMode>(() => {
-    return isAuthenticated ? (currentRole === 'admin' || currentRole === 'administrador' ? 'admin' : 'portal') : 'landing';
+    if (isAuthenticated) {
+      if (initialRoute.view === 'admin' && isAdminRole) return 'admin';
+      if (initialRoute.view === 'portal') return 'portal';
+      if (initialRoute.view === 'planes') return 'portal';
+      return isAdminRole ? 'admin' : 'portal';
+    }
+    return initialRoute.view;
   });
   const currentViewRef = useRef<ViewMode>(currentView);
   useEffect(() => { currentViewRef.current = currentView; }, [currentView]);
 
-  const isAdminRole = currentRole === 'admin' || currentRole === 'administrador';
-
   const openAuth = (tab: 'login' | 'register' = 'login') => setAuthModal(tab);
+
+  // Sincronizar URL del navegador cada vez que cambia la vista o la pestaña activa
+  useEffect(() => {
+    const targetPath = getPathForState(currentView, dashboardTab);
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState(null, '', targetPath);
+    }
+  }, [currentView, dashboardTab]);
+
+  // Manejar botones Atrás / Adelante del navegador
+  useEffect(() => {
+    const handlePopState = () => {
+      const route = getStateFromPath(window.location.pathname);
+      if (isAuthenticated) {
+        if (route.view === 'admin') {
+          if (isAdminRole) setCurrentView('admin');
+          else setCurrentView('portal');
+        } else if (route.view === 'portal' || route.view === 'planes') {
+          setCurrentView('portal');
+          setDashboardTab(route.tab);
+        } else {
+          setCurrentView(isAdminRole ? 'admin' : 'portal');
+        }
+      } else {
+        setCurrentView(route.view);
+        setDashboardTab(route.tab);
+        if (route.isLogin) openAuth('login');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isAuthenticated, isAdminRole]);
 
   const navigateTo = (view: NavTarget) => {
     if (view === 'auth') {
