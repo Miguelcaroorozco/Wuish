@@ -125,10 +125,11 @@
   border-radius: 0.875rem !important;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6) !important;
   margin-top: 4px !important;
-  padding: 4px 0 !important;
+  padding: 0 0 4px 0 !important;
   max-height: 220px !important;
   scrollbar-width: thin !important;
   scrollbar-color: #2a2a2c transparent !important;
+  overflow-y: auto !important;
 }
 
 .react-tel-input .country-list::-webkit-scrollbar {
@@ -180,7 +181,10 @@
   padding: 8px !important;
   position: sticky !important;
   top: 0 !important;
-  z-index: 1 !important;
+  z-index: 20 !important;
+  border-top-left-radius: 0.875rem !important;
+  border-top-right-radius: 0.875rem !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
 }
 
 .react-tel-input .country-list .search-box {
