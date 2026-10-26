@@ -24,6 +24,7 @@ model Usuario {
   correo           String   @unique @db.VarChar(150)
   password_hash    String?  @db.VarChar(255)
   rol              String   @default("usuario") @db.VarChar(20)
+  preferencias     Json?
   created_at       DateTime @default(now())
   updated_at       DateTime @default(now()) @updatedAt
 
@@ -33,6 +34,7 @@ model Usuario {
   solicitudes_admin    Solicitud[]   @relation("SolicitudAdmin")
   mensajes             Mensaje[]
   comentarios          Comentario[]
+  notificaciones       Notificacion[]
 
   @@map("usuarios")
 }
@@ -203,3 +205,24 @@ model Comentario {
 
   @@map("comentarios")
 }
+
+// 12. NOTIFICACIONES (Alertas de cambios de estado, mensajes, nuevas solicitudes y reseñas)
+model Notificacion {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  usuario_id    String?  @db.Uuid
+  para_admin    Boolean  @default(false)
+  titulo        String   @db.VarChar(150)
+  mensaje       String   @db.Text
+  tipo          String   @db.VarChar(50) // 'solicitud_estado' | 'mensaje_admin' | 'mensaje_usuario' | 'nueva_solicitud' | 'nuevo_comentario'
+  leido         Boolean  @default(false)
+  referencia_id String?  @db.VarChar(100)
+  created_at    DateTime @default(now())
+
+  usuario Usuario? @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@index([usuario_id])
+  @@index([para_admin])
+  @@index([leido])
+  @@map("notificaciones")
+}
+

@@ -1,8 +1,8 @@
-import { Controller, Get, Put, Body, Param, UseGuards, Request } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { UsuariosService } from './usuarios.service';
+import { Controller, Get, Put, Body, UseGuards, Request, Param } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
+import { UsuariosService } from './usuarios.service';
 
 @ApiTags('Usuarios')
 @Controller('usuarios')
@@ -20,7 +20,7 @@ export class UsuariosController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Obtener perfil del usuario actual' })
+  @ApiOperation({ summary: 'Obtener datos del usuario actual' })
   getMe(@Request() req) {
     return this.usuariosService.findOne(req.user.sub);
   }
@@ -31,9 +31,32 @@ export class UsuariosController {
   @ApiOperation({ summary: 'Actualizar perfil del usuario actual' })
   updateMe(
     @Request() req,
-    @Body() data: { nombres?: string; apellidos?: string; telefono?: string; empresa?: string; cargo?: string },
+    @Body()
+    data: {
+      nombres?: string;
+      apellidos?: string;
+      telefono?: string;
+      empresa?: string;
+      cargo?: string;
+      preferencias?: any;
+    },
   ) {
     return this.usuariosService.update(req.user.sub, data);
+  }
+
+  @Put('me/password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cambiar contraseña del usuario actual' })
+  changePassword(
+    @Request() req,
+    @Body() data: { currentPassword: string; newPassword: string },
+  ) {
+    return this.usuariosService.changePassword(
+      req.user.sub,
+      data.currentPassword,
+      data.newPassword,
+    );
   }
 
   @Get(':id')

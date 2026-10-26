@@ -211,6 +211,25 @@ CREATE TABLE IF NOT EXISTS comentarios (
 CREATE INDEX IF NOT EXISTS idx_comentarios_publicos ON comentarios(mostrar_en_pagina, orden);
 
 -- ==============================================================================
+-- 12. TABLA: NOTIFICACIONES (Alertas de cambios de estado, mensajes y solicitudes)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS notificaciones (
+    id            UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
+    usuario_id    UUID         REFERENCES usuarios(id) ON DELETE CASCADE,
+    para_admin    BOOLEAN      NOT NULL DEFAULT FALSE,
+    titulo        VARCHAR(150) NOT NULL,
+    mensaje       TEXT         NOT NULL,
+    tipo          VARCHAR(50)  NOT NULL,
+    leido         BOOLEAN      NOT NULL DEFAULT FALSE,
+    referencia_id VARCHAR(100),
+    created_at    TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_notificaciones_usuario ON notificaciones(usuario_id);
+CREATE INDEX IF NOT EXISTS idx_notificaciones_admin   ON notificaciones(para_admin);
+CREATE INDEX IF NOT EXISTS idx_notificaciones_leido   ON notificaciones(leido);
+
+-- ==============================================================================
 -- 13. FUNCIÓN Y TRIGGERS — Actualización automática de updated_at
 -- ==============================================================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()

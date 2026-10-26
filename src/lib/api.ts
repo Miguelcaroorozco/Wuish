@@ -76,12 +76,24 @@ export const authApi = {
     request<any>('/auth/me'),
 };
 
-// ========== USUARIOS ==========
 export const usuariosApi = {
   getMe: () => request<any>('/usuarios/me'),
 
-  updateMe: (data: { nombres?: string; apellidos?: string; telefono?: string; empresa?: string; cargo?: string }) =>
+  updateMe: (data: {
+    nombres?: string;
+    apellidos?: string;
+    telefono?: string;
+    empresa?: string;
+    cargo?: string;
+    preferencias?: any;
+  }) =>
     request<any>('/usuarios/me', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    request<{ success: boolean; message: string }>('/usuarios/me/password', {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
@@ -200,6 +212,26 @@ export const mensajesApi = {
 
   markAsRead: (id: string) =>
     request<any>(`/mensajes/${id}/leer`, { method: 'PUT' }),
+};
+
+// ========== NOTIFICACIONES ==========
+export interface NotificacionItem {
+  id: string;
+  usuario_id: string | null;
+  para_admin: boolean;
+  titulo: string;
+  mensaje: string;
+  tipo: 'solicitud_estado' | 'mensaje_admin' | 'mensaje_usuario' | 'nueva_solicitud' | 'nuevo_comentario' | string;
+  leido: boolean;
+  referencia_id?: string | null;
+  created_at: string;
+}
+
+export const notificacionesApi = {
+  getMine: () => request<NotificacionItem[]>('/notificaciones'),
+  getUnreadCount: () => request<number>('/notificaciones/unread-count'),
+  markAsRead: (id: string) => request<any>(`/notificaciones/${id}/leer`, { method: 'PUT' }),
+  markAllAsRead: () => request<any>('/notificaciones/leer-todas', { method: 'PUT' }),
 };
 
 // ========== INFO GENERAL ==========

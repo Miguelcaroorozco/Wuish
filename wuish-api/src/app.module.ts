@@ -12,6 +12,7 @@ import { TiposServicioModule } from './tipos-servicio/tipos-servicio.module';
 import { CotizadorModulosModule } from './cotizador-modulos/cotizador-modulos.module';
 import { ProyectosPortafolioModule } from './proyectos-portafolio/proyectos-portafolio.module';
 import { MetricasLandingModule } from './metricas-landing/metricas-landing.module';
+import { NotificacionesModule } from './notificaciones/notificaciones.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { MetricasLandingModule } from './metricas-landing/metricas-landing.modul
     CotizadorModulosModule,
     ProyectosPortafolioModule,
     MetricasLandingModule,
+    NotificacionesModule,
   ],
 })
 export class AppModule {}

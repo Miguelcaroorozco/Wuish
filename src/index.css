@@ -365,3 +365,23 @@
   border-color: #ffffff !important;
 }
 
+/* ============================================
+   Smooth Chat Animations & Message Styling
+   ============================================ */
+@keyframes chatBubbleIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.chat-message-bubble {
+  animation: chatBubbleIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+
