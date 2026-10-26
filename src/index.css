@@ -52,3 +52,307 @@
 .gold-border {
   border-color: rgba(255, 213, 109, 0.25);
 }
+
+/* ============================================
+   react-phone-input-2 — Dark theme overrides
+   ============================================ */
+.react-tel-input .form-control {
+  background: #0e0e10 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 0.75rem !important;
+  color: #e5e1e4 !important;
+  font-size: 12px !important;
+  height: 38px !important;
+  width: 100% !important;
+  padding-left: 52px !important;
+  transition: border-color 0.15s ease !important;
+}
+
+.react-tel-input .form-control:focus {
+  border-color: rgba(255, 213, 109, 0.5) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.react-tel-input .form-control::placeholder {
+  color: rgba(154, 144, 124, 0.7) !important;
+}
+
+/* Flag button */
+.react-tel-input .flag-dropdown {
+  background: #0e0e10 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-right: none !important;
+  border-radius: 0.75rem 0 0 0.75rem !important;
+}
+
+.react-tel-input .flag-dropdown:hover,
+.react-tel-input .flag-dropdown.open {
+  background: #1a1a1c !important;
+  border-radius: 0.75rem 0 0 0.75rem !important;
+}
+
+.react-tel-input .flag-dropdown.open .selected-flag {
+  background: #1a1a1c !important;
+  border-radius: 0.75rem 0 0 0.75rem !important;
+}
+
+.react-tel-input .selected-flag {
+  background: transparent !important;
+  border-radius: 0.75rem 0 0 0.75rem !important;
+  padding: 0 8px !important;
+}
+
+.react-tel-input .selected-flag:hover,
+.react-tel-input .selected-flag:focus {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Arrow inside button */
+.react-tel-input .selected-flag .arrow {
+  border-top-color: #9a907c !important;
+}
+
+.react-tel-input .selected-flag .arrow.up {
+  border-bottom-color: #ffd56d !important;
+  border-top-color: transparent !important;
+}
+
+/* Dropdown list */
+.react-tel-input .country-list {
+  background: #1a1a1c !important;
+  border: 1px solid rgba(255, 213, 109, 0.2) !important;
+  border-radius: 0.875rem !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6) !important;
+  margin-top: 4px !important;
+  padding: 4px 0 !important;
+  max-height: 220px !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: #2a2a2c transparent !important;
+}
+
+.react-tel-input .country-list::-webkit-scrollbar {
+  width: 4px !important;
+}
+
+.react-tel-input .country-list::-webkit-scrollbar-thumb {
+  background: #2a2a2c !important;
+  border-radius: 9999px !important;
+}
+
+/* Country items */
+.react-tel-input .country-list .country {
+  color: #d1c5af !important;
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+  transition: background 0.1s ease !important;
+}
+
+.react-tel-input .country-list .country:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: #ffffff !important;
+}
+
+.react-tel-input .country-list .country.highlight {
+  background: rgba(255, 213, 109, 0.15) !important;
+  color: #ffd56d !important;
+}
+
+.react-tel-input .country-list .country .dial-code {
+  color: #9a907c !important;
+  font-size: 11px !important;
+}
+
+.react-tel-input .country-list .country.highlight .dial-code {
+  color: #ffd56d !important;
+}
+
+/* Divider between preferred and all countries */
+.react-tel-input .country-list .divider {
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+  padding-bottom: 4px !important;
+  margin-bottom: 4px !important;
+}
+
+/* Search box inside dropdown */
+.react-tel-input .country-list .search {
+  background: #1a1a1c !important;
+  padding: 8px !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 1 !important;
+}
+
+.react-tel-input .country-list .search-box {
+  background: #0e0e10 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 0.5rem !important;
+  color: #e5e1e4 !important;
+  font-size: 12px !important;
+  padding: 6px 10px 6px 28px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.react-tel-input .country-list .search-box:focus {
+  border-color: rgba(255, 213, 109, 0.5) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.react-tel-input .country-list .search-box::placeholder {
+  color: rgba(154, 144, 124, 0.7) !important;
+}
+
+/* Search emoji icon */
+.react-tel-input .country-list .search-emoji {
+  font-size: 14px !important;
+  top: 15px !important;
+  left: 16px !important;
+}
+
+/* ============================================
+   react-datepicker — Dark & Gold Theme
+   ============================================ */
+.react-datepicker-wrapper {
+  width: 100% !important;
+  display: block !important;
+}
+
+.wuish-datepicker {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  background: #0e0e10 !important;
+  color: #e5e1e4 !important;
+  padding: 10px 36px 10px 14px !important;
+  border-radius: 0.75rem !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  font-size: 12px !important;
+  font-family: inherit !important;
+  outline: none !important;
+  transition: border-color 0.15s ease !important;
+}
+
+.wuish-datepicker:focus {
+  border-color: rgba(255, 213, 109, 0.5) !important;
+}
+
+.wuish-datepicker::placeholder {
+  color: rgba(154, 144, 124, 0.7) !important;
+}
+
+.react-datepicker.wuish-calendar {
+  background-color: #1a1a1c !important;
+  border: 1px solid rgba(255, 213, 109, 0.25) !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.5) !important;
+  font-family: inherit !important;
+  padding: 8px !important;
+  color: #e5e1e4 !important;
+}
+
+.react-datepicker__triangle {
+  display: none !important;
+}
+
+.react-datepicker__header {
+  background-color: #1a1a1c !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  padding-top: 8px !important;
+  border-top-left-radius: 0.75rem !important;
+  border-top-right-radius: 0.75rem !important;
+}
+
+.react-datepicker__current-month {
+  color: #ffd56d !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  margin-bottom: 6px !important;
+}
+
+.react-datepicker__header select,
+.react-datepicker__month-select,
+.react-datepicker__year-select {
+  background: #0e0e10 !important;
+  color: #ffd56d !important;
+  border: 1px solid rgba(255, 213, 109, 0.3) !important;
+  border-radius: 6px !important;
+  padding: 4px 8px !important;
+  font-size: 11px !important;
+  outline: none !important;
+  margin: 0 3px !important;
+  cursor: pointer !important;
+}
+
+.react-datepicker__header select option,
+.react-datepicker__month-select option,
+.react-datepicker__year-select option {
+  background: #1a1a1c !important;
+  color: #e5e1e4 !important;
+}
+
+.react-datepicker__day-name {
+  color: #9a907c !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  width: 2rem !important;
+  line-height: 2rem !important;
+  margin: 2px !important;
+}
+
+.react-datepicker__day {
+  color: #d1c5af !important;
+  font-size: 12px !important;
+  border-radius: 8px !important;
+  width: 2rem !important;
+  line-height: 2rem !important;
+  margin: 2px !important;
+  transition: all 0.15s ease !important;
+}
+
+.react-datepicker__day:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+}
+
+/* Solo cuando la fecha está realmente seleccionada lleva fondo dorado */
+.react-datepicker__day--selected {
+  background-color: #ffd56d !important;
+  color: #3e2e00 !important;
+  font-weight: 700 !important;
+}
+
+/* Foco de teclado cuando NO está seleccionado: resalte sutil, nunca tapar el número */
+.react-datepicker__day--keyboard-selected:not(.react-datepicker__day--selected) {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+/* Fecha de hoy: borde dorado distintivo */
+.react-datepicker__day--today {
+  border: 1px solid rgba(255, 213, 109, 0.6) !important;
+  color: #ffd56d !important;
+  font-weight: 600 !important;
+}
+
+/* Si la fecha de hoy también está seleccionada, el texto debe ser oscuro legible */
+.react-datepicker__day--today.react-datepicker__day--selected {
+  background-color: #ffd56d !important;
+  color: #3e2e00 !important;
+  font-weight: 700 !important;
+}
+
+.react-datepicker__day--disabled,
+.react-datepicker__day--outside-month {
+  color: rgba(154, 144, 124, 0.3) !important;
+  pointer-events: none !important;
+}
+
+.react-datepicker__navigation-icon::before {
+  border-color: #ffd56d !important;
+}
+
+.react-datepicker__navigation:hover *::before {
+  border-color: #ffffff !important;
+}
+

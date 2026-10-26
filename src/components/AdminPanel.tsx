@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useToast } from '../context/ToastContext';
 import { useContent } from '../context/ContentContext';
 import {
@@ -165,6 +165,8 @@ export const AdminPanel: React.FC = () => {
   const [adminReplyText, setAdminReplyText] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
   const [searchMsgTerm, setSearchMsgTerm] = useState('');
+  const chatBottomRef = useRef<HTMLDivElement>(null);
+  const lastAdminChatMsgCount = useRef(0);
 
   // Cotizador Options state
   const [cotizadorOptions, setCotizadorOptions] = useState<CotizadorServiceItem[]>(DEFAULT_COTIZADOR_SERVICES);
@@ -250,6 +252,42 @@ export const AdminPanel: React.FC = () => {
 
   useEffect(() => {
     loadData();
+
+    // Polling en tiempo real para mensajes y solicitudes del admin (cada 3 segundos)
+    const pollInterval = setInterval(async () => {
+      try {
+        const [msgRes, solRes] = await Promise.allSettled([
+          mensajesApi.getAll(),
+          solicitudesApi.getAll(),
+        ]);
+
+        if (msgRes.status === 'fulfilled' && Array.isArray(msgRes.value)) {
+          setAllMessages((prev) => {
+            if (
+              prev.length === msgRes.value.length &&
+              (prev.length === 0 || prev[0]?.id === msgRes.value[0]?.id)
+            ) {
+              return prev;
+            }
+            return msgRes.value;
+          });
+        }
+
+        if (solRes.status === 'fulfilled' && Array.isArray(solRes.value)) {
+          setSolicitudes((prev) => {
+            if (
+              prev.length === solRes.value.length &&
+              (prev.length === 0 || prev[0]?.id === solRes.value[0]?.id)
+            ) {
+              return prev;
+            }
+            return solRes.value;
+          });
+        }
+      } catch {}
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
   }, []);
 
   const loadData = async () => {
@@ -362,6 +400,14 @@ export const AdminPanel: React.FC = () => {
   }, [allMessages, selectedClientId]);
 
   const activeClient = useMemo(() => conversations.find(c => c.userId === selectedClientId), [conversations, selectedClientId]);
+
+  // Desplaza la caja del chat automáticamente al llegar nuevos mensajes o cambiar de cliente
+  useEffect(() => {
+    if (activeChatMessages.length === lastAdminChatMsgCount.current) return;
+    lastAdminChatMsgCount.current = activeChatMessages.length;
+    const box = chatBottomRef.current?.parentElement;
+    if (box) box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
+  }, [activeChatMessages.length, activeTab, selectedClientId]);
 
   // Handlers
   const handleSendReply = async (e: React.FormEvent) => {
@@ -1207,6 +1253,7 @@ export const AdminPanel: React.FC = () => {
                       </span>
                     </div>
                   ))}
+                  <div ref={chatBottomRef} />
                 </div>
 
                 <form onSubmit={handleSendReply} className="pt-3 border-t border-white/5 flex gap-2">
