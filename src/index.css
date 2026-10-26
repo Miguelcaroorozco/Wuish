@@ -214,12 +214,14 @@
 /* ============================================
    react-datepicker — Dark & Gold Theme
    ============================================ */
-.react-datepicker-wrapper {
+.react-datepicker-wrapper,
+.react-datepicker__input-container {
   width: 100% !important;
   display: block !important;
 }
 
-.wuish-datepicker {
+.wuish-datepicker,
+.react-datepicker__input-container input {
   width: 100% !important;
   box-sizing: border-box !important;
   background: #0e0e10 !important;
@@ -231,13 +233,16 @@
   font-family: inherit !important;
   outline: none !important;
   transition: border-color 0.15s ease !important;
+  height: 38px !important;
 }
 
-.wuish-datepicker:focus {
+.wuish-datepicker:focus,
+.react-datepicker__input-container input:focus {
   border-color: rgba(255, 213, 109, 0.5) !important;
 }
 
-.wuish-datepicker::placeholder {
+.wuish-datepicker::placeholder,
+.react-datepicker__input-container input::placeholder {
   color: rgba(154, 144, 124, 0.7) !important;
 }
 
