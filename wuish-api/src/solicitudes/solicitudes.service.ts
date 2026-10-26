@@ -94,6 +94,23 @@ export class SolicitudesService {
       },
     });
 
+    // Notificación automática al Administrador de nueva solicitud
+    try {
+      const clientName = `${solicitud.usuario?.nombres || 'Cliente'} ${solicitud.usuario?.apellidos || ''}`.trim();
+      const tipoTexto = data.tipo === 'cotizacion' ? 'Cotización' : 'Solicitud Estratégica';
+      await this.prisma.notificacion.create({
+        data: {
+          para_admin: true,
+          titulo: `Nueva ${tipoTexto}`,
+          mensaje: `${clientName} ha enviado una ${tipoTexto.toLowerCase()}${data.empresa ? ` (${data.empresa})` : ''}.`,
+          tipo: 'nueva_solicitud',
+          referencia_id: solicitud.id,
+        },
+      });
+    } catch (err) {
+      console.error('Error creando notificación de nueva solicitud:', err);
+    }
+
     return solicitud;
   }
 
@@ -131,6 +148,24 @@ export class SolicitudesService {
         motivo: data.motivo || null,
       },
     });
+
+    // Notificación automática al Usuario del cambio de estado
+    try {
+      const estadoFormateado = data.estado.replace(/_/g, ' ').toUpperCase();
+      const tipoTexto = current.tipo === 'cotizacion' ? 'Cotización' : 'Solicitud Estratégica';
+      await this.prisma.notificacion.create({
+        data: {
+          usuario_id: current.usuario_id,
+          para_admin: false,
+          titulo: 'Estado de Solicitud Actualizado',
+          mensaje: `Tu ${tipoTexto.toLowerCase()} #${id.slice(0, 8)} ahora se encuentra en estado: "${estadoFormateado}".${data.motivo ? ` (${data.motivo})` : ''}`,
+          tipo: 'solicitud_estado',
+          referencia_id: id,
+        },
+      });
+    } catch (err) {
+      console.error('Error creando notificación de cambio de estado:', err);
+    }
 
     return updated;
   }

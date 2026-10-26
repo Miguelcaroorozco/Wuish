@@ -355,22 +355,24 @@ export const LandingView: React.FC<LandingViewProps> = ({
       </div>
 
       {/* STATS */}
-      <motion.section
-        variants={stagger()}
-        initial="hidden"
-        whileInView="show"
-        viewport={{ once: true, margin: '-80px' }}
-        className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20 grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-10 sm:gap-6"
-      >
-        {stats.map((s) => (
-          <motion.div key={s.id || s.label} variants={reveal} className="text-center">
-            <div className="text-4xl sm:text-5xl font-black font-display text-white">
-              <Counter to={s.value} suffix={s.suffix} />
-            </div>
-            <div className="text-xs uppercase tracking-wider text-[#9a907c] mt-2">{s.label}</div>
-          </motion.div>
-        ))}
-      </motion.section>
+      {stats.length > 0 && (
+        <motion.section
+          variants={stagger()}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: '-80px' }}
+          className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20 grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-10 sm:gap-6"
+        >
+          {stats.map((s) => (
+            <motion.div key={s.id || s.label} variants={reveal} className="text-center">
+              <div className="text-4xl sm:text-5xl font-black font-display text-white">
+                <Counter to={s.value} suffix={s.suffix} />
+              </div>
+              <div className="text-xs uppercase tracking-wider text-[#9a907c] mt-2">{s.label}</div>
+            </motion.div>
+          ))}
+        </motion.section>
+      )}
 
       {/* CMS INSTITUCIONAL: VISIÓN & MISIÓN */}
       {(cms.vision || cms.mision) && (

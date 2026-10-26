@@ -33,7 +33,7 @@ export class MensajesService {
     contenido: string;
     es_admin?: boolean;
   }) {
-    return this.prisma.mensaje.create({
+    const msg = await this.prisma.mensaje.create({
       data: {
         usuario_id: data.usuario_id,
         solicitud_id: data.solicitud_id || null,
@@ -46,6 +46,39 @@ export class MensajesService {
         usuario: { select: { id: true, nombres: true, apellidos: true, correo: true } },
       },
     });
+
+    // Notificaciones automáticas por nuevo mensaje
+    try {
+      if (data.es_admin) {
+        // Mensaje de Admin -> Alerta para el Usuario
+        await this.prisma.notificacion.create({
+          data: {
+            usuario_id: data.usuario_id,
+            para_admin: false,
+            titulo: 'Nuevo Mensaje del Equipo WUISH',
+            mensaje: data.contenido.slice(0, 90) + (data.contenido.length > 90 ? '...' : ''),
+            tipo: 'mensaje_admin',
+            referencia_id: msg.id,
+          },
+        });
+      } else {
+        // Mensaje del Usuario -> Alerta para el Admin con nombre del remitente
+        const clientName = `${msg.usuario?.nombres || 'Cliente'} ${msg.usuario?.apellidos || ''}`.trim();
+        await this.prisma.notificacion.create({
+          data: {
+            para_admin: true,
+            titulo: `Nuevo mensaje de ${clientName}`,
+            mensaje: data.contenido.slice(0, 90) + (data.contenido.length > 90 ? '...' : ''),
+            tipo: 'mensaje_usuario',
+            referencia_id: msg.id,
+          },
+        });
+      }
+    } catch (err) {
+      console.error('Error creando notificación de mensaje:', err);
+    }
+
+    return msg;
   }
 
   async markAsRead(id: string) {
