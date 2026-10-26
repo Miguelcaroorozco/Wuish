@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { WuishLogo } from './WuishLogo';
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
+import DatePicker, { registerLocale } from 'react-datepicker';
+import { es } from 'date-fns/locale';
+import 'react-datepicker/dist/react-datepicker.css';
 import {
   Mail,
   Lock,
@@ -14,10 +19,15 @@ import {
   Compass,
   BarChart3,
   KeyRound,
-  Phone,
   UserCheck,
-  X
+  X,
+  CalendarDays,
 } from 'lucide-react';
+
+registerLocale('es', es);
+
+
+
 
 interface AuthScreenProps {
   onSuccess?: () => void;
@@ -56,9 +66,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth
   const [regLastName, setRegLastName] = useState('');
   const [regDocType, setRegDocType] = useState('CC');
   const [regDocNumber, setRegDocNumber] = useState('');
-  const [regPhone, setRegPhone] = useState('');
+  const [regPhone, setRegPhone] = useState('57');
   const [regEmail, setRegEmail] = useState('');
-  const [regBirthDate, setRegBirthDate] = useState('');
+  const [regBirthDate, setRegBirthDate] = useState<Date | null>(null);
   const [regPwd, setRegPwd] = useState('');
   const [regConfirmPwd, setRegConfirmPwd] = useState('');
   const [showRegPwd, setShowRegPwd] = useState(false);
@@ -128,9 +138,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth
         apellidos: regLastName,
         tipo_documento: regDocType,
         numero_cedula: regDocNumber,
-        telefono: regPhone,
+        telefono: `+${regPhone}`,
         correo: regEmail,
-        fecha_nacimiento: regBirthDate,
+        fecha_nacimiento: regBirthDate ? regBirthDate.toISOString().split('T')[0] : '',
         password: regPwd,
       });
 
@@ -423,17 +433,44 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="block text-xs font-medium text-[#e5e1e4]">Teléfono WhatsApp *</label>
-                      <div className="relative flex items-center">
-                        <Phone className="absolute left-3 text-[#9a907c] w-4 h-4 pointer-events-none" />
-                        <input
-                          type="tel"
-                          required
-                          value={regPhone}
-                          onChange={(e) => setRegPhone(e.target.value)}
-                          placeholder="+1 234 567 8900"
-                          className="w-full bg-[#0e0e10] text-[#e5e1e4] pl-9 pr-3 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
-                        />
-                      </div>
+                      <PhoneInput
+                        country={'co'}
+                        value={regPhone}
+                        onChange={(val) => setRegPhone(val)}
+                        inputStyle={{
+                          width: '100%',
+                          background: '#0e0e10',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: '0.75rem',
+                          color: '#e5e1e4',
+                          fontSize: '12px',
+                          height: '38px',
+                          paddingLeft: '52px',
+                        }}
+                        buttonStyle={{
+                          background: '#0e0e10',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          borderRight: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: '0.75rem 0 0 0.75rem',
+                        }}
+                        dropdownStyle={{
+                          background: '#1a1a1c',
+                          border: '1px solid rgba(255,213,109,0.25)',
+                          borderRadius: '0.75rem',
+                          color: '#e5e1e4',
+                        }}
+                        searchStyle={{
+                          background: '#0e0e10',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: '0.5rem',
+                          color: '#e5e1e4',
+                          width: '90%',
+                        }}
+                        enableSearch
+                        searchPlaceholder="Buscar país..."
+                        placeholder="300 123 4567"
+                        containerStyle={{ width: '100%' }}
+                      />
                     </div>
                     <div className="space-y-1">
                       <label className="block text-xs font-medium text-[#e5e1e4]">Correo Corporativo *</label>
@@ -453,13 +490,25 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onSuccessAuth
 
                   <div className="space-y-1">
                     <label className="block text-xs font-medium text-[#e5e1e4]">Fecha de Nacimiento *</label>
-                    <input
-                      type="date"
-                      required
-                      value={regBirthDate}
-                      onChange={(e) => setRegBirthDate(e.target.value)}
-                      className="w-full bg-[#0e0e10] text-[#e5e1e4] px-3.5 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
-                    />
+                    <div className="relative">
+                      <DatePicker
+                        selected={regBirthDate}
+                        onChange={(date) => setRegBirthDate(date)}
+                        locale="es"
+                        dateFormat="dd/MM/yyyy"
+                        placeholderText="dd/mm/aaaa"
+                        showMonthDropdown
+                        showYearDropdown
+                        dropdownMode="select"
+                        maxDate={new Date()}
+                        yearDropdownItemNumber={100}
+                        scrollableYearDropdown
+                        className="wuish-datepicker"
+                        calendarClassName="wuish-calendar"
+                        wrapperClassName="w-full"
+                      />
+                      <CalendarDays className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9a907c] pointer-events-none" />
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
