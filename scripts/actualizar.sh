@@ -30,20 +30,22 @@ command -v curl >/dev/null 2>&1 || fail "curl no está instalado."
 
 cd "$ROOT_DIR"
 [[ "$(git rev-parse --show-toplevel)" == "$ROOT_DIR" ]] || fail "La carpeta no es la raíz del repositorio."
+REMOTE="${REMOTE:-$(git remote | head -n 1)}"
+[[ -n "$REMOTE" ]] || fail "El repositorio no tiene un remoto configurado."
 
 if [[ -n "$(git status --porcelain)" ]]; then
   git status --short
   fail "Hay cambios locales. Haz commit, stash o elimina esos cambios antes de actualizar."
 fi
 
-log "Actualizando el código desde origin/$BRANCH"
-git fetch origin "$BRANCH"
+log "Actualizando el código desde $REMOTE/$BRANCH"
+git fetch "$REMOTE" "$BRANCH"
 if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
   git switch "$BRANCH"
 else
-  git switch --create "$BRANCH" --track "origin/$BRANCH"
+  git switch --create "$BRANCH" --track "$REMOTE/$BRANCH"
 fi
-git pull --ff-only origin "$BRANCH"
+git pull --ff-only "$REMOTE" "$BRANCH"
 
 log "Instalando dependencias del frontend"
 npm ci
