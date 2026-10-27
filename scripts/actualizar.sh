@@ -58,7 +58,7 @@ log "Instalando dependencias del backend"
 npm --prefix "$API_DIR" ci
 
 log "Generando Prisma Client"
-npx --prefix "$API_DIR" prisma generate
+npx --prefix "$API_DIR" prisma generate --schema "$API_DIR/prisma/schema.prisma"
 
 set -a
 # Prisma y la copia de seguridad necesitan las variables del entorno de producción.
@@ -77,7 +77,7 @@ else
 fi
 
 log "Verificando y sincronizando la base de datos con Prisma"
-npx --prefix "$API_DIR" prisma db push
+npx --prefix "$API_DIR" prisma db push --schema "$API_DIR/prisma/schema.prisma"
 
 log "Compilando el backend"
 npm --prefix "$API_DIR" run build
