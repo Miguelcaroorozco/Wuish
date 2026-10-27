@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
 
 interface AdminPlanModalProps {
   show: boolean;
@@ -31,6 +32,18 @@ export const AdminPlanModal: React.FC<AdminPlanModalProps> = ({
 }) => {
   if (!show) return null;
 
+  const [planErrors, setPlanErrors] = useState<Record<string, string>>({});
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const errs: Record<string, string> = {};
+    if (!newPlan.nombre.trim()) errs.nombre = 'El nombre del plan es obligatorio';
+    if (!newPlan.precio || isNaN(Number(newPlan.precio))) errs.precio = 'Ingresa un precio válido';
+    if (Object.keys(errs).length > 0) { setPlanErrors(errs); return; }
+    setPlanErrors({});
+    onSavePlan(e);
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-[#1c1b1d] border border-[#ffd56d]/30 rounded-2xl max-w-lg w-full p-6 text-left shadow-2xl relative text-xs max-h-[90vh] overflow-y-auto">
@@ -48,17 +61,17 @@ export const AdminPlanModal: React.FC<AdminPlanModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={onSavePlan} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-zinc-300 font-semibold mb-1">Nombre</label>
             <input
               type="text"
-              required
               value={newPlan.nombre}
-              onChange={(e) => onPlanChange({ ...newPlan, nombre: e.target.value })}
+              onChange={(e) => { onPlanChange({ ...newPlan, nombre: e.target.value }); if (planErrors.nombre) setPlanErrors((p) => ({ ...p, nombre: undefined as any })); }}
               placeholder="Ej: Plan Enterprise Growth"
-              className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+              className={`w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border focus:outline-none transition ${planErrors.nombre ? 'border-red-500/70' : 'border-white/10 focus:border-[#ffd56d]'}`}
             />
+            {planErrors.nombre && <p className="text-[11px] text-red-400 flex items-center gap-1 mt-1"><AlertTriangle className="w-3 h-3 shrink-0" />{planErrors.nombre}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -66,12 +79,12 @@ export const AdminPlanModal: React.FC<AdminPlanModalProps> = ({
               <label className="block text-zinc-300 font-semibold mb-1">Precio (COP)</label>
               <input
                 type="number"
-                required
                 value={newPlan.precio}
-                onChange={(e) => onPlanChange({ ...newPlan, precio: e.target.value })}
+                onChange={(e) => { onPlanChange({ ...newPlan, precio: e.target.value }); if (planErrors.precio) setPlanErrors((p) => ({ ...p, precio: undefined as any })); }}
                 placeholder="1200"
-                className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#ffd56d]"
+                className={`w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border focus:outline-none transition ${planErrors.precio ? 'border-red-500/70' : 'border-white/10 focus:border-[#ffd56d]'}`}
               />
+              {planErrors.precio && <p className="text-[11px] text-red-400 flex items-center gap-1 mt-1"><AlertTriangle className="w-3 h-3 shrink-0" />{planErrors.precio}</p>}
             </div>
             <div>
               <label className="block text-zinc-300 font-semibold mb-1">Tipo de Servicio</label>

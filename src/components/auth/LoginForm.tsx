@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 
@@ -17,14 +17,18 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onOpenForgot })
   const [showLoginPwd, setShowLoginPwd] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<{ correo?: string; password?: string }>({});
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!loginUser) {
-      showToast('Error', 'Por favor ingresa tu usuario o correo corporativo', 'error');
+    const newErrors: typeof errors = {};
+    if (!loginUser.trim()) newErrors.correo = 'Ingresa tu usuario o correo corporativo';
+    if (!loginPwd.trim()) newErrors.password = 'Ingresa tu contraseña';
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
-
+    setErrors({});
     setIsSubmitting(true);
     try {
       const res = await login(loginUser, loginPwd);
@@ -61,13 +65,17 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onOpenForgot })
             <Mail className="absolute left-3.5 text-[#9a907c] w-5 h-5 pointer-events-none" />
             <input
               type="text"
-              required
               value={loginUser}
-              onChange={(e) => setLoginUser(e.target.value)}
+              onChange={(e) => { setLoginUser(e.target.value); if (errors.correo) setErrors((p) => ({ ...p, correo: undefined })); }}
               placeholder="contacto@empresa.com"
-              className="w-full bg-[#0e0e10] text-[#e5e1e4] placeholder:text-[#9a907c]/70 pl-11 pr-4 py-3 rounded-xl border border-white/10 focus:border-[#ffd56d]/60 focus:outline-none text-sm shadow-inner"
+              className={`w-full bg-[#0e0e10] text-[#e5e1e4] placeholder:text-[#9a907c]/70 pl-11 pr-4 py-3 rounded-xl border focus:outline-none text-sm shadow-inner transition ${errors.correo ? 'border-red-500/70' : 'border-white/10 focus:border-[#ffd56d]/60'}`}
             />
           </div>
+          {errors.correo && (
+            <p className="text-[11px] text-red-400 flex items-center gap-1 mt-1">
+              <AlertTriangle className="w-3 h-3 shrink-0" />{errors.correo}
+            </p>
+          )}
         </div>
 
         <div className="space-y-1.5">
@@ -87,11 +95,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onOpenForgot })
             <Lock className="absolute left-3.5 text-[#9a907c] w-5 h-5 pointer-events-none" />
             <input
               type={showLoginPwd ? 'text' : 'password'}
-              required
               value={loginPwd}
-              onChange={(e) => setLoginPwd(e.target.value)}
+              onChange={(e) => { setLoginPwd(e.target.value); if (errors.password) setErrors((p) => ({ ...p, password: undefined })); }}
               placeholder="••••••••"
-              className="w-full bg-[#0e0e10] text-[#e5e1e4] placeholder:text-[#9a907c]/70 pl-11 pr-11 py-3 rounded-xl border border-white/10 focus:border-[#ffd56d]/60 focus:outline-none text-sm shadow-inner"
+              className={`w-full bg-[#0e0e10] text-[#e5e1e4] placeholder:text-[#9a907c]/70 pl-11 pr-11 py-3 rounded-xl border focus:outline-none text-sm shadow-inner transition ${errors.password ? 'border-red-500/70' : 'border-white/10 focus:border-[#ffd56d]/60'}`}
             />
             <button
               type="button"
@@ -101,6 +108,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onOpenForgot })
               {showLoginPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
+          {errors.password && (
+            <p className="text-[11px] text-red-400 flex items-center gap-1 mt-1">
+              <AlertTriangle className="w-3 h-3 shrink-0" />{errors.password}
+            </p>
+          )}
         </div>
 
         <div className="flex items-center pt-1">

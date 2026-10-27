@@ -25,6 +25,7 @@ model Usuario {
   password_hash    String?  @db.VarChar(255)
   rol              String   @default("usuario") @db.VarChar(20)
   preferencias     Json?
+  permisos         Json?
   created_at       DateTime @default(now())
   updated_at       DateTime @default(now()) @updatedAt
 

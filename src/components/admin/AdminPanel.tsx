@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useToast } from '../../context/ToastContext';
 import { useContent } from '../../context/ContentContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   planesApi,
   tiposServicioApi,
@@ -10,6 +11,7 @@ import {
   cotizadorModulosApi,
   mensajesApi,
   proyectosApi,
+  usuariosApi,
 } from '../../lib/api';
 import {
   Plus,
@@ -21,6 +23,9 @@ import {
   CreditCard,
   Sliders,
   Star,
+  Users,
+  KeyRound,
+  AlertTriangle,
 } from 'lucide-react';
 import { Project, ProjectCategory } from '../../types';
 import { AdminSolicitudesTab } from './AdminSolicitudesTab';
@@ -33,6 +38,8 @@ import { AdminComentariosTab } from './AdminComentariosTab';
 import { AdminPlanModal } from './AdminPlanModal';
 import { AdminCotizadorOptionModal } from './AdminCotizadorOptionModal';
 import { AdminEditProjectModal } from './AdminEditProjectModal';
+import { AdminUsuariosTab } from './AdminUsuariosTab';
+import { AdminPermisosTab, ADMIN_VIEWS } from './AdminPermisosTab';
 
 const DEFAULT_COTIZADOR_SERVICES: CotizadorServiceItem[] = [
   { id: 'opt_1', name: 'Desarrollo Web & E-Commerce', category: 'tecnologia', basePrice: 2850, description: 'Plataformas headless de alta conversión, SSR y checkout global.' },
@@ -45,8 +52,59 @@ const DEFAULT_COTIZADOR_SERVICES: CotizadorServiceItem[] = [
   { id: 'opt_8', name: 'Pauta Digital Omnicanal & Performance', category: 'comunicacion', basePrice: 1950, description: 'Adquisición de clientes B2B/B2C mediante pauta cuantitativa orientada a ROI.' },
 ];
 
+export type AdminTabType =
+  | 'solicitudes'
+  | 'mensajes'
+  | 'planes'
+  | 'cotizador_admin'
+  | 'cms'
+  | 'resultados'
+  | 'comentarios'
+  | 'usuarios'
+  | 'permisos';
+
+export const VALID_ADMIN_TABS: AdminTabType[] = [
+  'solicitudes',
+  'mensajes',
+  'planes',
+  'cotizador_admin',
+  'cms',
+  'resultados',
+  'comentarios',
+  'usuarios',
+  'permisos',
+];
+
+const getInitialAdminTab = (allowedList?: string[] | null): AdminTabType => {
+  const pathParts = window.location.pathname.toLowerCase().split('/').filter(Boolean);
+  let requested: string | null = null;
+  if (pathParts[0] === 'admin' && pathParts[1]) {
+    requested = pathParts[1];
+  }
+  if (!requested) {
+    try {
+      requested = localStorage.getItem('admin_active_tab');
+    } catch {}
+  }
+
+  if (allowedList && Array.isArray(allowedList) && allowedList.length > 0) {
+    if (requested && allowedList.includes(requested) && VALID_ADMIN_TABS.includes(requested as AdminTabType)) {
+      return requested as AdminTabType;
+    }
+    const firstAllowed = allowedList.find((v) => VALID_ADMIN_TABS.includes(v as AdminTabType));
+    if (firstAllowed) return firstAllowed as AdminTabType;
+  }
+
+  if (requested && VALID_ADMIN_TABS.includes(requested as AdminTabType)) {
+    return requested as AdminTabType;
+  }
+
+  return 'solicitudes';
+};
+
 export const AdminPanel: React.FC = () => {
   const { showToast } = useToast();
+  const { user: currentUser } = useAuth();
   const {
     projects,
     addProject,
@@ -58,9 +116,29 @@ export const AdminPanel: React.FC = () => {
     addTestimonial,
   } = useContent();
 
-  const [activeTab, setActiveTab] = useState<
-    'solicitudes' | 'mensajes' | 'planes' | 'cotizador_admin' | 'cms' | 'resultados' | 'comentarios'
-  >('solicitudes');
+  const userPermisos = useMemo(() => {
+    return Array.isArray(currentUser?.permisos)
+      ? (currentUser?.permisos as string[])
+      : null;
+  }, [currentUser?.permisos]);
+
+  const [activeTab, setActiveTab] = useState<AdminTabType>(() => {
+    return getInitialAdminTab(userPermisos);
+  });
+
+  useEffect(() => {
+    if (userPermisos && !userPermisos.includes(activeTab)) {
+      const firstAllowed = VALID_ADMIN_TABS.find((v) => userPermisos.includes(v));
+      if (firstAllowed) {
+        setActiveTab(firstAllowed);
+        try {
+          localStorage.setItem('admin_active_tab', firstAllowed);
+        } catch {}
+      }
+    }
+  }, [userPermisos, activeTab]);
+
+  const [allUsuarios, setAllUsuarios] = useState<any[]>([]);
 
   const [solicitudes, setSolicitudes] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -76,6 +154,14 @@ export const AdminPanel: React.FC = () => {
   const [isCreatingOption, setIsCreatingOption] = useState(false);
   const [showOptionModal, setShowOptionModal] = useState(false);
   const [savingOption, setSavingOption] = useState(false);
+
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState<{
+    title: string;
+    description: React.ReactNode;
+    onConfirm: () => Promise<void> | void;
+    confirmButtonText?: string;
+  } | null>(null);
+  const [deletingItem, setDeletingItem] = useState(false);
 
   const [cms, setCms] = useState({ slogan: '', vision: '', mision: '' });
   const [savingCms, setSavingCms] = useState(false);
@@ -192,6 +278,33 @@ export const AdminPanel: React.FC = () => {
     return () => clearInterval(pollInterval);
   }, []);
 
+  useEffect(() => {
+    const handleOpenAdminTab = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      const tab = (typeof detail === 'string' ? detail : detail?.tab) as AdminTabType;
+      const clientId = typeof detail === 'object' ? detail?.clientId : null;
+      if (tab && VALID_ADMIN_TABS.includes(tab)) {
+        setActiveTab(tab);
+        if (clientId) setSelectedClientId(clientId);
+        try {
+          localStorage.setItem('admin_active_tab', tab);
+        } catch {}
+        if (window.location.pathname.startsWith('/admin')) {
+          window.history.replaceState(null, '', `/admin/${tab}`);
+        }
+      }
+    };
+    window.addEventListener('wuish:openAdminTab', handleOpenAdminTab);
+    return () => window.removeEventListener('wuish:openAdminTab', handleOpenAdminTab);
+  }, []);
+
+  const loadAllUsuarios = async () => {
+    try {
+      const res = await usuariosApi.getAll();
+      if (Array.isArray(res)) setAllUsuarios(res);
+    } catch {}
+  };
+
   const loadData = async () => {
     try {
       const [sol, info, tipos, com, msg, pls] = await Promise.allSettled([
@@ -202,6 +315,7 @@ export const AdminPanel: React.FC = () => {
         mensajesApi.getAll(),
         planesApi.getAll(true),
       ]);
+      await loadAllUsuarios();
 
       if (pls.status === 'fulfilled') setPlanes(pls.value);
       if (sol.status === 'fulfilled') setSolicitudes(sol.value);
@@ -246,6 +360,35 @@ export const AdminPanel: React.FC = () => {
       console.error('Error cargando datos de administración:', err);
     }
   };
+
+  // Redirigir automáticamente si el usuario no tiene permiso sobre activeTab
+  useEffect(() => {
+    if (userPermisos && userPermisos.length > 0) {
+      if (!userPermisos.includes(activeTab)) {
+        const fallback = (userPermisos.find((v) => VALID_ADMIN_TABS.includes(v as AdminTabType)) as AdminTabType) || 'solicitudes';
+        setActiveTab(fallback);
+        try {
+          localStorage.setItem('admin_active_tab', fallback);
+        } catch {}
+        if (window.location.pathname.startsWith('/admin')) {
+          window.history.replaceState(null, '', `/admin/${fallback}`);
+        }
+      }
+    }
+  }, [userPermisos, activeTab]);
+
+  // Sincronizar localStorage y la URL cada vez que activeTab cambie
+  useEffect(() => {
+    try {
+      localStorage.setItem('admin_active_tab', activeTab);
+    } catch {}
+    if (window.location.pathname.startsWith('/admin')) {
+      const targetUrl = `/admin/${activeTab}`;
+      if (window.location.pathname !== targetUrl) {
+        window.history.replaceState(null, '', targetUrl);
+      }
+    }
+  }, [activeTab]);
 
   const conversations = useMemo(() => {
     const map = new Map<string, { userId: string; userName: string; userEmail: string; lastMessage: string; lastTime: string; unreadCount: number }>();
@@ -544,25 +687,35 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
-  const handleDeleteOption = async (id: string, name: string) => {
-    if (!window.confirm(`¿Eliminar el módulo "${name}" del cotizador?`)) return;
-    try {
-      await cotizadorModulosApi.delete(id);
-      const refreshed = await cotizadorModulosApi.getAll(true);
-      setCotizadorOptions(
-        refreshed.map((m: any) => ({
-          id: m.id,
-          name: m.nombre,
-          category: m.categoria,
-          basePrice: Number(m.precio_base),
-          description: m.descripcion,
-          activo: m.activo,
-        }))
-      );
-      showToast('Módulo Eliminado', `"${name}" fue eliminado del cotizador.`, 'success');
-    } catch (err: any) {
-      showToast('Error', err.message || 'No se pudo eliminar el módulo', 'error');
-    }
+  const handleDeleteOption = (id: string, name: string) => {
+    setDeleteConfirmModal({
+      title: '¿Eliminar módulo del cotizador?',
+      description: (
+        <>
+          Esta acción eliminará permanentemente el módulo{' '}
+          <strong className="text-white">"{name}"</strong> de las opciones activas del cotizador.
+        </>
+      ),
+      onConfirm: async () => {
+        try {
+          await cotizadorModulosApi.delete(id);
+          const refreshed = await cotizadorModulosApi.getAll(true);
+          setCotizadorOptions(
+            refreshed.map((m: any) => ({
+              id: m.id,
+              name: m.nombre,
+              category: m.categoria,
+              basePrice: Number(m.precio_base),
+              description: m.descripcion,
+              activo: m.activo,
+            }))
+          );
+          showToast('Módulo Eliminado', `"${name}" fue eliminado del cotizador.`, 'success');
+        } catch (err: any) {
+          showToast('Error', err.message || 'No se pudo eliminar el módulo', 'error');
+        }
+      },
+    });
   };
 
   const handleEditProject = (project: Project) => {
@@ -661,15 +814,25 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
-  const handleDeleteProject = async (id: string, title: string) => {
-    if (!window.confirm(`¿Eliminar el proyecto "${title}"?`)) return;
-    try {
-      await proyectosApi.delete(id);
-      removeProject(id);
-      showToast('Proyecto Eliminado', `"${title}" fue removido de la base de datos.`, 'success');
-    } catch (err: any) {
-      showToast('Error', err.message || 'No se pudo eliminar el proyecto', 'error');
-    }
+  const handleDeleteProject = (id: string, title: string) => {
+    setDeleteConfirmModal({
+      title: '¿Eliminar proyecto?',
+      description: (
+        <>
+          Esta acción eliminará permanentemente el proyecto{' '}
+          <strong className="text-white">"{title}"</strong> del portafolio y resultados.
+        </>
+      ),
+      onConfirm: async () => {
+        try {
+          await proyectosApi.delete(id);
+          removeProject(id);
+          showToast('Proyecto Eliminado', `"${title}" fue removido de la base de datos.`, 'success');
+        } catch (err: any) {
+          showToast('Error', err.message || 'No se pudo eliminar el proyecto', 'error');
+        }
+      },
+    });
   };
 
   const allComentarios = useMemo(() => {
@@ -695,15 +858,30 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
-  const handleDeleteComentario = async (id: string) => {
-    if (!window.confirm('¿Eliminar este testimonio permanentemente?')) return;
-    try {
-      await comentariosApi.delete(id);
-      setComentarios((prev) => prev.filter((c) => c.id !== id));
-      showToast('Testimonio Eliminado', 'Se eliminó el testimonio.', 'success');
-    } catch (err: any) {
-      showToast('Error', err.message || 'Error al eliminar testimonio', 'error');
-    }
+  const handleDeleteComentario = (id: string) => {
+    const item = comentarios.find((c: any) => c.id === id);
+    const author = item?.usuario?.nombres
+      ? `${item.usuario.nombres} ${item.usuario.apellidos || ''}`.trim()
+      : 'este cliente';
+
+    setDeleteConfirmModal({
+      title: '¿Eliminar testimonio?',
+      description: (
+        <>
+          Esta acción eliminará permanentemente el testimonio de{' '}
+          <strong className="text-white">{author}</strong> de la plataforma.
+        </>
+      ),
+      onConfirm: async () => {
+        try {
+          await comentariosApi.delete(id);
+          setComentarios((prev) => prev.filter((c) => c.id !== id));
+          showToast('Testimonio Eliminado', 'Se eliminó el testimonio.', 'success');
+        } catch (err: any) {
+          showToast('Error', err.message || 'Error al eliminar testimonio', 'error');
+        }
+      },
+    });
   };
 
   const handleCreateTestimonial = (e: React.FormEvent) => {
@@ -744,8 +922,18 @@ export const AdminPanel: React.FC = () => {
   };
 
   const handleDeleteStat = (id: string, label: string) => {
-    removeStat(id);
-    showToast('Métrica Eliminada', `"${label}" fue removida del inicio.`, 'info');
+    setDeleteConfirmModal({
+      title: '¿Eliminar métrica institucional?',
+      description: (
+        <>
+          Esta acción removerá la cifra <strong className="text-white">"{label}"</strong> de los resultados mostrados en la página principal.
+        </>
+      ),
+      onConfirm: () => {
+        removeStat(id);
+        showToast('Métrica Eliminada', `"${label}" fue removida del inicio.`, 'info');
+      },
+    });
   };
 
   const handleExportCSV = () => {
@@ -803,12 +991,160 @@ export const AdminPanel: React.FC = () => {
   };
 
   const kpis = [
-    { label: 'Total Solicitudes', val: solicitudes.length, color: 'text-white' },
-    { label: 'Pendientes', val: solicitudes.filter((s) => s.estado === 'pendiente').length, color: 'text-amber-400' },
-    { label: 'Aprobadas', val: solicitudes.filter((s) => s.estado === 'aprobada').length, color: 'text-emerald-400' },
-    { label: 'Mensajes Sin Leer', val: conversations.reduce((a, c) => a + c.unreadCount, 0), color: 'text-sky-400' },
-    { label: 'Planes Activos', val: planes.filter((p) => p.activo).length, color: 'text-[#ffd56d]' },
+    (userPermisos === null || userPermisos.includes('solicitudes')) && { label: 'Total Solicitudes', val: solicitudes.length, color: 'text-white' },
+    (userPermisos === null || userPermisos.includes('solicitudes')) && { label: 'Pendientes', val: solicitudes.filter((s) => s.estado === 'pendiente').length, color: 'text-amber-400' },
+    (userPermisos === null || userPermisos.includes('solicitudes')) && { label: 'Aprobadas', val: solicitudes.filter((s) => s.estado === 'aprobada').length, color: 'text-emerald-400' },
+    (userPermisos === null || userPermisos.includes('mensajes')) && { label: 'Mensajes Sin Leer', val: conversations.reduce((a, c) => a + c.unreadCount, 0), color: 'text-sky-400' },
+    (userPermisos === null || userPermisos.includes('usuarios') || userPermisos.includes('permisos')) && { label: 'Usuarios Totales', val: allUsuarios.length, color: 'text-[#ffd56d]' },
+  ].filter(Boolean) as { label: string; val: number; color: string }[];
+
+  const allTabs: { id: AdminTabType; label: string; icon: any; count?: number }[] = [
+    { id: 'solicitudes', label: 'Solicitudes', icon: ClipboardList, count: solicitudes.length },
+    { id: 'mensajes', label: 'Mensajes de Clientes', icon: MessageSquare, count: conversations.reduce((a, c) => a + c.unreadCount, 0) },
+    { id: 'planes', label: 'Planes (Plantillas)', icon: CreditCard, count: planes.filter((p) => p.activo).length },
+    { id: 'cotizador_admin', label: 'Opciones Cotizador', icon: Sliders, count: cotizadorOptions.length },
+    { id: 'cms', label: 'CMS Institucional', icon: FileText },
+    { id: 'resultados', label: 'Resultados & Portafolio', icon: TrendingUp, count: projects.length },
+    { id: 'comentarios', label: 'Testimonios', icon: Star, count: allComentarios.length },
+    { id: 'usuarios', label: 'Gestión de Usuarios', icon: Users, count: allUsuarios.length },
+    { id: 'permisos', label: 'Control de Permisos', icon: KeyRound, count: allUsuarios.filter((u) => u.rol === 'admin' || u.rol === 'administrador').length },
   ];
+
+  const visibleTabs = userPermisos !== null
+    ? allTabs.filter((tab) => userPermisos.includes(tab.id))
+    : allTabs;
+
+  // Track animated tab ids: 'entering' | 'visible' | 'leaving'
+  const [tabAnimStates, setTabAnimStates] = useState<Record<string, 'entering' | 'visible' | 'leaving'>>({});
+  const prevVisibleTabIdsRef = useRef<Set<AdminTabType>>(new Set<AdminTabType>());
+
+  // Tab bar horizontal drag-to-scroll & auto-fit logic
+  const tabsContainerRef = useRef<HTMLDivElement>(null);
+  const isMouseDownRef = useRef(false);
+  const startXRef = useRef(0);
+  const scrollLeftStartRef = useRef(0);
+  const hasDraggedRef = useRef(false);
+  const [isDragActive, setIsDragActive] = useState(false);
+  const [canScroll, setCanScroll] = useState(false);
+
+  const checkScrollable = useCallback(() => {
+    if (tabsContainerRef.current) {
+      const el = tabsContainerRef.current;
+      setCanScroll(el.scrollWidth > el.clientWidth + 2);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkScrollable();
+    const handleResize = () => checkScrollable();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [visibleTabs.length, checkScrollable]);
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || !tabsContainerRef.current) return;
+    isMouseDownRef.current = true;
+    hasDraggedRef.current = false;
+    startXRef.current = e.pageX;
+    scrollLeftStartRef.current = tabsContainerRef.current.scrollLeft;
+  };
+
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (!isMouseDownRef.current || !tabsContainerRef.current) return;
+      const walk = e.pageX - startXRef.current;
+      if (Math.abs(walk) > 4) {
+        if (!hasDraggedRef.current) {
+          hasDraggedRef.current = true;
+          setIsDragActive(true);
+        }
+        tabsContainerRef.current.scrollLeft = scrollLeftStartRef.current - walk;
+      }
+    };
+
+    const handleGlobalMouseUp = () => {
+      if (isMouseDownRef.current) {
+        isMouseDownRef.current = false;
+        setTimeout(() => {
+          hasDraggedRef.current = false;
+          setIsDragActive(false);
+        }, 80);
+      }
+    };
+
+    window.addEventListener('mousemove', handleGlobalMouseMove);
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMouseMove);
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, []);
+
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (!tabsContainerRef.current) return;
+    if (e.deltaY !== 0 && e.deltaX === 0) {
+      tabsContainerRef.current.scrollLeft += e.deltaY;
+    }
+  };
+
+  useEffect(() => {
+    const newIds = new Set(visibleTabs.map((t) => t.id));
+    const prevIds = prevVisibleTabIdsRef.current;
+
+    const entering = visibleTabs.filter((t) => !prevIds.has(t.id)).map((t) => t.id);
+    const leaving = [...prevIds].filter((id) => !newIds.has(id));
+
+    if (entering.length === 0 && leaving.length === 0) return;
+
+    setTabAnimStates((prev) => {
+      const next = { ...prev };
+      entering.forEach((id) => { next[id] = 'entering'; });
+      leaving.forEach((id) => { next[id] = 'leaving'; });
+      return next;
+    });
+
+    // entering → visible after transition
+    if (entering.length > 0) {
+      const t = setTimeout(() => {
+        setTabAnimStates((prev) => {
+          const next = { ...prev };
+          entering.forEach((id) => { next[id] = 'visible'; });
+          return next;
+        });
+      }, 350);
+      return () => clearTimeout(t);
+    }
+
+    prevVisibleTabIdsRef.current = newIds;
+  }, [visibleTabs.map((t) => t.id).join(',')]);
+
+  // Sync prevRef after leaving tabs finish fading out
+  useEffect(() => {
+    const leavingIds = Object.entries(tabAnimStates)
+      .filter(([, s]) => s === 'leaving')
+      .map(([id]) => id);
+    if (leavingIds.length === 0) return;
+    const t = setTimeout(() => {
+      prevVisibleTabIdsRef.current = new Set(visibleTabs.map((t) => t.id));
+      setTabAnimStates((prev) => {
+        const next = { ...prev };
+        leavingIds.forEach((id) => { delete next[id]; });
+        return next;
+      });
+    }, 320);
+    return () => clearTimeout(t);
+  }, [JSON.stringify(tabAnimStates)]);
+
+  // Auto-scroll active tab into view so it is always visible
+  useEffect(() => {
+    if (!tabsContainerRef.current) return;
+    const activeEl = tabsContainerRef.current.querySelector('[data-active="true"]') as HTMLElement | null;
+    if (activeEl) {
+      activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    }
+  }, [activeTab]);
+
+  const hasTabPermission = (tab: AdminTabType) => userPermisos === null || userPermisos.includes(tab);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -825,173 +1161,265 @@ export const AdminPanel: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={openCreatePlan}
-            className="px-4 py-2.5 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-bold text-xs uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer shadow"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Crear Plan</span>
-          </button>
-          <button
-            onClick={handleExportCSV}
-            className="px-4 py-2.5 rounded-xl bg-[#1c1b1d] hover:bg-[#201f21] text-zinc-300 hover:text-white border border-white/10 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
-          >
-            <Download className="w-4 h-4" />
-            <span>Exportar CSV</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {kpis.map((k, i) => (
-          <div key={i} className="p-4 rounded-2xl bg-[#1c1b1d] border border-white/5">
-            <span className="text-[10px] uppercase tracking-wider text-[#9a907c] font-bold font-display block">
-              {k.label}
-            </span>
-            <div className={`text-2xl sm:text-3xl font-extrabold mt-1 font-display ${k.color}`}>
-              {k.val}
-            </div>
+        {(hasTabPermission('planes') || hasTabPermission('solicitudes')) && (
+          <div className="flex items-center gap-3">
+            {hasTabPermission('planes') && (
+              <button
+                onClick={openCreatePlan}
+                className="px-4 py-2.5 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-bold text-xs uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer shadow"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Crear Plan</span>
+              </button>
+            )}
+            {hasTabPermission('solicitudes') && (
+              <button
+                onClick={handleExportCSV}
+                className="px-4 py-2.5 rounded-xl bg-[#1c1b1d] hover:bg-[#201f21] text-zinc-300 hover:text-white border border-white/10 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <Download className="w-4 h-4" />
+                <span>Exportar CSV</span>
+              </button>
+            )}
           </div>
-        ))}
+        )}
       </div>
 
-      <div className="flex items-center gap-2 bg-[#1c1b1d] border border-white/5 p-1.5 rounded-2xl overflow-x-auto">
-        {[
-          { id: 'solicitudes', label: 'Solicitudes', icon: ClipboardList, count: solicitudes.length },
-          { id: 'mensajes', label: 'Mensajes de Clientes', icon: MessageSquare, count: conversations.reduce((a, c) => a + c.unreadCount, 0) },
-          { id: 'planes', label: 'Planes (Plantillas)', icon: CreditCard, count: planes.filter((p) => p.activo).length },
-          { id: 'cotizador_admin', label: 'Opciones Cotizador', icon: Sliders, count: cotizadorOptions.length },
-          { id: 'cms', label: 'CMS Institucional', icon: FileText },
-          { id: 'resultados', label: 'Resultados & Portafolio', icon: TrendingUp, count: projects.length },
-          { id: 'comentarios', label: 'Testimonios', icon: Star, count: allComentarios.length },
-        ].map((tab: any) => {
-          const Icon = tab.icon;
-          const active = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                active ? 'bg-[#ffd56d] text-[#3e2e00] shadow-sm' : 'text-[#d1c5af] hover:text-white hover:bg-white/5'
-              }`}
+      {kpis.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 animate-in fade-in duration-300">
+          {kpis.map((k, i) => (
+            <div
+              key={k.label}
+              style={{ animationDelay: `${i * 40}ms` }}
+              className="p-4 rounded-2xl bg-[#1c1b1d] border border-white/5 animate-in fade-in zoom-in-95 duration-300 transition-all hover:border-white/10"
             >
-              <Icon className="w-4 h-4" />
-              <span>{tab.label}</span>
-              {tab.count !== undefined && (
-                <span
-                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-                    active ? 'bg-black/20 text-[#3e2e00]' : 'bg-white/10 text-white'
+              <span className="text-[10px] uppercase tracking-wider text-[#9a907c] font-bold font-display block">
+                {k.label}
+              </span>
+              <div className={`text-2xl sm:text-3xl font-extrabold mt-1 font-display ${k.color}`}>
+                {k.val}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {visibleTabs.length > 0 && (
+        <div
+          ref={tabsContainerRef}
+          onMouseDown={handleMouseDown}
+          onWheel={handleWheel}
+          className={`admin-tabs-scrollbar w-fit max-w-full flex items-center gap-2 bg-[#1c1b1d] border border-white/10 hover:border-[#ffd56d]/35 hover:shadow-[0_0_24px_rgba(255,213,109,0.12)] p-1.5 rounded-2xl overflow-x-auto transition-all duration-300 select-none ${
+            isDragActive
+              ? 'cursor-grabbing'
+              : canScroll
+              ? 'cursor-grab'
+              : 'cursor-default'
+          }`}
+        >
+          {/* render visible + leaving tabs so they can animate out */}
+          {allTabs
+            .filter((tab) => visibleTabs.some((v) => v.id === tab.id) || tabAnimStates[tab.id] === 'leaving')
+            .map((tab: any, index: number) => {
+              const Icon = tab.icon;
+              const active = activeTab === tab.id;
+              const animState = tabAnimStates[tab.id];
+              const isLeaving = animState === 'leaving';
+              const isEntering = animState === 'entering';
+
+              return (
+                <button
+                  key={tab.id}
+                  disabled={isLeaving}
+                  draggable={false}
+                  data-active={active ? 'true' : 'false'}
+                  onDragStart={(e) => e.preventDefault()}
+                  onClick={() => {
+                    if (isLeaving) return;
+                    if (hasDraggedRef.current) return;
+                    setActiveTab(tab.id as any);
+                    try {
+                      localStorage.setItem('admin_active_tab', tab.id);
+                    } catch {}
+                    if (window.location.pathname.startsWith('/admin')) {
+                      window.history.replaceState(null, '', `/admin/${tab.id}`);
+                    }
+                  }}
+                  style={{
+                    animationDelay: `${index * 35}ms`,
+                    transition:
+                      'opacity 0.28s ease, transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), max-width 0.3s ease, background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
+                    opacity: isLeaving ? 0 : isEntering ? 0 : 1,
+                    transform: isLeaving
+                      ? 'translateY(-6px) scale(0.88)'
+                      : isEntering
+                      ? 'translateY(6px) scale(0.9)'
+                      : 'translateY(0) scale(1)',
+                    maxWidth: isLeaving ? '0px' : '400px',
+                    overflow: isLeaving ? 'hidden' : 'visible',
+                    padding: isLeaving ? '0' : undefined,
+                    marginRight: isLeaving ? '-8px' : undefined,
+                    pointerEvents: isLeaving ? 'none' : 'auto',
+                  }}
+                  className={`group shrink-0 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-2 whitespace-nowrap ${
+                    isDragActive ? 'cursor-grabbing' : 'cursor-pointer'
+                  } ${
+                    active
+                      ? 'bg-[#ffd56d] text-[#3e2e00] shadow-sm ring-1 ring-[#ffd56d]'
+                      : 'text-[#d1c5af] hover:text-[#ffd56d] hover:bg-[#ffd56d]/10 hover:border-[#ffd56d]/30 border border-transparent hover:shadow-[0_0_14px_rgba(255,213,109,0.15)]'
                   }`}
                 >
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {activeTab === 'solicitudes' && (
-        <AdminSolicitudesTab
-          solicitudes={solicitudes}
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          solicitudesPage={solicitudesPage}
-          onPageChange={setSolicitudesPage}
-          itemsPerPage={SOLICITUDES_PER_PAGE}
-          onStatusChange={handleStatusChange}
-        />
+                  <Icon
+                    className={`w-4 h-4 shrink-0 transition-colors duration-200 ${
+                      active ? 'text-[#3e2e00]' : 'text-[#d1c5af] group-hover:text-[#ffd56d]'
+                    }`}
+                  />
+                  <span className="transition-colors duration-200">{tab.label}</span>
+                  {tab.count !== undefined && (
+                    <span
+                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono transition-colors duration-200 ${
+                        active
+                          ? 'bg-black/20 text-[#3e2e00] font-bold'
+                          : 'bg-white/10 text-white group-hover:bg-[#ffd56d]/20 group-hover:text-[#ffd56d]'
+                      }`}
+                    >
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+        </div>
       )}
 
-      {activeTab === 'mensajes' && (
-        <AdminMensajesTab
-          conversations={conversations}
-          searchMsgTerm={searchMsgTerm}
-          onSearchMsgChange={setSearchMsgTerm}
-          selectedClientId={selectedClientId}
-          onSelectClient={setSelectedClientId}
-          activeClient={activeClient}
-          activeChatMessages={activeChatMessages}
-          adminReplyText={adminReplyText}
-          onReplyTextChange={setAdminReplyText}
-          onSendReply={handleSendReply}
-          sendingReply={sendingReply}
-          chatBottomRef={chatBottomRef as any}
-        />
-      )}
+      {visibleTabs.length === 0 ? (
+        <div className="bg-[#1c1b1d] border border-white/5 rounded-2xl p-12 text-center max-w-xl mx-auto space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-amber-400/10 border border-amber-400/20 text-amber-400 flex items-center justify-center mx-auto">
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+          <h2 className="text-lg font-bold text-white font-display">Sin Módulos Asignados</h2>
+          <p className="text-xs text-[#9a907c] max-w-sm mx-auto">
+            Tu cuenta de administrador no tiene módulos ni vistas asignadas actualmente. Comunícate con el administrador principal para solicitar acceso.
+          </p>
+        </div>
+      ) : (
+        <div key={activeTab} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+          {activeTab === 'solicitudes' && hasTabPermission('solicitudes') && (
+            <AdminSolicitudesTab
+              solicitudes={solicitudes}
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              solicitudesPage={solicitudesPage}
+              onPageChange={setSolicitudesPage}
+              itemsPerPage={SOLICITUDES_PER_PAGE}
+              onStatusChange={handleStatusChange}
+            />
+          )}
 
-      {activeTab === 'cms' && (
-        <AdminCmsTab
-          cms={cms}
-          onCmsChange={setCms}
-          onSaveCms={handleSaveCms}
-          savingCms={savingCms}
-        />
-      )}
+          {activeTab === 'mensajes' && hasTabPermission('mensajes') && (
+            <AdminMensajesTab
+              conversations={conversations}
+              searchMsgTerm={searchMsgTerm}
+              onSearchMsgChange={setSearchMsgTerm}
+              selectedClientId={selectedClientId}
+              onSelectClient={setSelectedClientId}
+              activeClient={activeClient}
+              activeChatMessages={activeChatMessages}
+              adminReplyText={adminReplyText}
+              onReplyTextChange={setAdminReplyText}
+              onSendReply={handleSendReply}
+              sendingReply={sendingReply}
+              chatBottomRef={chatBottomRef as any}
+            />
+          )}
 
-      {activeTab === 'resultados' && (
-        <AdminResultadosTab
-          projects={projects}
-          resultadosPage={resultadosPage}
-          itemsPerPage={RESULTADOS_PER_PAGE}
-          onPageChange={setResultadosPage}
-          newProject={newProject}
-          onNewProjectChange={setNewProject}
-          onCreateProject={handleCreateProject}
-          onEditProject={handleEditProject}
-          onToggleProjectVisibility={handleToggleProjectVisibility}
-          onDeleteProject={handleDeleteProject}
-          stats={stats}
-          newStatItem={newStatItem}
-          onNewStatChange={setNewStatItem}
-          onCreateStat={handleCreateStat}
-          onDeleteStat={handleDeleteStat}
-        />
-      )}
+          {activeTab === 'cms' && hasTabPermission('cms') && (
+            <AdminCmsTab
+              cms={cms}
+              onCmsChange={setCms}
+              onSaveCms={handleSaveCms}
+              savingCms={savingCms}
+            />
+          )}
 
-      {activeTab === 'comentarios' && (
-        <AdminComentariosTab
-          comentarios={comentarios}
-          allComentarios={allComentarios}
-          testimoniosPage={testimoniosPage}
-          itemsPerPage={TESTIMONIOS_PER_PAGE}
-          onPageChange={setTestimoniosPage}
-          showNewTestimonialForm={showNewTestimonialForm}
-          onToggleNewForm={() => setShowNewTestimonialForm(!showNewTestimonialForm)}
-          newTestimonial={newTestimonial}
-          onNewTestimonialChange={setNewTestimonial}
-          onCreateTestimonial={handleCreateTestimonial}
-          onToggleComentario={handleToggleComentario}
-          onDeleteComentario={handleDeleteComentario}
-        />
-      )}
+          {activeTab === 'resultados' && hasTabPermission('resultados') && (
+            <AdminResultadosTab
+              projects={projects}
+              resultadosPage={resultadosPage}
+              itemsPerPage={RESULTADOS_PER_PAGE}
+              onPageChange={setResultadosPage}
+              newProject={newProject}
+              onNewProjectChange={setNewProject}
+              onCreateProject={handleCreateProject}
+              onEditProject={handleEditProject}
+              onToggleProjectVisibility={handleToggleProjectVisibility}
+              onDeleteProject={handleDeleteProject}
+              stats={stats}
+              newStatItem={newStatItem}
+              onNewStatChange={setNewStatItem}
+              onCreateStat={handleCreateStat}
+              onDeleteStat={handleDeleteStat}
+            />
+          )}
 
-      {activeTab === 'planes' && (
-        <AdminPlanesTab
-          planes={planes}
-          recomendadoPlanId={recomendadoPlanId}
-          planesPage={planesPage}
-          itemsPerPage={PLANES_PER_PAGE}
-          onPageChange={setPlanesPage}
-          onOpenCreatePlan={openCreatePlan}
-          onOpenEditPlan={openEditPlan}
-          onTogglePlan={handleTogglePlan}
-          onSetRecomendado={handleSetRecomendado}
-        />
-      )}
+          {activeTab === 'comentarios' && hasTabPermission('comentarios') && (
+            <AdminComentariosTab
+              comentarios={comentarios}
+              allComentarios={allComentarios}
+              testimoniosPage={testimoniosPage}
+              itemsPerPage={TESTIMONIOS_PER_PAGE}
+              onPageChange={setTestimoniosPage}
+              showNewTestimonialForm={showNewTestimonialForm}
+              onToggleNewForm={() => setShowNewTestimonialForm(!showNewTestimonialForm)}
+              newTestimonial={newTestimonial}
+              onNewTestimonialChange={setNewTestimonial}
+              onCreateTestimonial={handleCreateTestimonial}
+              onToggleComentario={handleToggleComentario}
+              onDeleteComentario={handleDeleteComentario}
+            />
+          )}
 
-      {activeTab === 'cotizador_admin' && (
-        <AdminCotizadorTab
-          cotizadorOptions={cotizadorOptions}
-          cotizadorPage={cotizadorPage}
-          itemsPerPage={COTIZADOR_PER_PAGE}
-          onPageChange={setCotizadorPage}
-          onOpenCreateOption={handleOpenCreateOption}
-          onOpenEditOption={handleOpenEditOption}
-          onToggleOptionVisibility={handleToggleOptionVisibility}
-          onDeleteOption={handleDeleteOption}
-        />
+          {activeTab === 'usuarios' && hasTabPermission('usuarios') && (
+            <AdminUsuariosTab
+              usuarios={allUsuarios}
+              onReload={loadAllUsuarios}
+            />
+          )}
+
+          {activeTab === 'permisos' && hasTabPermission('permisos') && (
+            <AdminPermisosTab
+              usuarios={allUsuarios}
+              onReload={loadAllUsuarios}
+            />
+          )}
+
+          {activeTab === 'planes' && hasTabPermission('planes') && (
+            <AdminPlanesTab
+              planes={planes}
+              recomendadoPlanId={recomendadoPlanId}
+              planesPage={planesPage}
+              itemsPerPage={PLANES_PER_PAGE}
+              onPageChange={setPlanesPage}
+              onOpenCreatePlan={openCreatePlan}
+              onOpenEditPlan={openEditPlan}
+              onTogglePlan={handleTogglePlan}
+              onSetRecomendado={handleSetRecomendado}
+            />
+          )}
+
+          {activeTab === 'cotizador_admin' && hasTabPermission('cotizador_admin') && (
+            <AdminCotizadorTab
+              cotizadorOptions={cotizadorOptions}
+              cotizadorPage={cotizadorPage}
+              itemsPerPage={COTIZADOR_PER_PAGE}
+              onPageChange={setCotizadorPage}
+              onOpenCreateOption={handleOpenCreateOption}
+              onOpenEditOption={handleOpenEditOption}
+              onToggleOptionVisibility={handleToggleOptionVisibility}
+              onDeleteOption={handleDeleteOption}
+            />
+          )}
+        </div>
       )}
 
       <AdminPlanModal
@@ -1023,6 +1451,52 @@ export const AdminPanel: React.FC = () => {
         onSaveEdit={handleSaveEditProject}
         onClose={() => setEditingProject(null)}
       />
+
+      {deleteConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-[#1c1b1d] border border-white/10 rounded-2xl p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-400 flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+
+            <div className="text-center space-y-2">
+              <h3 className="text-base font-extrabold text-white font-display">
+                {deleteConfirmModal.title}
+              </h3>
+              <p className="text-xs text-[#9a907c] leading-relaxed">
+                {deleteConfirmModal.description}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button
+                type="button"
+                disabled={deletingItem}
+                onClick={() => setDeleteConfirmModal(null)}
+                className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 text-xs font-semibold transition cursor-pointer flex-1 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={deletingItem}
+                onClick={async () => {
+                  setDeletingItem(true);
+                  try {
+                    await deleteConfirmModal.onConfirm();
+                    setDeleteConfirmModal(null);
+                  } finally {
+                    setDeletingItem(false);
+                  }
+                }}
+                className="px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-xs uppercase tracking-wider transition cursor-pointer flex-1 disabled:opacity-50 shadow-lg shadow-red-500/10"
+              >
+                {deletingItem ? 'Eliminando...' : deleteConfirmModal.confirmButtonText || 'Sí, Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

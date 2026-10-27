@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertTriangle } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 import DatePicker, { registerLocale } from 'react-datepicker';
 import { es } from 'date-fns/locale';
 import 'react-datepicker/dist/react-datepicker.css';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, CalendarDays } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../../context/ToastContext';
+import { CalendarDays } from 'lucide-react';
 
 registerLocale('es', es);
 
@@ -30,21 +31,35 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
   const [showRegPwd, setShowRegPwd] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const clearError = (key: string) => {
+    if (errors[key]) setErrors((p) => { const n = { ...p }; delete n[key]; return n; });
+  };
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (regPwd !== regConfirmPwd) {
-      showToast('Error de Validación', 'Las contraseñas no coinciden', 'error');
+    const newErrors: Record<string, string> = {};
+    if (!regFirstName.trim()) newErrors.nombres = 'El nombre es obligatorio';
+    if (!regLastName.trim()) newErrors.apellidos = 'El apellido es obligatorio';
+    if (!regDocNumber.trim()) newErrors.cedula = 'El número de documento es obligatorio';
+    if (!regEmail.trim()) {
+      newErrors.correo = 'El correo es obligatorio';
+    } else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(regEmail.trim())) {
+      newErrors.correo = 'Ingresa un correo válido';
+    }
+    if (!regPwd) {
+      newErrors.password = 'La contraseña es obligatoria';
+    } else if (regPwd.length < 6) {
+      newErrors.password = 'Mínimo 6 caracteres';
+    }
+    if (regPwd !== regConfirmPwd) newErrors.confirmPwd = 'Las contraseñas no coinciden';
+    if (!acceptedTerms) newErrors.terms = 'Debes aceptar los términos y políticas';
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
-    if (regPwd.length < 6) {
-      showToast('Contraseña Insegura', 'La contraseña debe contener al menos 6 caracteres', 'error');
-      return;
-    }
-    if (!acceptedTerms) {
-      showToast('Términos Requeridos', 'Debes aceptar los términos y políticas confidenciales', 'error');
-      return;
-    }
+    setErrors({});
 
     setIsSubmitting(true);
     try {
@@ -72,6 +87,16 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
     }
   };
 
+  const inputCls = (key: string) =>
+    `w-full bg-[#0e0e10] text-[#e5e1e4] px-3.5 py-2.5 rounded-xl border focus:outline-none text-xs transition ${errors[key] ? 'border-red-500/70' : 'border-white/10 focus:border-[#ffd56d]/50'}`;
+
+  const errMsg = (key: string) =>
+    errors[key] ? (
+      <p className="text-[11px] text-red-400 flex items-center gap-1 mt-1">
+        <AlertTriangle className="w-3 h-3 shrink-0" />{errors[key]}
+      </p>
+    ) : null;
+
   return (
     <div className="space-y-4 animate-in fade-in duration-200">
       <div>
@@ -89,25 +114,25 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
             <label className="block text-xs font-medium text-[#e5e1e4]">Nombres *</label>
             <input
               type="text"
-              required
               autoComplete="off"
               value={regFirstName}
-              onChange={(e) => setRegFirstName(e.target.value)}
+              onChange={(e) => { setRegFirstName(e.target.value); clearError('nombres'); }}
               placeholder="Nombres"
-              className="w-full bg-[#0e0e10] text-[#e5e1e4] px-3.5 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
+              className={inputCls('nombres')}
             />
+            {errMsg('nombres')}
           </div>
           <div className="space-y-1">
             <label className="block text-xs font-medium text-[#e5e1e4]">Apellidos *</label>
             <input
               type="text"
-              required
               autoComplete="off"
               value={regLastName}
-              onChange={(e) => setRegLastName(e.target.value)}
+              onChange={(e) => { setRegLastName(e.target.value); clearError('apellidos'); }}
               placeholder="Apellidos"
-              className="w-full bg-[#0e0e10] text-[#e5e1e4] px-3.5 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
+              className={inputCls('apellidos')}
             />
+            {errMsg('apellidos')}
           </div>
         </div>
 
@@ -130,13 +155,13 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
             <label className="block text-xs font-medium text-[#e5e1e4]">Número de Documento *</label>
             <input
               type="text"
-              required
               autoComplete="off"
               value={regDocNumber}
-              onChange={(e) => setRegDocNumber(e.target.value)}
+              onChange={(e) => { setRegDocNumber(e.target.value); clearError('cedula'); }}
               placeholder="N° de identificación fiscal"
-              className="w-full bg-[#0e0e10] text-[#e5e1e4] px-3.5 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
+              className={inputCls('cedula')}
             />
+            {errMsg('cedula')}
           </div>
         </div>
 
@@ -188,15 +213,15 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
             <div className="relative flex items-center">
               <Mail className="absolute left-3 text-[#9a907c] w-4 h-4 pointer-events-none" />
               <input
-                type="email"
-                required
+                type="text"
                 autoComplete="off"
                 value={regEmail}
-                onChange={(e) => setRegEmail(e.target.value)}
+                onChange={(e) => { setRegEmail(e.target.value); clearError('correo'); }}
                 placeholder="contacto@empresa.com"
-                className="w-full bg-[#0e0e10] text-[#e5e1e4] pl-9 pr-3 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
+                className={`w-full bg-[#0e0e10] text-[#e5e1e4] pl-9 pr-3 py-2.5 rounded-xl border focus:outline-none text-xs transition ${errors.correo ? 'border-red-500/70' : 'border-white/10 focus:border-[#ffd56d]/50'}`}
               />
             </div>
+            {errMsg('correo')}
           </div>
         </div>
 
@@ -231,12 +256,11 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
               <Lock className="absolute left-3 text-[#9a907c] w-4 h-4 pointer-events-none" />
               <input
                 type={showRegPwd ? 'text' : 'password'}
-                required
                 autoComplete="new-password"
                 value={regPwd}
-                onChange={(e) => setRegPwd(e.target.value)}
+                onChange={(e) => { setRegPwd(e.target.value); clearError('password'); }}
                 placeholder="Mínimo 6 caracteres"
-                className="w-full bg-[#0e0e10] text-[#e5e1e4] pl-9 pr-8 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
+                className={`w-full bg-[#0e0e10] text-[#e5e1e4] pl-9 pr-8 py-2.5 rounded-xl border focus:outline-none text-xs transition ${errors.password ? 'border-red-500/70' : 'border-white/10 focus:border-[#ffd56d]/50'}`}
               />
               <button
                 type="button"
@@ -246,6 +270,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
                 {showRegPwd ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               </button>
             </div>
+            {errMsg('password')}
           </div>
           <div className="space-y-1">
             <label className="block text-xs font-medium text-[#e5e1e4]">Confirmar *</label>
@@ -253,14 +278,14 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
               <Lock className="absolute left-3 text-[#9a907c] w-4 h-4 pointer-events-none" />
               <input
                 type={showRegPwd ? 'text' : 'password'}
-                required
                 autoComplete="new-password"
                 value={regConfirmPwd}
-                onChange={(e) => setRegConfirmPwd(e.target.value)}
+                onChange={(e) => { setRegConfirmPwd(e.target.value); clearError('confirmPwd'); }}
                 placeholder="Repite la clave"
-                className="w-full bg-[#0e0e10] text-[#e5e1e4] pl-9 pr-3 py-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d]/50 focus:outline-none text-xs"
+                className={`w-full bg-[#0e0e10] text-[#e5e1e4] pl-9 pr-3 py-2.5 rounded-xl border focus:outline-none text-xs transition ${errors.confirmPwd ? 'border-red-500/70' : 'border-white/10 focus:border-[#ffd56d]/50'}`}
               />
             </div>
+            {errMsg('confirmPwd')}
           </div>
         </div>
 
@@ -269,13 +294,14 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
             <input
               type="checkbox"
               checked={acceptedTerms}
-              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              onChange={(e) => { setAcceptedTerms(e.target.checked); clearError('terms'); }}
               className="w-4 h-4 rounded bg-[#0e0e10] border-white/20 text-[#ffd56d] accent-[#ffd56d]"
             />
             <span className="text-xs text-[#d1c5af] select-none">
               Acepto los términos de servicio y políticas de confidencialidad
             </span>
           </label>
+          {errMsg('terms')}
         </div>
 
         <button

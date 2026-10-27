@@ -91,6 +91,112 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
     } catch {}
   };
 
+  const handleNotificationClick = async (n: NotificacionItem) => {
+    if (!n.leido) {
+      handleMarkOneAsRead(n.id);
+    }
+    setShowNotifications(false);
+
+    const tipo = (n.tipo || '').toLowerCase();
+    const titulo = (n.titulo || '').toLowerCase();
+    const mensaje = (n.mensaje || '').toLowerCase();
+
+    if (isAdmin) {
+      let targetTab = 'solicitudes';
+
+      if (
+        tipo === 'mensaje_usuario' ||
+        tipo === 'mensaje_admin' ||
+        titulo.includes('mensaje') ||
+        titulo.includes('chat') ||
+        mensaje.includes('mensaje')
+      ) {
+        targetTab = 'mensajes';
+      } else if (
+        tipo === 'nuevo_comentario' ||
+        titulo.includes('testimonio') ||
+        titulo.includes('comentario')
+      ) {
+        targetTab = 'comentarios';
+      } else if (
+        titulo.includes('usuario') ||
+        titulo.includes('registro') ||
+        mensaje.includes('usuario')
+      ) {
+        targetTab = 'usuarios';
+      } else if (
+        titulo.includes('permiso') ||
+        mensaje.includes('permiso')
+      ) {
+        targetTab = 'permisos';
+      } else if (
+        tipo === 'nueva_solicitud' ||
+        tipo === 'solicitud_estado' ||
+        titulo.includes('solicitud') ||
+        titulo.includes('cotización') ||
+        titulo.includes('cotizacion')
+      ) {
+        targetTab = 'solicitudes';
+      }
+
+      // Validar si el admin tiene permisos asignados específicos
+      const userPerms = Array.isArray(user?.permisos) && user?.permisos.length > 0 ? (user?.permisos as string[]) : null;
+      if (userPerms && !userPerms.includes(targetTab)) {
+        targetTab = userPerms[0] || 'solicitudes';
+      }
+
+      try {
+        localStorage.setItem('admin_active_tab', targetTab);
+      } catch {}
+
+      onSelectView('admin');
+      window.dispatchEvent(
+        new CustomEvent('wuish:openAdminTab', {
+          detail: { tab: targetTab, clientId: n.referencia_id || null },
+        })
+      );
+      if (window.location.pathname.startsWith('/admin')) {
+        window.history.pushState(null, '', `/admin/${targetTab}`);
+      }
+    } else {
+      // Reglas de navegación para Cliente
+      if (
+        tipo === 'mensaje_admin' ||
+        titulo.includes('mensaje') ||
+        titulo.includes('chat') ||
+        titulo.includes('respuesta') ||
+        mensaje.includes('mensaje')
+      ) {
+        onSelectView('portal');
+        onSelectDashboardTab?.('resumen');
+        window.dispatchEvent(new CustomEvent('wuish:openDashboardTab', { detail: 'resumen' }));
+        setTimeout(() => {
+          const chatInput = document.querySelector('input[placeholder*="mensaje"]') as HTMLElement | null;
+          if (chatInput) {
+            chatInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            chatInput.focus();
+          }
+        }, 120);
+      } else if (
+        tipo === 'solicitud_estado' ||
+        tipo === 'nueva_solicitud' ||
+        titulo.includes('solicitud') ||
+        titulo.includes('cotización') ||
+        titulo.includes('cotizacion') ||
+        titulo.includes('aprobada') ||
+        titulo.includes('rechazada')
+      ) {
+        onSelectView('portal');
+        onSelectDashboardTab?.('solicitudes');
+        window.dispatchEvent(new CustomEvent('wuish:openDashboardTab', { detail: 'solicitudes' }));
+      } else {
+        onSelectView('portal');
+        onSelectDashboardTab?.('resumen');
+        window.dispatchEvent(new CustomEvent('wuish:openDashboardTab', { detail: 'resumen' }));
+      }
+    }
+  };
+
   const getNotifIcon = (tipo: string) => {
     if (tipo === 'mensaje_usuario' || tipo === 'mensaje_admin') return <MessageSquare className="w-3.5 h-3.5 text-sky-400" />;
     if (tipo === 'nueva_solicitud') return <FileText className="w-3.5 h-3.5 text-emerald-400" />;
@@ -151,7 +257,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
           </div>
 
           {/* Navigation Links */}
-          <nav className="flex items-center gap-1.5 text-xs font-medium py-1 relative">
+          <nav className="flex items-center gap-1.5 text-xs font-medium py-1 px-1.5 rounded-xl border border-transparent hover:border-white/10 hover:bg-white/[0.02] transition-all relative">
             {isAuthenticated && (
               <>
                 {DASHBOARD_TABS.map(({ id, label, icon: Icon }) => {
@@ -163,13 +269,13 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
                         onSelectDashboardTab?.(id);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                      className={`group flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all duration-200 cursor-pointer whitespace-nowrap ${
                         isActive
                           ? 'bg-[#ffd56d] text-[#3e2e00] font-bold shadow-sm'
-                          : 'text-[#d1c5af] hover:text-white hover:bg-white/5'
+                          : 'text-[#d1c5af] hover:text-[#ffd56d] hover:bg-[#ffd56d]/10 hover:border-[#ffd56d]/30 border border-transparent hover:shadow-[0_0_12px_rgba(255,213,109,0.15)]'
                       }`}
                     >
-                      <Icon className="w-3.5 h-3.5" />
+                      <Icon className="w-3.5 h-3.5 transition-colors group-hover:text-[#ffd56d]" />
                       <span>{label}</span>
                     </button>
                   );
@@ -178,10 +284,10 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
                 {isAdmin && (
                   <button
                     onClick={() => onSelectView('admin')}
-                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap font-medium ${
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg transition-all duration-200 cursor-pointer whitespace-nowrap font-medium ${
                       currentView === 'admin'
                         ? 'bg-[#ffd56d] text-[#3e2e00] font-bold shadow-md ring-1 ring-[#ffd56d]'
-                        : 'text-[#ffd56d] bg-[#ffd56d]/10 border border-[#ffd56d]/30 hover:bg-[#ffd56d]/20 hover:text-white'
+                        : 'text-[#ffd56d] bg-[#ffd56d]/10 border border-[#ffd56d]/30 hover:bg-[#ffd56d]/25 hover:text-white hover:shadow-[0_0_14px_rgba(255,213,109,0.2)]'
                     }`}
                   >
                     <Shield className="w-3.5 h-3.5" />
@@ -246,10 +352,11 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
                     notifications.map((n) => (
                       <div
                         key={n.id}
-                        onClick={() => !n.leido && handleMarkOneAsRead(n.id)}
-                        className={`flex items-start gap-3 px-4 py-3 border-b border-white/5 last:border-0 cursor-pointer transition-colors ${
-                          n.leido ? 'opacity-50 hover:opacity-70' : 'hover:bg-white/5'
+                        onClick={() => handleNotificationClick(n)}
+                        className={`flex items-start gap-3 px-4 py-3 border-b border-white/5 last:border-0 cursor-pointer transition-colors group ${
+                          n.leido ? 'opacity-55 hover:bg-white/5 hover:opacity-90' : 'bg-[#ffd56d]/5 hover:bg-[#ffd56d]/10'
                         }`}
+                        title="Clic para ir al apartado correspondiente"
                       >
                         <div className={`mt-0.5 w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
                           n.leido ? 'bg-zinc-800' : 'bg-[#ffd56d]/10 border border-[#ffd56d]/20'
@@ -257,9 +364,12 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
                           {getNotifIcon(n.tipo)}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-xs font-semibold leading-tight ${n.leido ? 'text-zinc-500' : 'text-white'}`}>{n.titulo}</p>
+                          <p className={`text-xs font-semibold leading-tight ${n.leido ? 'text-zinc-400' : 'text-white'}`}>{n.titulo}</p>
                           <p className="text-[11px] text-[#9a907c] mt-0.5 leading-snug line-clamp-2">{n.mensaje}</p>
-                          <p className="text-[10px] text-[#9a907c]/60 mt-1">{formatNotifTime(n.created_at)}</p>
+                          <div className="flex items-center justify-between mt-1 text-[10px] text-[#9a907c]/60">
+                            <span>{formatNotifTime(n.created_at)}</span>
+                            <span className="text-[#ffd56d] font-semibold opacity-0 group-hover:opacity-100 transition-opacity">Ir →</span>
+                          </div>
                         </div>
                         {!n.leido && <div className="w-1.5 h-1.5 rounded-full bg-[#ffd56d] mt-1.5 shrink-0" />}
                       </div>
