@@ -70,8 +70,9 @@ set +a
 mkdir -p "$BACKUP_DIR"
 if command -v pg_dump >/dev/null 2>&1; then
   backup_file="$BACKUP_DIR/wuish_$(date '+%Y%m%d_%H%M%S').dump"
+  backup_database_url="${DATABASE_URL%%\?*}"
   log "Creando copia de seguridad en $backup_file"
-  pg_dump --format=custom --file="$backup_file" "$DATABASE_URL"
+  pg_dump --format=custom --file="$backup_file" "$backup_database_url"
 else
   fail "pg_dump no está instalado; no se puede actualizar la base de datos sin copia de seguridad."
 fi
