@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+if command -v readlink >/dev/null 2>&1; then
+  SCRIPT_PATH="$(readlink -f -- "$SCRIPT_PATH")"
+fi
+ROOT_DIR="$(cd -- "$(dirname -- "$SCRIPT_PATH")/.." && pwd)"
 API_DIR="$ROOT_DIR/wuish-api"
 BRANCH="${BRANCH:-main}"
 PM2_APP="${PM2_APP:-wuish-api}"
