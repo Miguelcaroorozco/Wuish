@@ -119,7 +119,7 @@ export const AdminPanel: React.FC = () => {
   const userPermisos = useMemo(() => {
     return Array.isArray(currentUser?.permisos)
       ? (currentUser?.permisos as string[])
-      : null;
+      : [];
   }, [currentUser?.permisos]);
 
   const [activeTab, setActiveTab] = useState<AdminTabType>(() => {

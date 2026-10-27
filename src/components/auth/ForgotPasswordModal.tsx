@@ -28,9 +28,11 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
     }
     setEmailError('');
     const res = await resetPassword(forgotEmail);
-    showToast('Enlace de Restablecimiento', res.message, 'info');
-    onClose();
-    setForgotEmail('');
+    showToast(res.success ? 'Enlace de Restablecimiento' : 'Recuperación no disponible', res.message, res.success ? 'info' : 'error');
+    if (res.success) {
+      onClose();
+      setForgotEmail('');
+    }
   };
 
   return (

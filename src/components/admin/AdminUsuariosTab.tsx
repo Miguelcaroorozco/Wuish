@@ -224,6 +224,7 @@ export const AdminUsuariosTab: React.FC<AdminUsuariosTabProps> = ({ usuarios, on
 
     setSaving(true);
     try {
+      const isNewAdmin = formData.rol === 'admin' || formData.rol === 'administrador';
       await usuariosApi.create({
         nombres: formData.nombres,
         apellidos: formData.apellidos,
@@ -235,6 +236,7 @@ export const AdminUsuariosTab: React.FC<AdminUsuariosTabProps> = ({ usuarios, on
         empresa: formData.empresa || undefined,
         cargo: formData.cargo || undefined,
         rol: formData.rol,
+        permisos: isNewAdmin ? [] : undefined,
         fecha_nacimiento: birthDate ? birthDate.toISOString().split('T')[0] : undefined,
       });
 
@@ -275,6 +277,13 @@ export const AdminUsuariosTab: React.FC<AdminUsuariosTabProps> = ({ usuarios, on
         rol: formData.rol,
         fecha_nacimiento: birthDate ? birthDate.toISOString().split('T')[0] : undefined,
       };
+
+      // Si se pasa a admin y no tenía permisos definidos, inicializar con [] (todo desactivado)
+      const isTargetAdmin = formData.rol === 'admin' || formData.rol === 'administrador';
+      const wasAdmin = selectedUser.rol === 'admin' || selectedUser.rol === 'administrador';
+      if ((isTargetAdmin && !wasAdmin) || (isTargetAdmin && !Array.isArray(selectedUser.permisos))) {
+        payload.permisos = [];
+      }
 
       if (showChangePassword && formData.password.trim()) {
         payload.password = formData.password.trim();

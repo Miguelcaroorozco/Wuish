@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authApi, setToken, removeToken, getToken } from '../lib/api';
+import { authApi, setToken, removeToken, getToken, usuariosApi } from '../lib/api';
 
 export type UserRole = 'usuario' | 'admin' | 'administrador';
 
@@ -16,6 +16,7 @@ export interface AuthUser {
   cargo?: string | null;
   rol: string;
   permisos?: string[] | null;
+  preferencias?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -134,22 +135,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const resetPassword = async (email: string) => {
-    // TODO: Implement real password reset endpoint
     return {
-      success: true,
-      message: `Se ha enviado un enlace de restablecimiento a ${email}.`,
+      success: false,
+      message: `La recuperación de contraseña aún no está habilitada para ${email}. Contacta al administrador.`,
     };
   };
 
   const updateProfile = async (data: Partial<AuthUser>) => {
-    setUser((prev) => {
-      if (!prev) return prev;
-      const updated = { ...prev, ...data };
-      try {
-        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updated));
-      } catch {}
-      return updated;
-    });
+    const payload = {
+      ...(data.nombres !== undefined ? { nombres: data.nombres } : {}),
+      ...(data.apellidos !== undefined ? { apellidos: data.apellidos } : {}),
+      ...(data.telefono !== undefined ? { telefono: data.telefono || undefined } : {}),
+      ...(data.empresa !== undefined ? { empresa: data.empresa || undefined } : {}),
+      ...(data.cargo !== undefined ? { cargo: data.cargo || undefined } : {}),
+      ...(data.preferencias !== undefined ? { preferencias: data.preferencias } : {}),
+      ...(data.permisos !== undefined ? { permisos: data.permisos || [] } : {}),
+    };
+    const updatedUser = await usuariosApi.updateMe(payload);
+    setUser(updatedUser);
     return { success: true, message: 'Perfil actualizado correctamente.' };
   };
 

@@ -112,6 +112,47 @@ npm run dev:api
 | `npx prisma generate` | `wuish-api/` | Regenera el cliente Prisma. |
 | `npx ts-node prisma/seed.ts` | `wuish-api/` | Carga datos de prueba. |
 
+## Actualizar producción en AWS
+
+El repositorio incluye un script de despliegue seguro para Ubuntu. Ejecuta las
+órdenes desde `/var/www/wuish`:
+
+```bash
+chmod +x scripts/actualizar.sh
+npm run actualizar
+```
+
+El script:
+
+1. Verifica que el repositorio no tenga cambios locales.
+2. Descarga y aplica únicamente los cambios de `origin/main`.
+3. Instala las dependencias con `npm ci`.
+4. Regenera Prisma Client.
+5. Crea un backup de PostgreSQL en `.backups/`.
+6. Ejecuta `prisma db push` para crear o actualizar las tablas.
+7. Compila backend y frontend.
+8. Reinicia `wuish-api` en PM2 y ejecuta una comprobación HTTP.
+
+El script se detiene antes de reiniciar PM2 si falla la base de datos, la
+compilación o cualquier otra etapa. No fuerza cambios locales ni usa
+`--accept-data-loss`. El usuario configurado en `wuish-api/.env` debe tener
+permisos de propietario sobre las tablas de PostgreSQL para que Prisma pueda
+actualizar el esquema.
+
+Para instalar el comando exacto `actualizar` en el servidor:
+
+```bash
+sudo ln -sf /var/www/wuish/scripts/actualizar.sh /usr/local/bin/actualizar
+sudo chmod +x /var/www/wuish/scripts/actualizar.sh
+actualizar
+```
+
+Se pueden personalizar el nombre del proceso PM2 y la carpeta de backups:
+
+```bash
+PM2_APP=wuish-api BACKUP_DIR=/var/backups/wuish actualizar
+```
+
 ## Actualizar la base de datos
 
 Cuando se modifica `wuish-api/prisma/schema.prisma`, ejecuta:

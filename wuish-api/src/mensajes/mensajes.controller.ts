@@ -46,6 +46,8 @@ export class MensajesController {
     const esAdmin = isAdmin && !!data.usuario_id;
 
     return this.mensajesService.create({
+      requester_id: req.user.sub,
+      requester_is_admin: isAdmin,
       usuario_id: targetUserId,
       solicitud_id: data.solicitud_id,
       asunto: data.asunto,
@@ -66,7 +68,8 @@ export class MensajesController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Marcar mensaje como leído' })
-  markAsRead(@Param('id') id: string) {
-    return this.mensajesService.markAsRead(id);
+  markAsRead(@Param('id') id: string, @Request() req) {
+    const isAdmin = req.user.rol === 'admin' || req.user.rol === 'administrador';
+    return this.mensajesService.markAsRead(id, req.user.sub, isAdmin);
   }
 }

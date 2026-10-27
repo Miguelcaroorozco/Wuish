@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -27,12 +27,32 @@ export class MensajesService {
   }
 
   async create(data: {
+    requester_id: string;
+    requester_is_admin: boolean;
     usuario_id: string;
     solicitud_id?: string;
     asunto?: string;
     contenido: string;
     es_admin?: boolean;
   }) {
+    if (!data.requester_is_admin && data.usuario_id !== data.requester_id) {
+      throw new ForbiddenException('No puedes enviar mensajes para otro usuario');
+    }
+
+    if (data.solicitud_id) {
+      const solicitud = await this.prisma.solicitud.findUnique({
+        where: { id: data.solicitud_id },
+        select: { usuario_id: true },
+      });
+      if (!solicitud) throw new NotFoundException('Solicitud no encontrada');
+      if (!data.requester_is_admin && solicitud.usuario_id !== data.requester_id) {
+        throw new ForbiddenException('No puedes usar esa solicitud');
+      }
+      if (solicitud.usuario_id !== data.usuario_id) {
+        throw new ForbiddenException('La solicitud no pertenece al usuario destinatario');
+      }
+    }
+
     const msg = await this.prisma.mensaje.create({
       data: {
         usuario_id: data.usuario_id,
@@ -81,7 +101,16 @@ export class MensajesService {
     return msg;
   }
 
-  async markAsRead(id: string) {
+  async markAsRead(id: string, requesterId: string, isAdmin: boolean) {
+    const message = await this.prisma.mensaje.findUnique({
+      where: { id },
+      select: { usuario_id: true },
+    });
+    if (!message) throw new NotFoundException('Mensaje no encontrado');
+    if (!isAdmin && message.usuario_id !== requesterId) {
+      throw new ForbiddenException('No puedes modificar ese mensaje');
+    }
+
     return this.prisma.mensaje.update({
       where: { id },
       data: { leido: true },

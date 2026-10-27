@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -58,7 +58,19 @@ export class NotificacionesService {
     });
   }
 
-  async markAsRead(id: string) {
+  async markAsRead(id: string, requesterId: string, isAdmin: boolean) {
+    const notification = await this.prisma.notificacion.findUnique({
+      where: { id },
+      select: { usuario_id: true, para_admin: true },
+    });
+    if (!notification) throw new NotFoundException('Notificación no encontrada');
+    const canRead = isAdmin
+      ? notification.para_admin
+      : !notification.para_admin && notification.usuario_id === requesterId;
+    if (!canRead) {
+      throw new ForbiddenException('No puedes modificar esa notificación');
+    }
+
     return this.prisma.notificacion.update({
       where: { id },
       data: { leido: true },

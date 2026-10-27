@@ -29,8 +29,9 @@ export class SolicitudesController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Obtener detalle de solicitud' })
-  findOne(@Param('id') id: string) {
-    return this.solicitudesService.findOne(id);
+  findOne(@Param('id') id: string, @Request() req) {
+    const isAdmin = req.user.rol === 'admin' || req.user.rol === 'administrador';
+    return this.solicitudesService.findOne(id, req.user.sub, isAdmin);
   }
 
   @Post()

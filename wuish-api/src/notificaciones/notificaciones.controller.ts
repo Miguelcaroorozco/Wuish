@@ -36,7 +36,8 @@ export class NotificacionesController {
 
   @Put(':id/leer')
   @ApiOperation({ summary: 'Marcar una notificación como leída' })
-  markAsRead(@Param('id') id: string) {
-    return this.notificacionesService.markAsRead(id);
+  markAsRead(@Param('id') id: string, @Request() req) {
+    const isAdmin = req.user.rol === 'admin' || req.user.rol === 'administrador';
+    return this.notificacionesService.markAsRead(id, req.user.sub, isAdmin);
   }
 }

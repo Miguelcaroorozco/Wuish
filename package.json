@@ -8,6 +8,7 @@
     "dev:frontend": "vite --port=3000 --host=0.0.0.0",
     "dev:api": "npm --prefix wuish-api run start:dev",
     "build": "vite build",
+    "actualizar": "bash scripts/actualizar.sh",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"

@@ -30,11 +30,12 @@ export class UsuariosService {
       empresa?: string;
       cargo?: string;
       preferencias?: any;
+      permisos?: string[];
     },
   ) {
     const user = await this.prisma.usuario.update({
       where: { id },
-      data: { ...(data as any), updated_at: new Date() },
+      data: { ...data, updated_at: new Date() },
     });
     const { password_hash, ...sanitized } = user;
     return sanitized;
@@ -105,7 +106,9 @@ export class UsuariosService {
         empresa: data.empresa?.trim() || null,
         cargo: data.cargo?.trim() || null,
         rol: data.rol || 'usuario',
-        permisos: data.permisos || null,
+        permisos: data.permisos !== undefined
+          ? data.permisos
+          : (data.rol === 'admin' || data.rol === 'administrador' ? [] : null),
         fecha_nacimiento: data.fecha_nacimiento ? new Date(data.fecha_nacimiento) : new Date('2000-01-01'),
       },
     });
@@ -135,6 +138,13 @@ export class UsuariosService {
     if (!user) throw new NotFoundException('Usuario no encontrado');
 
     const updateData: any = { ...data, updated_at: new Date() };
+
+    // Si se pasa a rol de admin y no tiene permisos definidos, inicializar con [] (todo desactivado)
+    const isTargetAdmin = data.rol === 'admin' || data.rol === 'administrador';
+    const wasAdmin = user.rol === 'admin' || user.rol === 'administrador';
+    if (data.permisos === undefined && isTargetAdmin && (!wasAdmin || !Array.isArray(user.permisos))) {
+      updateData.permisos = [];
+    }
 
     if (data.correo) {
       updateData.correo = data.correo.toLowerCase().trim();

@@ -63,9 +63,15 @@ export class UsuariosController {
       empresa?: string;
       cargo?: string;
       preferencias?: any;
+      permisos?: string[];
     },
   ) {
-    return this.usuariosService.update(req.user.sub, data);
+    const isAdmin = req.user.rol === 'admin' || req.user.rol === 'administrador';
+    const { permisos, ...profileData } = data;
+    return this.usuariosService.update(req.user.sub, {
+      ...profileData,
+      ...(isAdmin && permisos !== undefined ? { permisos } : {}),
+    });
   }
 
   @Put('me/password')

@@ -34,7 +34,7 @@ export class SolicitudesService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, requesterId?: string, isAdmin = false) {
     const solicitud = await this.prisma.solicitud.findUnique({
       where: { id },
       include: {
@@ -46,6 +46,9 @@ export class SolicitudesService {
       },
     });
     if (!solicitud) throw new NotFoundException('Solicitud no encontrada');
+    if (!isAdmin && solicitud.usuario_id !== requesterId) {
+      throw new NotFoundException('Solicitud no encontrada');
+    }
     return solicitud;
   }
 

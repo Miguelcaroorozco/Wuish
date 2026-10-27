@@ -86,6 +86,7 @@ export const usuariosApi = {
     empresa?: string;
     cargo?: string;
     preferencias?: any;
+    permisos?: string[];
   }) =>
     request<any>('/usuarios/me', {
       method: 'PUT',

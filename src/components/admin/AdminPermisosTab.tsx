@@ -151,7 +151,7 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
       if (Array.isArray(admin.permisos)) {
         initial[admin.id] = admin.permisos;
       } else {
-        initial[admin.id] = [...ALL_VIEW_IDS];
+        initial[admin.id] = [];
       }
     });
     setPermissionsState(initial);
@@ -168,7 +168,7 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
         a.numero_cedula.toLowerCase().includes(q) ||
         a.correo.toLowerCase().includes(q);
 
-      const perms = permissionsState[a.id] !== undefined ? permissionsState[a.id] : (Array.isArray(a.permisos) ? a.permisos : [...ALL_VIEW_IDS]);
+      const perms = permissionsState[a.id] !== undefined ? permissionsState[a.id] : (Array.isArray(a.permisos) ? a.permisos : []);
       const isFull = perms.length === ALL_VIEW_IDS.length;
       const matchFilter =
         accessFilter === 'all'
@@ -193,7 +193,7 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
     const admin = adminUsers.find((a) => a.id === adminId);
     const current = permissionsState[adminId] !== undefined
       ? permissionsState[adminId]
-      : (Array.isArray(admin?.permisos) ? (admin!.permisos as string[]) : [...ALL_VIEW_IDS]);
+      : (Array.isArray(admin?.permisos) ? (admin!.permisos as string[]) : []);
     const hasPermission = current.includes(viewId);
 
     // Si se intenta deseleccionar el permiso crítico 'permisos'
@@ -207,7 +207,7 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
     setPermissionsState((prev) => {
       const curr = prev[adminId] !== undefined
         ? prev[adminId]
-        : (Array.isArray(admin?.permisos) ? (admin!.permisos as string[]) : [...ALL_VIEW_IDS]);
+        : (Array.isArray(admin?.permisos) ? (admin!.permisos as string[]) : []);
       const updated = hasPermission
         ? curr.filter((id) => id !== viewId)
         : [...curr, viewId];
@@ -226,7 +226,7 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
     const admin = adminUsers.find((a) => a.id === adminId);
     const current = permissionsState[adminId] !== undefined
       ? permissionsState[adminId]
-      : (Array.isArray(admin?.permisos) ? (admin!.permisos as string[]) : [...ALL_VIEW_IDS]);
+      : (Array.isArray(admin?.permisos) ? (admin!.permisos as string[]) : []);
     if (current.includes('permisos')) {
       if (admin) {
         setConfirmRevokePermisos({ admin, action: 'deselectAll' });
@@ -246,7 +246,7 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
     setPermissionsState((prev) => {
       const current = prev[admin.id] !== undefined
         ? prev[admin.id]
-        : (Array.isArray(admin.permisos) ? (admin.permisos as string[]) : [...ALL_VIEW_IDS]);
+        : (Array.isArray(admin.permisos) ? (admin.permisos as string[]) : []);
       if (action === 'deselectAll') {
         return { ...prev, [admin.id]: [] };
       }
@@ -259,8 +259,8 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
   const hasUnsavedChanges = (admin: UsuarioItem) => {
     const current = permissionsState[admin.id] !== undefined
       ? permissionsState[admin.id]
-      : (Array.isArray(admin.permisos) ? admin.permisos : ALL_VIEW_IDS);
-    const original = Array.isArray(admin.permisos) ? admin.permisos : ALL_VIEW_IDS;
+      : (Array.isArray(admin.permisos) ? admin.permisos : []);
+    const original = Array.isArray(admin.permisos) ? admin.permisos : [];
     if (current.length !== original.length) return true;
     const origSet = new Set(original);
     return current.some((id) => !origSet.has(id));
@@ -269,7 +269,7 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
   const handleSavePermissions = async (admin: UsuarioItem) => {
     const selected = permissionsState[admin.id] !== undefined
       ? permissionsState[admin.id]
-      : (Array.isArray(admin.permisos) ? admin.permisos : [...ALL_VIEW_IDS]);
+      : (Array.isArray(admin.permisos) ? admin.permisos : []);
     setSavingAdminId(admin.id);
     try {
       await usuariosApi.updateAdmin(admin.id, {
@@ -317,7 +317,7 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
       for (const admin of changedAdmins) {
         const selected = permissionsState[admin.id] !== undefined
           ? permissionsState[admin.id]
-          : (Array.isArray(admin.permisos) ? admin.permisos : [...ALL_VIEW_IDS]);
+          : (Array.isArray(admin.permisos) ? admin.permisos : []);
         await usuariosApi.updateAdmin(admin.id, {
           permisos: selected,
         });
@@ -353,7 +353,7 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
   const fullAccessCount = adminUsers.filter((a) => {
     const p = permissionsState[a.id] !== undefined
       ? permissionsState[a.id]
-      : (Array.isArray(a.permisos) ? a.permisos : [...ALL_VIEW_IDS]);
+      : (Array.isArray(a.permisos) ? a.permisos : []);
     return p.length === ALL_VIEW_IDS.length;
   }).length;
 
@@ -471,7 +471,7 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
                 paginatedAdmins.map((admin) => {
                   const adminPerms = permissionsState[admin.id] !== undefined
                     ? permissionsState[admin.id]
-                    : (Array.isArray(admin.permisos) ? admin.permisos : ALL_VIEW_IDS);
+                    : (Array.isArray(admin.permisos) ? admin.permisos : []);
                   const isCurrent = admin.id === currentUser?.id;
                   const isSaving = savingAdminId === admin.id;
                   const changed = hasUnsavedChanges(admin);
@@ -687,37 +687,43 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
               </button>
             </div>
 
-            <div className="flex items-center justify-between py-1">
-              <span className="text-xs text-[#d1c5af]">
-                Vistas seleccionadas:{' '}
-                <strong className="text-white">
-                  {(permissionsState[modalAdmin.id] || []).length} de {ALL_VIEW_IDS.length}
-                </strong>
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleSelectAll(modalAdmin.id)}
-                  className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1"
-                >
-                  <CheckSquare className="w-3.5 h-3.5 text-[#ffd56d]" />
-                  <span>Seleccionar Todas</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDeselectAll(modalAdmin.id)}
-                  className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1"
-                >
-                  <Square className="w-3.5 h-3.5 text-zinc-500" />
-                  <span>Deseleccionar Todas</span>
-                </button>
-              </div>
-            </div>
+            {(() => {
+              const modalPerms = permissionsState[modalAdmin.id] !== undefined
+                ? permissionsState[modalAdmin.id]
+                : (Array.isArray(modalAdmin.permisos) ? modalAdmin.permisos : []);
+              return (
+                <>
+                  <div className="flex items-center justify-between py-1">
+                    <span className="text-xs text-[#d1c5af]">
+                      Vistas seleccionadas:{' '}
+                      <strong className="text-white">
+                        {modalPerms.length} de {ALL_VIEW_IDS.length}
+                      </strong>
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectAll(modalAdmin.id)}
+                        className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1"
+                      >
+                        <CheckSquare className="w-3.5 h-3.5 text-[#ffd56d]" />
+                        <span>Seleccionar Todas</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeselectAll(modalAdmin.id)}
+                        className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1"
+                      >
+                        <Square className="w-3.5 h-3.5 text-zinc-500" />
+                        <span>Deseleccionar Todas</span>
+                      </button>
+                    </div>
+                  </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[50vh] overflow-y-auto pr-1">
-              {ADMIN_VIEWS.map((view) => {
-                const Icon = view.icon;
-                const hasAccess = (permissionsState[modalAdmin.id] || []).includes(view.id);
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[50vh] overflow-y-auto pr-1">
+                    {ADMIN_VIEWS.map((view) => {
+                      const Icon = view.icon;
+                      const hasAccess = modalPerms.includes(view.id);
 
                 return (
                   <div
@@ -762,6 +768,9 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
                 );
               })}
             </div>
+                </>
+              );
+            })()}
 
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/5">
               <button
