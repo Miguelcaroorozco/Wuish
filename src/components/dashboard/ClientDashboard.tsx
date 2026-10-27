@@ -177,18 +177,44 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   };
 
   const activePlanRecord = useMemo(() => {
-    const aprobadas = solicitudes.filter(
-      (s) =>
-        s.tipo === 'cotizacion' &&
-        ESTADOS_APROBADOS.includes(s.estado) &&
-        Array.isArray(s.servicios_seleccionados)
-    );
+    const parseServices = (val: any): any[] => {
+      if (Array.isArray(val)) return val;
+      if (typeof val === 'string') {
+        try {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed)) return parsed;
+        } catch {}
+      }
+      return [];
+    };
+
+    const aprobadas = solicitudes.filter((s) => {
+      if (s.tipo !== 'cotizacion' || !ESTADOS_APROBADOS.includes(s.estado)) return false;
+      const srvList = parseServices(s.servicios_seleccionados);
+      return srvList.length > 0 || Boolean(s.plan_id || s.plan) || s.estado === 'finalizada' || s.estado === 'aprobada';
+    });
+
     if (aprobadas.length === 0) return null;
-    return [...aprobadas].sort(
+
+    const latest = [...aprobadas].sort(
       (a, b) =>
         new Date(b.created_at || b.fecha_solicitud).getTime() -
         new Date(a.created_at || a.fecha_solicitud).getTime()
     )[0];
+
+    const srvList = parseServices(latest.servicios_seleccionados);
+    const hasServices = srvList.length > 0;
+    const hasPlan = Boolean(latest.plan_id || latest.plan);
+
+    // Si la última cotización aprobada o finalizada no tiene servicios ni plan_id (ej. solicitud de cancelación o quedar sin plan), el usuario no tiene plan vigente
+    if (!hasServices && !hasPlan) {
+      return null;
+    }
+
+    return {
+      ...latest,
+      servicios_seleccionados: srvList,
+    };
   }, [solicitudes]);
 
   const contractedServices: any[] = useMemo(() => {

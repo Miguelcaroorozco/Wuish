@@ -42,6 +42,10 @@ export const AjustesTab: React.FC<AjustesTabProps> = ({
 }) => {
   const { showToast } = useToast();
 
+  const hasActiveContractedPlan = Boolean(
+    activePlanRecord && (contractedServices.length > 0 || activePlanRecord.plan_id || activePlanRecord.plan)
+  );
+
   const [ajustesSubTab, setAjustesSubTab] = useState<'perfil' | 'plan' | 'seguridad' | 'preferencias'>('perfil');
   const [ajustesNombres, setAjustesNombres] = useState(user?.nombres || '');
   const [ajustesApellidos, setAjustesApellidos] = useState(user?.apellidos || '');
@@ -230,10 +234,14 @@ export const AjustesTab: React.FC<AjustesTabProps> = ({
               <Layers className="w-3.5 h-3.5 text-[#ffd56d]" /> Plan Activo
             </span>
             <p className="text-sm font-bold text-white truncate">
-              {activePlanRecord?.plan?.nombre || (contractedServices.length > 0 ? `${contractedServices.length} Servicios Activos` : 'Sin Plan Activo')}
+              {hasActiveContractedPlan && activePlanRecord?.plan?.nombre
+                ? activePlanRecord.plan.nombre
+                : contractedServices.length > 0
+                  ? `${contractedServices.length} Servicios Activos`
+                  : 'Sin Plan Activo'}
             </p>
-            <p className={`text-[11px] font-medium ${activePlanRecord ? 'text-emerald-400' : 'text-[#9a907c]'}`}>
-              {activePlanRecord ? 'Contrato Vigente' : 'Sin plan contratado'}
+            <p className={`text-[11px] font-medium ${hasActiveContractedPlan ? 'text-emerald-400' : 'text-[#9a907c]'}`}>
+              {hasActiveContractedPlan ? 'Contrato Vigente' : 'Sin plan contratado'}
             </p>
           </div>
 
@@ -449,7 +457,7 @@ export const AjustesTab: React.FC<AjustesTabProps> = ({
 
       {ajustesSubTab === 'plan' && (
         <div className="space-y-6">
-          {activePlanRecord ? (
+          {hasActiveContractedPlan && activePlanRecord ? (
             <div className="rounded-3xl bg-[#1c1b1d] border border-[#ffd56d]/30 p-6 sm:p-8 space-y-6 relative overflow-hidden">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-white/5">
                 <div className="space-y-1">

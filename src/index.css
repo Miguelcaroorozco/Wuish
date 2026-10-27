@@ -39,6 +39,35 @@
   background: #e5b842;
 }
 
+/* Tab bar scrollbar illumination on hover */
+.admin-tabs-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #2a2a2c transparent;
+  transition: scrollbar-color 0.25s ease;
+}
+.admin-tabs-scrollbar:hover {
+  scrollbar-color: #ffd56d transparent;
+}
+.admin-tabs-scrollbar::-webkit-scrollbar {
+  height: 6px;
+}
+.admin-tabs-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.admin-tabs-scrollbar::-webkit-scrollbar-thumb {
+  background: #2a2a2c;
+  border-radius: 9999px;
+  transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+.admin-tabs-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: #ffd56d;
+  box-shadow: 0 0 10px rgba(255, 213, 109, 0.5);
+}
+.admin-tabs-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #ffdf97;
+  box-shadow: 0 0 14px rgba(255, 213, 109, 0.7);
+}
+
 .text-gold-gradient {
   background: linear-gradient(135deg, #fff2c5 0%, #ffd56d 50%, #aa8214 100%);
   -webkit-background-clip: text;

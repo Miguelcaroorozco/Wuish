@@ -75,13 +75,17 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({
     return list.map((s: any) => (typeof s === 'string' ? s : s.id || s.name)).filter(Boolean);
   }, [contractedServices, activePlanRecord]);
 
-  // Una modificación de un plan parte de su última configuración aprobada.
-  // Si esa configuración está vacía, se conserva vacía para permitir quedar sin plan.
+  const hasActiveContractedPlan = useMemo(() => {
+    return Boolean(activePlanRecord && (contractedIds.length > 0 || activePlanRecord.plan_id || activePlanRecord.plan));
+  }, [activePlanRecord, contractedIds]);
+
+  // Si el usuario tiene un plan activo vigente, carga sus servicios contratados.
+  // De lo contrario, inicia completamente limpio sin nada preseleccionado.
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(() => {
-    if (activePlanRecord && !initialPlanId) {
+    if (hasActiveContractedPlan && !initialPlanId && contractedIds.length > 0) {
       return contractedIds;
     }
-    return ['ads', 'web'];
+    return [];
   });
 
   const [timelineSpeed, setTimelineSpeed] = useState<'standard' | 'express' | 'urgent'>('standard');
@@ -146,18 +150,20 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({
             setSelectedServiceIds(matchedIds);
           }
         }
-      } else if (activePlanRecord && !initialPlanId) {
-        // Emparejar la configuración aprobada vigente, incluso si está vacía.
+      } else if (hasActiveContractedPlan && !initialPlanId && contractedIds.length > 0) {
+        // Emparejar la configuración aprobada vigente.
         const matchedIds: string[] = [];
         currentServices.forEach((srv) => {
           if (isCurrentlyContracted(srv.id, srv.name)) {
             matchedIds.push(srv.id);
           }
         });
-        setSelectedServiceIds(matchedIds);
+        if (matchedIds.length > 0) {
+          setSelectedServiceIds(matchedIds);
+        }
       }
     });
-  }, [initialPlanId, contractedIds, activePlanRecord]);
+  }, [initialPlanId, contractedIds, hasActiveContractedPlan]);
 
   // PASO 03: solo campos que el usuario no tiene en su perfil
   const [company, setCompany] = useState(user?.empresa || '');
@@ -271,10 +277,10 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({
           MOTOR DE ESTIMACIÓN EN TIEMPO REAL
         </span>
         <h1 className="text-3xl sm:text-5xl font-extrabold font-display text-white">
-          {activePlanRecord && !initialPlanId ? 'Ajusta tu plan' : 'Cotiza tu solución'}
+          {hasActiveContractedPlan && !initialPlanId ? 'Ajusta tu plan' : 'Cotiza tu solución'}
         </h1>
         <p className="text-sm font-medium text-[#d1c5af]">
-          {activePlanRecord && !initialPlanId
+          {hasActiveContractedPlan && !initialPlanId
             ? 'Quita o agrega servicios. El cambio solo se aplicará cuando tu solicitud sea aprobada.'
             : 'Elige los servicios que necesitas y recibe un presupuesto preliminar con SLA garantizado.'}
         </p>
@@ -330,7 +336,7 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({
             </div>
           )}
 
-          {activePlanRecord && !activePlanTemplate && (
+          {hasActiveContractedPlan && activePlanRecord && !activePlanTemplate && (
             <div className="p-4 sm:p-5 rounded-2xl bg-[#1c1b1d] border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400">Plan vigente</span>
@@ -364,7 +370,7 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({
 
             <div className="flex items-center justify-between gap-3 text-[11px] text-[#9a907c]">
               <span>Selecciona uno o varios servicios para calcular tu inversión.</span>
-              {activePlanRecord && !initialPlanId && (
+              {hasActiveContractedPlan && !initialPlanId && contractedIds.length > 0 && (
                 <button
                   type="button"
                   onClick={() => setSelectedServiceIds(contractedIds)}
@@ -594,7 +600,7 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({
                 <div className="p-4 rounded-lg bg-[#201f21] border border-dashed border-[#ffd56d]/30 text-center text-[11px] text-[#d1c5af]">
                   <span className="block font-bold text-[#ffd56d]">Sin servicios seleccionados</span>
                   <span className="block mt-1 text-[#9a907c]">
-                    {activePlanRecord
+                    {hasActiveContractedPlan
                       ? 'Puedes enviar la solicitud para quedar sin plan.'
                       : 'Selecciona al menos un servicio en el Paso 01.'}
                   </span>
@@ -655,15 +661,17 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({
             <button
               type="submit"
               form="quoteForm"
-              disabled={isSubmitting || (selectedServices.length === 0 && !activePlanRecord)}
+              disabled={isSubmitting || (selectedServices.length === 0 && !hasActiveContractedPlan)}
               className="w-full py-3 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-bold text-xs uppercase tracking-wider transition shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span>
                 {isSubmitting
                   ? 'Enviando...'
                   : selectedServices.length === 0
-                    ? 'Solicitar quedar sin plan'
-                    : activePlanRecord && !initialPlanId
+                    ? hasActiveContractedPlan
+                      ? 'Solicitar quedar sin plan'
+                      : 'Selecciona tus servicios'
+                    : hasActiveContractedPlan && !initialPlanId
                       ? 'Solicitar cambio de plan'
                       : 'Completar y Enviar'}
               </span>

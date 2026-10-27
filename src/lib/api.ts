@@ -99,6 +99,23 @@ export const usuariosApi = {
     }),
 
   getAll: () => request<any[]>('/usuarios'),
+
+  create: (data: any) =>
+    request<any>('/usuarios', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateAdmin: (id: string, data: any) =>
+    request<any>(`/usuarios/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    request<any>(`/usuarios/${id}`, {
+      method: 'DELETE',
+    }),
 };
 
 // ========== PLANES ==========

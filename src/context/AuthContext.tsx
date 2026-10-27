@@ -15,6 +15,7 @@ export interface AuthUser {
   empresa?: string | null;
   cargo?: string | null;
   rol: string;
+  permisos?: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -141,15 +142,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateProfile = async (data: Partial<AuthUser>) => {
-    return new Promise<{ success: boolean; message: string }>((resolve) => {
-      setTimeout(() => {
-        setUser((prev) => {
-          if (!prev) return prev;
-          return { ...prev, ...data };
-        });
-        resolve({ success: true, message: 'Perfil actualizado correctamente.' });
-      }, 600);
+    setUser((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev, ...data };
+      try {
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updated));
+      } catch {}
+      return updated;
     });
+    return { success: true, message: 'Perfil actualizado correctamente.' };
   };
 
   return (

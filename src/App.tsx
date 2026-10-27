@@ -19,7 +19,13 @@ type NavTarget = ViewMode | 'auth';
 const getPathForState = (view: ViewMode, tab: DashboardTab): string => {
   if (view === 'landing') return '/';
   if (view === 'planes') return '/planes';
-  if (view === 'admin') return '/admin';
+  if (view === 'admin') {
+    let savedTab: string | null = null;
+    try {
+      savedTab = localStorage.getItem('admin_active_tab');
+    } catch {}
+    return savedTab ? `/admin/${savedTab}` : '/admin';
+  }
   if (view === 'portal') {
     if (tab === 'resumen') return '/portal';
     return `/portal/${tab}`;
@@ -30,6 +36,12 @@ const getPathForState = (view: ViewMode, tab: DashboardTab): string => {
 const getStateFromPath = (pathname: string): { view: ViewMode; tab: DashboardTab; isLogin?: boolean } => {
   const p = pathname.toLowerCase().replace(/\/+$/, '') || '/';
   if (p === '/admin' || p.startsWith('/admin/')) {
+    const parts = p.split('/').filter(Boolean);
+    if (parts[1]) {
+      try {
+        localStorage.setItem('admin_active_tab', parts[1]);
+      } catch {}
+    }
     return { view: 'admin', tab: 'resumen' };
   }
   if (p === '/planes') {

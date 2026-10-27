@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 
@@ -11,12 +12,21 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
   const { resetPassword } = useAuth();
   const { showToast } = useToast();
   const [forgotEmail, setForgotEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
 
   if (!isOpen) return null;
 
   const handleForgotSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!forgotEmail) return;
+    if (!forgotEmail.trim()) {
+      setEmailError('Ingresa tu correo electrónico');
+      return;
+    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(forgotEmail.trim())) {
+      setEmailError('Ingresa un correo válido');
+      return;
+    }
+    setEmailError('');
     const res = await resetPassword(forgotEmail);
     showToast('Enlace de Restablecimiento', res.message, 'info');
     onClose();
@@ -32,13 +42,17 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
         </p>
         <form onSubmit={handleForgotSubmit} className="space-y-3">
           <input
-            type="email"
-            required
+            type="text"
             value={forgotEmail}
-            onChange={(e) => setForgotEmail(e.target.value)}
+            onChange={(e) => { setForgotEmail(e.target.value); if (emailError) setEmailError(''); }}
             placeholder="tu@correo.com"
-            className="w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border border-white/10 focus:border-[#ffd56d] focus:outline-none"
+            className={`w-full bg-[#0e0e10] text-white p-2.5 rounded-xl border focus:outline-none transition ${emailError ? 'border-red-500/70' : 'border-white/10 focus:border-[#ffd56d]'}`}
           />
+          {emailError && (
+            <p className="text-[11px] text-red-400 flex items-center gap-1 mt-1">
+              <AlertTriangle className="w-3 h-3 shrink-0" />{emailError}
+            </p>
+          )}
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
