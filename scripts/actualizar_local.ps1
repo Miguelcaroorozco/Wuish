@@ -33,10 +33,15 @@ if (-not $remote) {
     throw 'El repositorio no tiene un remoto configurado.'
 }
 
+$branch = git branch --show-current
+if (-not $branch) {
+    throw 'El repositorio está en detached HEAD. Cambia a una rama antes de actualizar.'
+}
+
 Write-Host "Actualizando el código desde $remote/main..."
-Invoke-Step 'git' @('fetch', $remote, 'main')
-Invoke-Step 'git' @('switch', 'main')
-Invoke-Step 'git' @('pull', '--ff-only', $remote, 'main')
+Write-Host "Rama local: $branch"
+Invoke-Step 'git' @('fetch', $remote, $branch)
+Invoke-Step 'git' @('pull', '--ff-only', $remote, $branch)
 
 Write-Host 'Instalando dependencias del frontend...'
 Invoke-Step 'npm' @('ci')

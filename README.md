@@ -150,14 +150,15 @@ actualizar
 ### Actualizar un entorno local de pruebas
 
 Cada desarrollador debe mantener su propio `wuish-api/.env`, apuntando a su
-base de datos local de pruebas. Desde PowerShell, en la raíz del proyecto,
-ejecuta:
+base de datos local de pruebas. El comando respeta la rama actualmente activa:
+actualiza el código desde esa misma rama y no cambia automáticamente a `main`.
+Desde PowerShell, en la raíz del proyecto, ejecuta:
 
 ```powershell
 npm run actualizar_local
 ```
 
-El comando descarga los cambios de `main`, instala dependencias, regenera
+El comando descarga los cambios de la rama activa, instala dependencias, regenera
 Prisma, sincroniza la base de datos configurada en el `.env` local, valida
 TypeScript y compila frontend y backend. No modifica ningún archivo `.env`.
 Si existen cambios locales sin guardar, se detiene para evitar sobrescribirlos.
