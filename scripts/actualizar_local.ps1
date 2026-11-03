@@ -38,7 +38,7 @@ if (-not $branch) {
     throw 'El repositorio está en detached HEAD. Cambia a una rama antes de actualizar.'
 }
 
-Write-Host "Actualizando el código desde $remote/main..."
+Write-Host "Actualizando el código desde $remote/$branch..."
 Write-Host "Rama local: $branch"
 Invoke-Step 'git' @('fetch', $remote, $branch)
 Invoke-Step 'git' @('pull', '--ff-only', $remote, $branch)
@@ -50,10 +50,16 @@ Write-Host 'Instalando dependencias del backend...'
 Invoke-Step 'npm' @('--prefix', $apiDir, 'ci')
 
 Write-Host 'Generando Prisma Client...'
-Invoke-Step 'npx' @('--prefix', $apiDir, 'prisma', 'generate', '--schema', (Join-Path $apiDir 'prisma\schema.prisma'))
+Push-Location $apiDir
+try {
+    Invoke-Step 'npx' @('prisma', 'generate')
 
-Write-Host 'Sincronizando la base de datos local...'
-Invoke-Step 'npx' @('--prefix', $apiDir, 'prisma', 'db', 'push', '--schema', (Join-Path $apiDir 'prisma\schema.prisma'))
+    Write-Host 'Sincronizando la base de datos local...'
+    Invoke-Step 'npx' @('prisma', 'db', 'push')
+}
+finally {
+    Pop-Location
+}
 
 Write-Host 'Validando TypeScript del frontend...'
 Invoke-Step 'npm' @('run', 'lint')
