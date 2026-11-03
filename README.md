@@ -147,6 +147,21 @@ sudo chmod +x /var/www/wuish/scripts/actualizar.sh
 actualizar
 ```
 
+### Actualizar un entorno local de pruebas
+
+Cada desarrollador debe mantener su propio `wuish-api/.env`, apuntando a su
+base de datos local de pruebas. Desde PowerShell, en la raíz del proyecto,
+ejecuta:
+
+```powershell
+npm run actualizar_local
+```
+
+El comando descarga los cambios de `main`, instala dependencias, regenera
+Prisma, sincroniza la base de datos configurada en el `.env` local, valida
+TypeScript y compila frontend y backend. No modifica ningún archivo `.env`.
+Si existen cambios locales sin guardar, se detiene para evitar sobrescribirlos.
+
 Se pueden personalizar el nombre del proceso PM2 y la carpeta de backups:
 
 ```bash
