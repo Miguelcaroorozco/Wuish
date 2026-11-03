@@ -2,9 +2,10 @@
 // solicitudes_estado_check de wuish_database_schema.sql y con src/types.ts.
 export const ESTADOS_SOLICITUD = [
   'pendiente',
-  'en_revision',
   'en_proceso',
   'aprobada',
+  'aprobado',
+  'rechazado',
   'finalizada',
   'cancelada',
 ] as const;

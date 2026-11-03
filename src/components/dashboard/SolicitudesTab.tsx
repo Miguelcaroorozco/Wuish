@@ -7,9 +7,11 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  Eye,
 } from 'lucide-react';
-import { solicitudesApi } from '../../lib/api';
+import { cotizadorModulosApi, solicitudesApi } from '../../lib/api';
 import { useToast } from '../../context/ToastContext';
+import { SolicitudDetails } from '../SolicitudDetails';
 
 interface SolicitudesTabProps {
   solicitudes: any[];
@@ -28,7 +30,7 @@ export const SolicitudesTab: React.FC<SolicitudesTabProps> = ({
 }) => {
   const { showToast } = useToast();
 
-  const [selectedContractedService, setSelectedContractedService] = useState('');
+  const [selectedContractedServices, setSelectedContractedServices] = useState<string[]>([]);
   const [solServiceTitle, setSolServiceTitle] = useState('');
   const [solServiceDesc, setSolServiceDesc] = useState('');
   const [solServiceNotes, setSolServiceNotes] = useState('');
@@ -38,7 +40,16 @@ export const SolicitudesTab: React.FC<SolicitudesTabProps> = ({
   const [solSearchTerm, setSolSearchTerm] = useState('');
   const [solTabFilter, setSolTabFilter] = useState('Todas');
   const [solTabCurPage, setSolTabCurPage] = useState(1);
+  const [detailSolicitud, setDetailSolicitud] = useState<any | null>(null);
+  const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
+  const [serviceOptions, setServiceOptions] = useState<any[]>([]);
   const SOL_TAB_PER_PAGE = 6;
+
+  useEffect(() => {
+    cotizadorModulosApi.getAll(true)
+      .then((modules) => setServiceOptions(Array.isArray(modules) ? modules : []))
+      .catch(() => setServiceOptions([]));
+  }, []);
 
   const filteredTabSolicitudes = useMemo(() => {
     return solicitudes.filter((s) => {
@@ -59,6 +70,16 @@ export const SolicitudesTab: React.FC<SolicitudesTabProps> = ({
     });
   }, [solicitudes, solSearchTerm, solTabFilter]);
 
+  const getServiceName = (solicitud: any) => {
+    const selected = solicitud.servicios_seleccionados;
+    const serviceData = Array.isArray(selected) ? selected[0] : selected;
+    const serviceId = serviceData?.servicio || serviceData?.id;
+    const configuredService = serviceOptions.find((service) => (
+      String(service.id).toLowerCase() === String(serviceId).toLowerCase()
+    ));
+    return serviceData?.nombre_servicio || serviceData?.nombre || serviceData?.name || configuredService?.nombre || configuredService?.name || serviceId || solicitud.tipo;
+  };
+
   const solTabTotalPages = Math.max(1, Math.ceil(filteredTabSolicitudes.length / SOL_TAB_PER_PAGE));
 
   const paginatedTabSolicitudes = useMemo(() => {
@@ -72,28 +93,35 @@ export const SolicitudesTab: React.FC<SolicitudesTabProps> = ({
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedContractedService || !solServiceTitle.trim() || !solServiceDesc.trim()) {
-      showToast('Campos requeridos', 'Selecciona un servicio, título y descripción.', 'error');
+    if (selectedContractedServices.length === 0 || !solServiceTitle.trim() || !solServiceDesc.trim()) {
+      showToast('Campos requeridos', 'Selecciona al menos un servicio, título y descripción.', 'error');
       return;
     }
     setSolSubmitting(true);
     try {
+      const selectedServices = contractedServices
+        .map((service: any, index: number) => ({
+          id: service.id || service.name || `srv_${index}`,
+          name: service.name || service.nombre || service.id || `Servicio ${index + 1}`,
+          category: service.category,
+        }))
+        .filter((service) => selectedContractedServices.includes(service.id));
       const newSol = await solicitudesApi.create({
-        tipo: selectedContractedService,
+        tipo: 'servicio',
         descripcion: `${solServiceTitle.trim()}: ${solServiceDesc.trim()}${
           solServiceNotes.trim() ? ' — Notas: ' + solServiceNotes.trim() : ''
         }`,
         velocidad_entrega: solServicePlazo,
-        servicios_seleccionados: {
-          servicio: selectedContractedService,
+        servicios_seleccionados: selectedServices.map((service) => ({
+          ...service,
           titulo: solServiceTitle.trim(),
           plazo: solServicePlazo,
           notas: solServiceNotes.trim(),
-        },
+        })),
       });
       setSolicitudes((prev) => [newSol, ...prev]);
       showToast('¡Solicitud Enviada!', 'Tu solicitud fue registrada y será atendida por el equipo Wuish.', 'success');
-      setSelectedContractedService('');
+      setSelectedContractedServices([]);
       setSolServiceTitle('');
       setSolServiceDesc('');
       setSolServiceNotes('');
@@ -102,6 +130,18 @@ export const SolicitudesTab: React.FC<SolicitudesTabProps> = ({
       showToast('Error', err.message || 'No se pudo enviar la solicitud', 'error');
     } finally {
       setSolSubmitting(false);
+    }
+  };
+
+  const handleViewDetails = async (solicitud: any) => {
+    setLoadingDetailId(solicitud.id);
+    try {
+      const detailedSolicitud = await solicitudesApi.getById(solicitud.id);
+      setDetailSolicitud(detailedSolicitud);
+    } catch (error: any) {
+      showToast('Error', error.message || 'No se pudieron cargar los detalles.', 'error');
+    } finally {
+      setLoadingDetailId(null);
     }
   };
 
@@ -246,7 +286,7 @@ export const SolicitudesTab: React.FC<SolicitudesTabProps> = ({
           <div>
             <h3 className="text-base font-bold text-white font-display">Nueva Solicitud</h3>
             <p className="text-xs text-[#9a907c]">
-              Selecciona el servicio contratado sobre el que harás la solicitud.
+              Selecciona uno o varios servicios contratados sobre los que harás la solicitud.
             </p>
           </div>
         </div>
@@ -260,12 +300,16 @@ export const SolicitudesTab: React.FC<SolicitudesTabProps> = ({
               {contractedServices.map((srv: any, idx: number) => {
                 const srvId = srv.id || srv.name || `srv_${idx}`;
                 const srvLabel = srv.name || srv.nombre || srvId;
-                const isSelected = selectedContractedService === srvId;
+                const isSelected = selectedContractedServices.includes(srvId);
                 return (
                   <button
                     key={srvId}
                     type="button"
-                    onClick={() => setSelectedContractedService(srvId)}
+                    onClick={() => setSelectedContractedServices((current) => (
+                      current.includes(srvId)
+                        ? current.filter((id) => id !== srvId)
+                        : [...current, srvId]
+                    ))}
                     className={`p-4 rounded-xl border text-left text-xs font-bold transition-all cursor-pointer ${
                       isSelected
                         ? 'bg-[#ffd56d]/15 border-[#ffd56d] ring-1 ring-[#ffd56d]/50 text-white shadow-md shadow-[#ffd56d]/10'
@@ -373,7 +417,7 @@ export const SolicitudesTab: React.FC<SolicitudesTabProps> = ({
             </p>
             <button
               type="submit"
-              disabled={solSubmitting || !selectedContractedService}
+              disabled={solSubmitting || selectedContractedServices.length === 0}
               className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#ffd56d] hover:bg-[#ffdf97] text-[#3e2e00] font-extrabold text-xs uppercase tracking-wider transition shadow-lg shadow-[#ffd56d]/15 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Send className="w-4 h-4" />
@@ -433,13 +477,14 @@ export const SolicitudesTab: React.FC<SolicitudesTabProps> = ({
                 <th className="pb-3 pr-4">Requerimiento</th>
                 <th className="pb-3 pr-4">Servicio</th>
                 <th className="pb-3 pr-4">Fecha</th>
+                <th className="pb-3 text-center">Detalles</th>
                 <th className="pb-3 text-right">Estado</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {filteredTabSolicitudes.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-xs text-zinc-500">
+                  <td colSpan={6} className="py-8 text-center text-xs text-zinc-500">
                     No hay solicitudes que coincidan con los filtros.
                   </td>
                 </tr>
@@ -456,18 +501,23 @@ export const SolicitudesTab: React.FC<SolicitudesTabProps> = ({
                     </td>
                     <td className="py-3.5 pr-4">
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/5 text-[#d1c5af]">
-                        {sol.tipo}
+                        {getServiceName(sol)}
                       </span>
                     </td>
                     <td className="py-3.5 pr-4 text-[#9a907c]">
                       {new Date(sol.created_at || sol.fecha_solicitud).toLocaleDateString('es-CO')}
                     </td>
+                    <td className="py-3.5 text-center">
+                      <button type="button" onClick={() => handleViewDetails(sol)} disabled={loadingDetailId === sol.id} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[#ffd56d] hover:bg-[#ffd56d]/10 text-[10px] font-bold cursor-pointer disabled:opacity-50 disabled:cursor-wait">
+                        <Eye className="w-3.5 h-3.5" /> {loadingDetailId === sol.id ? 'Cargando...' : 'Ver detalles'}
+                      </button>
+                    </td>
                     <td className="py-3.5 text-right">
                       <span
                         className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border ${
-                          sol.estado === 'aprobada' || sol.estado === 'finalizada'
+                          sol.estado === 'aprobado' || sol.estado === 'aprobada' || sol.estado === 'finalizada'
                             ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                            : sol.estado === 'en_proceso' || sol.estado === 'en_revision'
+                            : sol.estado === 'en_proceso'
                             ? 'bg-sky-500/10 text-sky-400 border-sky-500/20'
                             : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                         }`}
@@ -531,6 +581,9 @@ export const SolicitudesTab: React.FC<SolicitudesTabProps> = ({
               </button>
             </div>
           </div>
+        )}
+        {detailSolicitud && (
+          <SolicitudDetails solicitud={detailSolicitud} onClose={() => setDetailSolicitud(null)} />
         )}
       </div>
     </div>

@@ -19,7 +19,7 @@ interface ClientDashboardProps {
 }
 
 const DASHBOARD_REQUESTS_PER_PAGE = 5;
-const ESTADOS_APROBADOS = ['aprobada', 'finalizada', 'completada'];
+const ESTADOS_APROBADOS = ['aprobado', 'aprobada', 'finalizada', 'completada'];
 
 export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   activeTab: controlledTab,
@@ -135,12 +135,17 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
     }
   };
 
+  const solicitudesServicio = useMemo(
+    () => solicitudes.filter((item) => item.tipo !== 'cotizacion'),
+    [solicitudes]
+  );
+
   const filteredSolicitudes = useMemo(() => {
-    return solicitudes.filter((item) => {
+    return solicitudesServicio.filter((item) => {
       if (filterStatus === 'Todas') return true;
       return item.estado === filterStatus;
     });
-  }, [solicitudes, filterStatus]);
+  }, [solicitudesServicio, filterStatus]);
 
   const dashboardRequestsTotalPages = Math.max(
     1,

@@ -2,70 +2,32 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Project, Testimonial, StatItem } from '../types';
 import { comentariosApi, proyectosApi, metricasApi } from '../lib/api';
 
-const DEFAULT_TESTIMONIALS: Testimonial[] = [];
-const DEFAULT_PROJECTS: Project[] = [];
-const DEFAULT_STATS: StatItem[] = [];
-
 interface ContentContextType {
   testimonials: Testimonial[];
   approvedTestimonials: Testimonial[];
   projects: Project[];
   stats: StatItem[];
-  plans: any[];
-  cart: { id: string; name: string; type: 'plan' | 'service'; price: number | string }[];
-  addTestimonial: (data: Omit<Testimonial, 'id' | 'date' | 'status' | 'userId'> & { userId?: string }) => void;
-  approveTestimonial: (id: string) => void;
-  removeTestimonial: (id: string) => void;
-  updateTestimonial: (id: string, data: Partial<Testimonial>) => void;
+  addTestimonial: (data: Omit<Testimonial, 'id' | 'date' | 'status' | 'userId'> & { userId?: string }) => Promise<Testimonial>;
   refreshTestimonials: () => Promise<void>;
-  addProject: (data: Omit<Project, 'id'>) => void;
-  updateProject: (id: string, data: Partial<Project>) => void;
-  removeProject: (id: string) => void;
-  addStat: (data: Omit<StatItem, 'id'>) => void;
-  updateStat: (id: string, data: Partial<StatItem>) => void;
-  removeStat: (id: string) => void;
-  addPlan: (data: any) => void;
-  removePlan: (id: string) => void;
-  addToCart: (item: { id: string; name: string; type: 'plan' | 'service'; price: number | string }) => void;
-  removeFromCart: (id: string) => void;
-  clearCart: () => void;
+  addProject: (data: Omit<Project, 'id'>) => Promise<void>;
+  updateProject: (id: string, data: Partial<Project>) => Promise<void>;
+  removeProject: (id: string) => Promise<void>;
+  addStat: (data: Omit<StatItem, 'id'>) => Promise<void>;
+  updateStat: (id: string, data: Partial<StatItem>) => Promise<void>;
+  removeStat: (id: string) => Promise<void>;
 }
 
 const ContentContext = createContext<ContentContextType | undefined>(undefined);
 
-const TESTIMONIALS_KEY = 'wuish_testimonios_v4';
-const PROJECTS_KEY = 'wuish_proyectos_v3';
-const STATS_KEY = 'wuish_stats_v2';
-const PLANS_KEY = 'wuish_planes_v2';
-const CART_KEY = 'wuish_cart_v1';
-
-const load = <T,>(key: string): T[] => {
-  try {
-    const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : [];
-  } catch {
-    return [];
-  }
-};
-
 export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [stats, setStats] = useState<StatItem[]>([]);
 
-  const [projects, setProjects] = useState<Project[]>(() => {
-    const saved = load<Project>(PROJECTS_KEY);
-    return (saved || []).filter((p) => !p.id.startsWith('prj-'));
-  });
-
-  const [stats, setStats] = useState<StatItem[]>(() => {
-    const saved = load<StatItem>(STATS_KEY);
-    return (saved || []).filter((s) => !s.id.startsWith('stat-'));
-  });
-
-  const [plans, setPlans] = useState<any[]>(() => {
-    return load<any>(PLANS_KEY);
-  });
-
-  const [cart, setCart] = useState<{ id: string; name: string; type: 'plan' | 'service'; price: number | string }[]>(() => load(CART_KEY));
+  useEffect(() => {
+    ['wuish_testimonios_v4', 'wuish_proyectos_v3', 'wuish_stats_v2', 'wuish_planes_v2', 'wuish_cart_v1']
+      .forEach((key) => localStorage.removeItem(key));
+  }, []);
 
   const refreshTestimonials = async () => {
     try {
@@ -79,7 +41,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
           rating: c.calificacion || 5,
           text: c.contenido,
           date: c.created_at || c.fecha_creacion || new Date().toISOString(),
-          status: 'approved',
+          status: c.mostrar_en_pagina ? 'approved' : 'pending',
         }));
         setTestimonials(mapped);
       } else {
@@ -134,49 +96,38 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem(TESTIMONIALS_KEY, JSON.stringify(testimonials));
-  }, [testimonials]);
-
-  useEffect(() => {
-    localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
-  }, [projects]);
-
-  useEffect(() => {
-    localStorage.setItem(STATS_KEY, JSON.stringify(stats));
-  }, [stats]);
-
-  useEffect(() => {
-    localStorage.setItem(PLANS_KEY, JSON.stringify(plans));
-  }, [plans]);
-
-  useEffect(() => {
-    localStorage.setItem(CART_KEY, JSON.stringify(cart));
-  }, [cart]);
-
-  const addTestimonial: ContentContextType['addTestimonial'] = (data) => {
-    setTestimonials((prev) => [
-      { ...data, userId: data.userId ?? '', id: `tst-${Date.now()}`, date: new Date().toISOString(), status: 'approved' },
-      ...prev,
-    ]);
-    comentariosApi.create({ contenido: data.text, calificacion: data.rating }).catch(() => {});
+  const addTestimonial: ContentContextType['addTestimonial'] = async (data) => {
+    const created = await comentariosApi.create({
+      contenido: data.text,
+      calificacion: data.rating,
+      nombre_autor: data.name,
+      empresa_autor: data.company,
+      usuario_id: data.userId,
+    });
+    setTestimonials((prev) => [{
+      id: created.id,
+      userId: created.usuario_id || data.userId || '',
+      name: created.nombre_autor || data.name,
+      company: created.empresa_autor || data.company,
+      rating: created.calificacion || data.rating,
+      text: created.contenido,
+      date: created.created_at,
+      status: created.mostrar_en_pagina ? 'approved' : 'pending',
+    }, ...prev]);
+    return {
+      id: created.id,
+      userId: created.usuario_id || data.userId || '',
+      name: created.nombre_autor || data.name,
+      company: created.empresa_autor || data.company,
+      rating: created.calificacion || data.rating,
+      text: created.contenido,
+      date: created.created_at,
+      status: created.mostrar_en_pagina ? 'approved' : 'pending',
+    };
   };
 
-  const approveTestimonial = (id: string) => {
-    setTestimonials((prev) => prev.map((t) => (t.id === id ? { ...t, status: 'approved' } : t)));
-  };
-
-  const removeTestimonial = (id: string) => {
-    setTestimonials((prev) => prev.filter((t) => t.id !== id));
-  };
-
-  const updateTestimonial = (id: string, data: Partial<Testimonial>) => {
-    setTestimonials((prev) => prev.map((t) => (t.id === id ? { ...t, ...data, status: 'approved' } : t)));
-  };
-
-  const addProject: ContentContextType['addProject'] = (data) => {
-    const projectWithActivo = { ...data, activo: data.activo !== false };
-    proyectosApi.create({
+  const addProject: ContentContextType['addProject'] = async (data) => {
+    const created = await proyectosApi.create({
       titulo: data.title,
       cliente: data.client,
       categoria: data.category,
@@ -185,15 +136,16 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       imagen_url: data.imageUrl,
       tags: data.tags,
       activo: true,
-    }).then((created) => {
-      setProjects((prev) => [{ ...projectWithActivo, id: created.id }, ...prev]);
-    }).catch(() => {
-      setProjects((prev) => [{ ...projectWithActivo, id: `prj-${Date.now()}` }, ...prev]);
     });
+    setProjects((prev) => [{
+      ...data,
+      id: created.id,
+      activo: created.activo !== false,
+    }, ...prev]);
   };
 
-  const updateProject = (id: string, data: Partial<Project>) => {
-    const apiPayload: any = {};
+  const updateProject: ContentContextType['updateProject'] = async (id, data) => {
+    const apiPayload: Record<string, unknown> = {};
     if (data.title !== undefined) apiPayload.titulo = data.title;
     if (data.client !== undefined) apiPayload.cliente = data.client;
     if (data.category !== undefined) apiPayload.categoria = data.category;
@@ -202,48 +154,47 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (data.imageUrl !== undefined) apiPayload.imagen_url = data.imageUrl;
     if (data.tags !== undefined) apiPayload.tags = data.tags;
     if (data.activo !== undefined) apiPayload.activo = data.activo;
-
-    proyectosApi.update(id, apiPayload).catch(() => {});
-    setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...data } : p)));
+    await proyectosApi.update(id, apiPayload);
+    setProjects((prev) => prev.map((project) => project.id === id ? { ...project, ...data } : project));
   };
 
-  const removeProject = (id: string) => {
-    proyectosApi.delete(id).catch(() => {});
-    setProjects((prev) => prev.filter((p) => p.id !== id));
+  const removeProject: ContentContextType['removeProject'] = async (id) => {
+    await proyectosApi.delete(id);
+    setProjects((prev) => prev.filter((project) => project.id !== id));
   };
 
-  const addStat = (data: Omit<StatItem, 'id'>) => {
-    setStats((prev) => [...prev, { ...data, id: `stat-${Date.now()}` }]);
-  };
-
-  const updateStat = (id: string, data: Partial<StatItem>) => {
-    setStats((prev) => prev.map((s) => (s.id === id ? { ...s, ...data } : s)));
-  };
-
-  const removeStat = (id: string) => {
-    setStats((prev) => prev.filter((s) => s.id !== id));
-  };
-
-  const addPlan = (data: any) => {
-    setPlans((prev) => [...prev, { ...data, id: `plan-${Date.now()}` }]);
-  };
-
-  const removePlan = (id: string) => {
-    setPlans((prev) => prev.filter((p) => p.id !== id));
-  };
-
-  const addToCart = (item: { id: string; name: string; type: 'plan' | 'service'; price: number | string }) => {
-    setCart((prev) => {
-      if (prev.find((i) => i.id === item.id)) return prev;
-      return [...prev, item];
+  const addStat: ContentContextType['addStat'] = async (data) => {
+    const created = await metricasApi.create({
+      valor: data.value,
+      sufijo: data.suffix,
+      etiqueta: data.label,
     });
+    setStats((prev) => [...prev, {
+      id: created.id,
+      value: created.valor,
+      suffix: created.sufijo || '+',
+      label: created.etiqueta,
+    }]);
   };
 
-  const removeFromCart = (id: string) => {
-    setCart((prev) => prev.filter((i) => i.id !== id));
+  const updateStat: ContentContextType['updateStat'] = async (id, data) => {
+    const updated = await metricasApi.update(id, {
+      ...(data.value !== undefined ? { valor: data.value } : {}),
+      ...(data.suffix !== undefined ? { sufijo: data.suffix } : {}),
+      ...(data.label !== undefined ? { etiqueta: data.label } : {}),
+    });
+    setStats((prev) => prev.map((stat) => stat.id === id ? {
+      ...stat,
+      value: updated.valor,
+      suffix: updated.sufijo || '+',
+      label: updated.etiqueta,
+    } : stat));
   };
 
-  const clearCart = () => setCart([]);
+  const removeStat: ContentContextType['removeStat'] = async (id) => {
+    await metricasApi.delete(id);
+    setStats((prev) => prev.filter((stat) => stat.id !== id));
+  };
 
   return (
     <ContentContext.Provider
@@ -252,12 +203,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
         approvedTestimonials: testimonials.filter((t) => t.status !== 'hidden'),
         projects,
         stats,
-        plans,
-        cart,
         addTestimonial,
-        approveTestimonial,
-        removeTestimonial,
-        updateTestimonial,
         refreshTestimonials,
         addProject,
         updateProject,
@@ -265,11 +211,6 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
         addStat,
         updateStat,
         removeStat,
-        addPlan,
-        removePlan,
-        addToCart,
-        removeFromCart,
-        clearCart,
       }}
     >
       {children}

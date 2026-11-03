@@ -472,11 +472,6 @@ export const AjustesTab: React.FC<AjustesTabProps> = ({
                   <h3 className="text-xl sm:text-2xl font-bold text-white font-display">
                     {activePlanRecord.plan?.nombre || 'Plan Personalizado'}
                   </h3>
-                  {activePlanRecord.presupuesto_min && activePlanRecord.presupuesto_max ? (
-                    <p className="text-sm font-semibold text-[#ffd56d]">
-                      Rango de Inversión: ${activePlanRecord.presupuesto_min.toLocaleString('es-CO')} — ${activePlanRecord.presupuesto_max.toLocaleString('es-CO')} COP
-                    </p>
-                  ) : null}
                 </div>
 
                 <button

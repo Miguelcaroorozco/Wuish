@@ -25,11 +25,19 @@ export class ComentariosController {
 
   @Post()
   @ApiOperation({ summary: 'Crear comentario (público o autenticado)' })
-  create(@Body() data: { contenido: string; calificacion?: number; usuario_id?: string }) {
+  create(@Body() data: {
+    contenido: string;
+    calificacion?: number;
+    usuario_id?: string;
+    nombre_autor?: string;
+    empresa_autor?: string;
+  }) {
     return this.comentariosService.create({
       usuario_id: data.usuario_id || undefined,
       contenido: data.contenido,
       calificacion: data.calificacion,
+      nombre_autor: data.nombre_autor,
+      empresa_autor: data.empresa_autor,
     });
   }
 

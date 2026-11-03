@@ -190,8 +190,6 @@ export const solicitudesApi = {
     empresa?: string;
     telefono_contacto?: string;
     servicios_seleccionados?: any;
-    presupuesto_min?: number;
-    presupuesto_max?: number;
     velocidad_entrega?: string;
     nivel_soporte?: string;
   }) =>
@@ -207,6 +205,11 @@ export const solicitudesApi = {
       body: JSON.stringify(body),
     });
   },
+  assignAdmins: (id: string, admin_ids: string[]) =>
+    request<any>(`/solicitudes/${id}/admins`, {
+      method: 'PUT',
+      body: JSON.stringify({ admin_ids }),
+    }),
 
   delete: (id: string) =>
     request<any>(`/solicitudes/${id}`, { method: 'DELETE' }),
@@ -273,7 +276,13 @@ export const comentariosApi = {
 
   getAll: () => request<any[]>('/comentarios'),
 
-  create: (data: { contenido: string; calificacion?: number }) =>
+  create: (data: {
+    contenido: string;
+    calificacion?: number;
+    nombre_autor?: string;
+    empresa_autor?: string;
+    usuario_id?: string;
+  }) =>
     request<any>('/comentarios', {
       method: 'POST',
       body: JSON.stringify(data),

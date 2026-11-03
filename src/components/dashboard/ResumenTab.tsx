@@ -2,6 +2,7 @@ import React from 'react';
 import { PlusCircle, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { EstadoSolicitud, ESTADO_SOLICITUD_LABELS } from '../../types';
 import { BuzonChat } from './BuzonChat';
+import { CotizacionesTable } from './CotizacionesTable';
 
 interface ResumenTabProps {
   user: any;
@@ -77,6 +78,8 @@ export const ResumenTab: React.FC<ResumenTabProps> = ({
         </div>
       </div>
 
+      <CotizacionesTable solicitudes={solicitudes} />
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         <div className="lg:col-span-8 rounded-2xl bg-[#1c1b1d] border border-white/5 p-6 sm:p-7 shadow-xl space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -90,7 +93,7 @@ export const ResumenTab: React.FC<ResumenTabProps> = ({
             </div>
 
             <div className="flex flex-wrap items-center gap-1.5 p-1 bg-[#131315] rounded-xl border border-white/5 text-xs">
-              {(['Todas', 'pendiente', 'en_revision', 'en_proceso', 'aprobada', 'finalizada'] as const).map((st) => (
+              {(['Todas', 'pendiente', 'en_proceso', 'aprobada', 'finalizada'] as const).map((st) => (
                 <button
                   key={st}
                   onClick={() => onFilterChange(st)}
@@ -155,7 +158,7 @@ export const ResumenTab: React.FC<ResumenTabProps> = ({
                           className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold ${
                             item.estado === 'en_proceso'
                               ? 'bg-[#ffd56d]/15 text-[#ffd56d] border border-[#ffd56d]/30'
-                              : item.estado === 'en_revision' || item.estado === 'pendiente'
+                              : item.estado === 'pendiente'
                               ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
                               : item.estado === 'cancelada'
                               ? 'bg-red-500/15 text-red-400 border border-red-500/30'

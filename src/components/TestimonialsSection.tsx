@@ -53,24 +53,28 @@ export const TestimonialsSection: React.FC<TestimonialsSectionProps> = ({ onRequ
     setShowForm(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || text.trim().length < 10) {
       showToast('Comentario muy corto', 'Escribe al menos 10 caracteres.', 'error');
       return;
     }
     const company = (user as any).empresa || '';
-    addTestimonial({
-      userId: user.id,
-      name: `${user.nombres} ${user.apellidos}`.trim(),
-      company,
-      rating,
-      text: text.trim(),
-    });
-    showToast('¡Gracias por tu opinión!', 'Tu testimonio ha sido publicado en el carrusel.', 'success');
-    setShowForm(false);
-    setText('');
-    setRating(5);
+    try {
+      await addTestimonial({
+        userId: user.id,
+        name: `${user.nombres} ${user.apellidos}`.trim(),
+        company,
+        rating,
+        text: text.trim(),
+      });
+      showToast('¡Gracias por tu opinión!', 'Tu testimonio fue enviado para revisión.', 'success');
+      setShowForm(false);
+      setText('');
+      setRating(5);
+    } catch (error: any) {
+      showToast('Error', error.message || 'No se pudo guardar tu opinión.', 'error');
+    }
   };
 
   return (

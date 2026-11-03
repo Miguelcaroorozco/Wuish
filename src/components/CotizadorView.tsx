@@ -201,10 +201,6 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({
       .filter((s) => selectedServiceIds.includes(s.id));
   }, [availableServices, selectedServiceIds]);
 
-  const baseSubtotal = useMemo(() => {
-    return selectedServices.reduce((acc, curr) => acc + curr.basePrice, 0);
-  }, [selectedServices]);
-
   const timelineMultiplier = useMemo(() => {
     switch (timelineSpeed) {
       case 'express': return 1.25;
@@ -222,9 +218,6 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({
   }, [supportLevel]);
 
   const totalMultiplier = timelineMultiplier * supportMultiplier;
-  const calculatedMin = Math.round(baseSubtotal * totalMultiplier * 0.95);
-  const calculatedMax = Math.round(baseSubtotal * totalMultiplier * 1.2);
-
   const handleSubmitDossier = async (e: React.FormEvent) => {
     e.preventDefault();
     const isPlanChange = Boolean(activePlanRecord) && !initialPlanId;
@@ -248,13 +241,11 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({
           category: s.category,
           price: s.basePrice,
         })),
-        presupuesto_min: calculatedMin,
-        presupuesto_max: calculatedMax,
         velocidad_entrega: timelineSpeed,
         nivel_soporte: supportLevel,
         descripcion: challenge.trim() || (
           selectedServices.length > 0
-            ? `Cotización de ${userName} (${company.trim() || 'Sin empresa'}) para: ${selectedNames}. Presupuesto estimado: $${calculatedMin.toLocaleString('es-CO')} – $${calculatedMax.toLocaleString('es-CO')} COP`
+            ? `Cotización de ${userName} (${company.trim() || 'Sin empresa'}) para: ${selectedNames}.`
             : `Solicitud de cancelación del plan de ${userName} (${company.trim() || 'Sin empresa'}).`
         ),
       });
@@ -562,24 +553,9 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({
 
         </div>
 
-        {/* Right Side: Calculation Engine (Col 4) */}
+        {/* Right Side: Selected services */}
         <div className="xl:col-span-4 sticky top-24 space-y-4">
           <div className="rounded-2xl bg-[#1c1b1d] border border-white/5 p-6 shadow-2xl space-y-5">
-            <div className="flex items-center justify-between pb-2 border-b border-white/5">
-              <span className="text-[10px] font-bold text-[#ffd56d] uppercase font-display">PRESUPUESTO ESTIMADO</span>
-              <span className="text-[11px] font-mono text-[#9a907c]">COP</span>
-            </div>
-
-            <div className="p-4 rounded-xl bg-[#0e0e10] border border-white/5">
-              <span className="text-[10px] uppercase font-bold text-[#9a907c] block mb-1">RANGO PROYECTADO</span>
-              <div className="flex items-baseline gap-2 flex-wrap">
-                <span className="text-2xl sm:text-3xl font-extrabold text-[#ffd56d] font-display">${calculatedMin.toLocaleString('es-CO')}</span>
-                <span className="text-zinc-500 font-light">-</span>
-                <span className="text-xl sm:text-2xl font-bold text-white font-display">${calculatedMax.toLocaleString('es-CO')}</span>
-                <span className="text-xs text-[#9a907c] font-mono">COP</span>
-              </div>
-            </div>
-
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[10px] uppercase font-bold text-[#9a907c] font-display">

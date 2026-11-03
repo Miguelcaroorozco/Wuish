@@ -39,11 +39,18 @@ export interface AdminViewOption {
 
 export const ADMIN_VIEWS: AdminViewOption[] = [
   {
-    id: 'solicitudes',
-    label: 'Solicitudes',
-    shortLabel: 'Solicitudes',
-    description: 'Bandeja de solicitudes y cotizaciones recibidas',
+    id: 'solicitudes_servicio',
+    label: 'Solicitudes de Servicio',
+    shortLabel: 'Servicios',
+    description: 'Bandeja de requerimientos de servicios contratados',
     icon: ClipboardList,
+  },
+  {
+    id: 'solicitudes_cotizacion',
+    label: 'Cotizaciones',
+    shortLabel: 'Cotizaciones',
+    description: 'Bandeja de propuestas y cotizaciones comerciales',
+    icon: FileText,
   },
   {
     id: 'mensajes',
@@ -105,6 +112,15 @@ export const ADMIN_VIEWS: AdminViewOption[] = [
 
 const ALL_VIEW_IDS = ADMIN_VIEWS.map((v) => v.id);
 
+const normalizePermissions = (permissions: unknown): string[] => {
+  if (!Array.isArray(permissions)) return [];
+  const normalized = permissions.filter((permission): permission is string => typeof permission === 'string');
+  if (normalized.includes('solicitudes')) {
+    normalized.push('solicitudes_servicio', 'solicitudes_cotizacion');
+  }
+  return [...new Set(normalized.filter((permission) => permission !== 'solicitudes'))];
+};
+
 interface UsuarioItem {
   id: string;
   nombres: string;
@@ -149,7 +165,7 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
     const initial: Record<string, string[]> = {};
     adminUsers.forEach((admin) => {
       if (Array.isArray(admin.permisos)) {
-        initial[admin.id] = admin.permisos;
+        initial[admin.id] = normalizePermissions(admin.permisos);
       } else {
         initial[admin.id] = [];
       }
@@ -168,7 +184,7 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
         a.numero_cedula.toLowerCase().includes(q) ||
         a.correo.toLowerCase().includes(q);
 
-      const perms = permissionsState[a.id] !== undefined ? permissionsState[a.id] : (Array.isArray(a.permisos) ? a.permisos : []);
+      const perms = permissionsState[a.id] !== undefined ? permissionsState[a.id] : normalizePermissions(a.permisos);
       const isFull = perms.length === ALL_VIEW_IDS.length;
       const matchFilter =
         accessFilter === 'all'
@@ -193,7 +209,7 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
     const admin = adminUsers.find((a) => a.id === adminId);
     const current = permissionsState[adminId] !== undefined
       ? permissionsState[adminId]
-      : (Array.isArray(admin?.permisos) ? (admin!.permisos as string[]) : []);
+      : normalizePermissions(admin?.permisos);
     const hasPermission = current.includes(viewId);
 
     // Si se intenta deseleccionar el permiso crítico 'permisos'
@@ -207,7 +223,7 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
     setPermissionsState((prev) => {
       const curr = prev[adminId] !== undefined
         ? prev[adminId]
-        : (Array.isArray(admin?.permisos) ? (admin!.permisos as string[]) : []);
+        : normalizePermissions(admin?.permisos);
       const updated = hasPermission
         ? curr.filter((id) => id !== viewId)
         : [...curr, viewId];
@@ -226,7 +242,7 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
     const admin = adminUsers.find((a) => a.id === adminId);
     const current = permissionsState[adminId] !== undefined
       ? permissionsState[adminId]
-      : (Array.isArray(admin?.permisos) ? (admin!.permisos as string[]) : []);
+      : normalizePermissions(admin?.permisos);
     if (current.includes('permisos')) {
       if (admin) {
         setConfirmRevokePermisos({ admin, action: 'deselectAll' });
@@ -246,7 +262,7 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
     setPermissionsState((prev) => {
       const current = prev[admin.id] !== undefined
         ? prev[admin.id]
-        : (Array.isArray(admin.permisos) ? (admin.permisos as string[]) : []);
+        : normalizePermissions(admin.permisos);
       if (action === 'deselectAll') {
         return { ...prev, [admin.id]: [] };
       }
@@ -259,8 +275,8 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
   const hasUnsavedChanges = (admin: UsuarioItem) => {
     const current = permissionsState[admin.id] !== undefined
       ? permissionsState[admin.id]
-      : (Array.isArray(admin.permisos) ? admin.permisos : []);
-    const original = Array.isArray(admin.permisos) ? admin.permisos : [];
+      : normalizePermissions(admin.permisos);
+    const original = normalizePermissions(admin.permisos);
     if (current.length !== original.length) return true;
     const origSet = new Set(original);
     return current.some((id) => !origSet.has(id));
@@ -269,7 +285,7 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
   const handleSavePermissions = async (admin: UsuarioItem) => {
     const selected = permissionsState[admin.id] !== undefined
       ? permissionsState[admin.id]
-      : (Array.isArray(admin.permisos) ? admin.permisos : []);
+      : normalizePermissions(admin.permisos);
     setSavingAdminId(admin.id);
     try {
       await usuariosApi.updateAdmin(admin.id, {
@@ -317,7 +333,7 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
       for (const admin of changedAdmins) {
         const selected = permissionsState[admin.id] !== undefined
           ? permissionsState[admin.id]
-          : (Array.isArray(admin.permisos) ? admin.permisos : []);
+          : normalizePermissions(admin.permisos);
         await usuariosApi.updateAdmin(admin.id, {
           permisos: selected,
         });
@@ -353,7 +369,7 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
   const fullAccessCount = adminUsers.filter((a) => {
     const p = permissionsState[a.id] !== undefined
       ? permissionsState[a.id]
-      : (Array.isArray(a.permisos) ? a.permisos : []);
+      : normalizePermissions(a.permisos);
     return p.length === ALL_VIEW_IDS.length;
   }).length;
 
@@ -471,7 +487,7 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
                 paginatedAdmins.map((admin) => {
                   const adminPerms = permissionsState[admin.id] !== undefined
                     ? permissionsState[admin.id]
-                    : (Array.isArray(admin.permisos) ? admin.permisos : []);
+                    : normalizePermissions(admin.permisos);
                   const isCurrent = admin.id === currentUser?.id;
                   const isSaving = savingAdminId === admin.id;
                   const changed = hasUnsavedChanges(admin);
@@ -690,7 +706,7 @@ export const AdminPermisosTab: React.FC<AdminPermisosTabProps> = ({ usuarios, on
             {(() => {
               const modalPerms = permissionsState[modalAdmin.id] !== undefined
                 ? permissionsState[modalAdmin.id]
-                : (Array.isArray(modalAdmin.permisos) ? modalAdmin.permisos : []);
+                : normalizePermissions(modalAdmin.permisos);
               return (
                 <>
                   <div className="flex items-center justify-between py-1">

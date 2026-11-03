@@ -48,8 +48,6 @@ export class SolicitudesController {
       empresa?: string;
       telefono_contacto?: string;
       servicios_seleccionados?: any;
-      presupuesto_min?: number;
-      presupuesto_max?: number;
       velocidad_entrega?: string;
       nivel_soporte?: string;
     },
@@ -69,6 +67,14 @@ export class SolicitudesController {
     @Body() data: { estado: string; motivo?: string; admin_asignado_id?: string },
   ) {
     return this.solicitudesService.updateEstado(id, data);
+  }
+
+  @Put(':id/admins')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Asignar administradores a una solicitud' })
+  assignAdmins(@Param('id') id: string, @Body() data: { admin_ids: string[] }) {
+    return this.solicitudesService.assignAdmins(id, data.admin_ids);
   }
 
   @Delete(':id')

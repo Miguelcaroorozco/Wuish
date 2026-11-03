@@ -10,7 +10,6 @@ import {
   comentariosApi,
   cotizadorModulosApi,
   mensajesApi,
-  proyectosApi,
   usuariosApi,
 } from '../../lib/api';
 import {
@@ -26,6 +25,7 @@ import {
   Users,
   KeyRound,
   AlertTriangle,
+  CheckCircle2,
 } from 'lucide-react';
 import { Project, ProjectCategory } from '../../types';
 import { AdminSolicitudesTab } from './AdminSolicitudesTab';
@@ -52,8 +52,17 @@ const DEFAULT_COTIZADOR_SERVICES: CotizadorServiceItem[] = [
   { id: 'opt_8', name: 'Pauta Digital Omnicanal & Performance', category: 'comunicacion', basePrice: 1950, description: 'Adquisición de clientes B2B/B2C mediante pauta cuantitativa orientada a ROI.' },
 ];
 
+const CHAT_ENABLED_REQUEST_STATUSES = [
+  'en_proceso',
+  'aprobada',
+  'finalizada',
+  'completada',
+];
+
 export type AdminTabType =
   | 'solicitudes'
+  | 'solicitudes_servicio'
+  | 'solicitudes_cotizacion'
   | 'mensajes'
   | 'planes'
   | 'cotizador_admin'
@@ -65,6 +74,8 @@ export type AdminTabType =
 
 export const VALID_ADMIN_TABS: AdminTabType[] = [
   'solicitudes',
+  'solicitudes_servicio',
+  'solicitudes_cotizacion',
   'mensajes',
   'planes',
   'cotizador_admin',
@@ -86,20 +97,21 @@ const getInitialAdminTab = (allowedList?: string[] | null): AdminTabType => {
       requested = localStorage.getItem('admin_active_tab');
     } catch {}
   }
+  if (requested === 'solicitudes') requested = 'solicitudes_servicio';
 
   if (allowedList && Array.isArray(allowedList) && allowedList.length > 0) {
     if (requested && allowedList.includes(requested) && VALID_ADMIN_TABS.includes(requested as AdminTabType)) {
       return requested as AdminTabType;
     }
     const firstAllowed = allowedList.find((v) => VALID_ADMIN_TABS.includes(v as AdminTabType));
-    if (firstAllowed) return firstAllowed as AdminTabType;
+    if (firstAllowed) return firstAllowed === 'solicitudes' ? 'solicitudes_servicio' : firstAllowed as AdminTabType;
   }
 
   if (requested && VALID_ADMIN_TABS.includes(requested as AdminTabType)) {
     return requested as AdminTabType;
   }
 
-  return 'solicitudes';
+  return 'solicitudes_servicio';
 };
 
 export const AdminPanel: React.FC = () => {
@@ -114,6 +126,7 @@ export const AdminPanel: React.FC = () => {
     addStat,
     removeStat,
     addTestimonial,
+    refreshTestimonials,
   } = useContent();
 
   const userPermisos = useMemo(() => {
@@ -127,12 +140,18 @@ export const AdminPanel: React.FC = () => {
   });
 
   useEffect(() => {
-    if (userPermisos && !userPermisos.includes(activeTab)) {
-      const firstAllowed = VALID_ADMIN_TABS.find((v) => userPermisos.includes(v));
+    const hasLegacyRequestAccess = userPermisos.includes('solicitudes') &&
+      (activeTab === 'solicitudes_servicio' || activeTab === 'solicitudes_cotizacion');
+    if (!userPermisos.includes(activeTab) && !hasLegacyRequestAccess) {
+      const firstAllowed = VALID_ADMIN_TABS.find((v) =>
+        userPermisos.includes(v) ||
+        (v === 'solicitudes_servicio' && userPermisos.includes('solicitudes'))
+      );
       if (firstAllowed) {
-        setActiveTab(firstAllowed);
+        const nextTab = firstAllowed === 'solicitudes' ? 'solicitudes_servicio' : firstAllowed;
+        setActiveTab(nextTab);
         try {
-          localStorage.setItem('admin_active_tab', firstAllowed);
+          localStorage.setItem('admin_active_tab', nextTab);
         } catch {}
       }
     }
@@ -141,6 +160,31 @@ export const AdminPanel: React.FC = () => {
   const [allUsuarios, setAllUsuarios] = useState<any[]>([]);
 
   const [solicitudes, setSolicitudes] = useState<any[]>([]);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(() => {
+    try {
+      const stored = localStorage.getItem('admin_selected_requests');
+      if (stored) {
+        const ids = JSON.parse(stored);
+        if (Array.isArray(ids) && ids.length > 0) return ids[ids.length - 1];
+      }
+      return localStorage.getItem('admin_selected_request') || null;
+    } catch {
+      return null;
+    }
+  });
+  const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('admin_selected_requests');
+      if (stored) {
+        const ids = JSON.parse(stored);
+        if (Array.isArray(ids)) return ids;
+      }
+      const legacyId = localStorage.getItem('admin_selected_request');
+      return legacyId ? [legacyId] : [];
+    } catch {
+      return [];
+    }
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [allMessages, setAllMessages] = useState<any[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
@@ -160,6 +204,7 @@ export const AdminPanel: React.FC = () => {
     description: React.ReactNode;
     onConfirm: () => Promise<void> | void;
     confirmButtonText?: string;
+    variant?: 'danger' | 'approve';
   } | null>(null);
   const [deletingItem, setDeletingItem] = useState(false);
 
@@ -364,8 +409,11 @@ export const AdminPanel: React.FC = () => {
   // Redirigir automáticamente si el usuario no tiene permiso sobre activeTab
   useEffect(() => {
     if (userPermisos && userPermisos.length > 0) {
-      if (!userPermisos.includes(activeTab)) {
-        const fallback = (userPermisos.find((v) => VALID_ADMIN_TABS.includes(v as AdminTabType)) as AdminTabType) || 'solicitudes';
+      const requestAccess = userPermisos.includes('solicitudes') &&
+        (activeTab === 'solicitudes_servicio' || activeTab === 'solicitudes_cotizacion');
+      if (!userPermisos.includes(activeTab) && !requestAccess) {
+        const firstPermission = userPermisos.find((v) => VALID_ADMIN_TABS.includes(v as AdminTabType));
+        const fallback = (firstPermission === 'solicitudes' ? 'solicitudes_servicio' : firstPermission as AdminTabType) || 'solicitudes_servicio';
         setActiveTab(fallback);
         try {
           localStorage.setItem('admin_active_tab', fallback);
@@ -390,6 +438,91 @@ export const AdminPanel: React.FC = () => {
     }
   }, [activeTab]);
 
+  const selectedRequest = useMemo(
+    () => solicitudes.find((request) => request.id === selectedRequestId) || null,
+    [solicitudes, selectedRequestId]
+  );
+
+  useEffect(() => {
+    if (!currentUser?.id || solicitudes.length === 0) return;
+    const assignedRequests = solicitudes.filter((request) =>
+      request.admin_asignado_id === currentUser.id ||
+      (request.administradores || []).some((assignment: any) =>
+        (assignment.admin_id || assignment.admin?.id) === currentUser.id
+      )
+    );
+    if (assignedRequests.length > 0) {
+      const assignedIds = assignedRequests.map((request) => request.id);
+      const mergedIds = Array.from(new Set([...selectedRequestIds, ...assignedIds]));
+      const activeId = selectedRequestId && mergedIds.includes(selectedRequestId)
+        ? selectedRequestId
+        : mergedIds[mergedIds.length - 1];
+      if (mergedIds.length !== selectedRequestIds.length) {
+        setSelectedRequestIds(mergedIds);
+      }
+      if (activeId !== selectedRequestId) {
+        setSelectedRequestId(activeId);
+      }
+      try {
+        localStorage.setItem('admin_selected_requests', JSON.stringify(mergedIds));
+        localStorage.setItem('admin_selected_request', activeId);
+      } catch {}
+    }
+  }, [currentUser?.id, solicitudes, selectedRequestId, selectedRequestIds]);
+
+  useEffect(() => {
+    if (!currentUser?.id || selectedRequestIds.length === 0 || solicitudes.length === 0) return;
+    let cancelled = false;
+
+    const persistSelectedAssignments = async () => {
+      const selectedRequests = solicitudes.filter((request) => selectedRequestIds.includes(request.id));
+      const updates = await Promise.all(
+        selectedRequests
+          .filter((request) => {
+            const assignedIds = (request.administradores || [])
+              .map((assignment: any) => assignment.admin_id || assignment.admin?.id)
+              .filter(Boolean);
+            if (request.admin_asignado_id) assignedIds.push(request.admin_asignado_id);
+            return !assignedIds.includes(currentUser.id);
+          })
+          .map(async (request) => {
+            const assignedIds = (request.administradores || [])
+              .map((assignment: any) => assignment.admin_id || assignment.admin?.id)
+              .filter(Boolean);
+            if (request.admin_asignado_id && !assignedIds.includes(request.admin_asignado_id)) {
+              assignedIds.push(request.admin_asignado_id);
+            }
+            return solicitudesApi.assignAdmins(request.id, [...new Set([...assignedIds, currentUser.id])]);
+          })
+      );
+
+      if (!cancelled && updates.length > 0) {
+        setSolicitudes((prev) => prev.map((request) => {
+          const updated = updates.find((item) => item.id === request.id);
+          return updated || request;
+        }));
+      }
+    };
+
+    persistSelectedAssignments().catch((error: any) => {
+      if (!cancelled) {
+        showToast('Error', error.message || 'No se pudieron guardar las solicitudes seleccionadas.', 'error');
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser?.id, selectedRequestIds, solicitudes, showToast]);
+
+  useEffect(() => {
+    if (!selectedRequest) return;
+    const accepted = CHAT_ENABLED_REQUEST_STATUSES.includes(selectedRequest.estado);
+    setSelectedClientId(
+      accepted ? selectedRequest.usuario_id || selectedRequest.usuario?.id || null : null
+    );
+  }, [selectedRequest]);
+
   const conversations = useMemo(() => {
     const map = new Map<string, { userId: string; userName: string; userEmail: string; lastMessage: string; lastTime: string; unreadCount: number }>();
     allMessages.forEach((m) => {
@@ -413,8 +546,114 @@ export const AdminPanel: React.FC = () => {
         if (isUnread) existing.unreadCount++;
       }
     });
-    return Array.from(map.values());
-  }, [allMessages]);
+    const selectedUserId = selectedRequest && CHAT_ENABLED_REQUEST_STATUSES.includes(selectedRequest.estado)
+      ? selectedRequest.usuario_id || selectedRequest.usuario?.id
+      : null;
+    if (!selectedUserId) return [];
+
+    if (!map.has(selectedUserId)) {
+      const requestUser = selectedRequest?.usuario;
+      map.set(selectedUserId, {
+        userId: selectedUserId,
+        userName: requestUser
+          ? `${requestUser.nombres || ''} ${requestUser.apellidos || ''}`.trim() || 'Usuario'
+          : 'Usuario',
+        userEmail: requestUser?.correo || '',
+        lastMessage: 'Solicitud aceptada. Puedes iniciar la conversación.',
+        lastTime: '',
+        unreadCount: 0,
+      });
+    }
+
+    return Array.from(map.values()).filter((conversation) => conversation.userId === selectedUserId);
+  }, [allMessages, selectedRequest]);
+
+  const handleSelectRequest = async (request: any) => {
+    const isSelected = selectedRequestIds.includes(request.id);
+    const nextIds = isSelected
+      ? selectedRequestIds.filter((id) => id !== request.id)
+      : [...selectedRequestIds, request.id];
+    setSelectedRequestIds(nextIds);
+    setSelectedRequestId(request.id);
+    try {
+      localStorage.setItem('admin_selected_requests', JSON.stringify(nextIds));
+      localStorage.setItem('admin_selected_request', request.id);
+    } catch {}
+    if (isSelected && nextIds.length === 0) {
+      setSelectedRequestId(null);
+    }
+    if (currentUser?.id) {
+      const assignedIds = (request.administradores || [])
+        .map((assignment: any) => assignment.admin_id || assignment.admin?.id)
+        .filter(Boolean);
+      if (request.admin_asignado_id && !assignedIds.includes(request.admin_asignado_id)) {
+        assignedIds.push(request.admin_asignado_id);
+      }
+      if (!assignedIds.includes(currentUser.id)) {
+        try {
+          const updatedRequest = await solicitudesApi.assignAdmins(request.id, [...assignedIds, currentUser.id]);
+          setSolicitudes((prev) => prev.map((item) => item.id === request.id ? updatedRequest : item));
+          request = updatedRequest;
+        } catch (err: any) {
+          showToast('Error', err.message || 'No se pudo guardar la asignación.', 'error');
+          return;
+        }
+      }
+    }
+    const requestUserId = request.usuario_id || request.usuario?.id;
+    const accepted = CHAT_ENABLED_REQUEST_STATUSES.includes(request.estado);
+    if (accepted && requestUserId) {
+      setSelectedClientId(requestUserId);
+      showToast('Solicitud seleccionada', `Chat habilitado para ${request.usuario?.nombres || 'el cliente'}.`, 'success');
+    } else {
+      setSelectedClientId(null);
+      showToast('Solicitud seleccionada', 'Ahora puedes cambiar el estado. El chat se habilitará al aceptarla.', 'info');
+    }
+  };
+
+  const handleAcceptRequest = async (request: any) => {
+    if (!selectedRequestIds.includes(request.id)) {
+      const nextIds = [...selectedRequestIds, request.id];
+      setSelectedRequestIds(nextIds);
+      try {
+        localStorage.setItem('admin_selected_requests', JSON.stringify(nextIds));
+      } catch {}
+    }
+    setSelectedRequestId(request.id);
+    try {
+      localStorage.setItem('admin_selected_request', request.id);
+    } catch {}
+    await handleStatusChange(request.id, 'en_proceso');
+    showToast('Solicitud aceptada', 'La solicitud pasó a En proceso y el chat quedó habilitado.', 'success');
+  };
+
+  const handleAssignAdmins = async (requestId: string, adminIds: string[]) => {
+    try {
+      const updated = await solicitudesApi.assignAdmins(requestId, adminIds);
+      setSolicitudes((prev) => prev.map((request) => request.id === requestId ? updated : request));
+      showToast('Asignación actualizada', 'Los administradores de la solicitud fueron guardados.', 'success');
+    } catch (err: any) {
+      showToast('Error', err.message || 'No se pudieron asignar los administradores.', 'error');
+    }
+  };
+
+  useEffect(() => {
+    if (solicitudes.length === 0) return;
+    const validIds = selectedRequestIds.filter((id) => solicitudes.some((request) => request.id === id));
+    if (validIds.length !== selectedRequestIds.length) {
+      setSelectedRequestIds(validIds);
+      if (!validIds.includes(selectedRequestId || '')) {
+        setSelectedRequestId(validIds[validIds.length - 1] || null);
+      }
+      try {
+        if (validIds.length > 0) {
+          localStorage.setItem('admin_selected_requests', JSON.stringify(validIds));
+        } else {
+          localStorage.removeItem('admin_selected_requests');
+        }
+      } catch {}
+    }
+  }, [selectedRequestId, selectedRequestIds, solicitudes]);
 
   const activeClient = useMemo(() => {
     if (!selectedClientId) return null;
@@ -462,10 +701,34 @@ export const AdminPanel: React.FC = () => {
       setSolicitudes((prev) =>
         prev.map((s) => (s.id === id ? { ...s, estado: nuevoEstado } : s))
       );
+      if (selectedRequestId === id) {
+        const selectedRequest = solicitudes.find((request) => request.id === id);
+        const accepted = CHAT_ENABLED_REQUEST_STATUSES.includes(nuevoEstado);
+        const requestUserId = selectedRequest?.usuario_id || selectedRequest?.usuario?.id;
+        setSelectedClientId(accepted ? requestUserId || null : null);
+      }
       showToast('Estado Actualizado', `Solicitud #${id.slice(0, 8)}: ${nuevoEstado}`, 'info');
     } catch (err: any) {
       showToast('Error', err.message || 'Error al actualizar', 'error');
     }
+  };
+
+  const requestQuotationDecision = (request: any, estado: 'aprobado' | 'rechazado') => {
+    const action = estado === 'aprobado' ? 'aprobar' : 'rechazar';
+    setDeleteConfirmModal({
+      title: `${estado === 'aprobado' ? '¿Aprobar' : '¿Rechazar'} cotización?`,
+      description: (
+        <>
+          Confirma que deseas {action} la cotización <strong className="text-white">#{request.id.slice(0, 8)}</strong>.
+          Esta acción actualizará su estado para el cliente.
+        </>
+      ),
+      confirmButtonText: estado === 'aprobado' ? 'Sí, aprobar' : 'Sí, rechazar',
+      variant: estado === 'aprobado' ? 'approve' : 'danger',
+      onConfirm: async () => {
+        await handleStatusChange(request.id, estado);
+      },
+    });
   };
 
   const handleSaveCms = async (e: React.FormEvent) => {
@@ -736,17 +999,7 @@ export const AdminPanel: React.FC = () => {
     if (!editingProject) return;
     try {
       const tagsArray = editProjectForm.tags.split(',').map((t) => t.trim()).filter(Boolean);
-      await proyectosApi.update(editingProject.id, {
-        titulo: editProjectForm.title,
-        cliente: editProjectForm.client,
-        categoria: editProjectForm.category,
-        anio: editProjectForm.year,
-        descripcion: editProjectForm.description,
-        tags: tagsArray,
-        imagen_url: editProjectForm.imageUrl.trim() || undefined,
-      });
-
-      updateProject(editingProject.id, {
+      await updateProject(editingProject.id, {
         title: editProjectForm.title,
         client: editProjectForm.client,
         category: editProjectForm.category,
@@ -768,17 +1021,7 @@ export const AdminPanel: React.FC = () => {
     if (!newProject.title.trim()) return;
     try {
       const tagsArray = newProject.tags.split(',').map((t) => t.trim()).filter(Boolean);
-      const res = await proyectosApi.create({
-        titulo: newProject.title.trim(),
-        cliente: newProject.client.trim(),
-        categoria: newProject.category,
-        anio: newProject.year.trim() || '2026',
-        descripcion: newProject.description.trim(),
-        tags: tagsArray,
-        imagen_url: newProject.imageUrl.trim() || undefined,
-      });
-
-      addProject({
+      await addProject({
         title: newProject.title.trim(),
         client: newProject.client.trim(),
         category: newProject.category,
@@ -806,8 +1049,7 @@ export const AdminPanel: React.FC = () => {
 
   const handleToggleProjectVisibility = async (id: string, current: boolean) => {
     try {
-      await proyectosApi.update(id, { activo: !current });
-      updateProject(id, { activo: !current });
+      await updateProject(id, { activo: !current });
       showToast('Proyecto', !current ? 'Visible en Inicio' : 'Oculto en Inicio', 'info');
     } catch (err: any) {
       showToast('Error', err.message || 'No se pudo cambiar la visibilidad', 'error');
@@ -825,8 +1067,7 @@ export const AdminPanel: React.FC = () => {
       ),
       onConfirm: async () => {
         try {
-          await proyectosApi.delete(id);
-          removeProject(id);
+          await removeProject(id);
           showToast('Proyecto Eliminado', `"${title}" fue removido de la base de datos.`, 'success');
         } catch (err: any) {
           showToast('Error', err.message || 'No se pudo eliminar el proyecto', 'error');
@@ -884,19 +1125,21 @@ export const AdminPanel: React.FC = () => {
     });
   };
 
-  const handleCreateTestimonial = (e: React.FormEvent) => {
+  const handleCreateTestimonial = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTestimonial.name.trim() || !newTestimonial.text.trim()) {
       showToast('Campos requeridos', 'Ingresa nombre y contenido.', 'error');
       return;
     }
     try {
-      addTestimonial({
+      const created = await addTestimonial({
         name: newTestimonial.name.trim(),
         company: newTestimonial.company.trim(),
         rating: newTestimonial.rating,
         text: newTestimonial.text.trim(),
       });
+      await comentariosApi.toggleMostrar(created.id, true);
+      await refreshTestimonials();
       setShowNewTestimonialForm(false);
       setNewTestimonial({ name: '', company: '', rating: 5, text: '' });
       showToast('Testimonio Publicado', 'Se añadió al carrusel de la página de inicio.', 'success');
@@ -905,20 +1148,24 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
-  const handleCreateStat = (e: React.FormEvent) => {
+  const handleCreateStat = async (e: React.FormEvent) => {
     e.preventDefault();
     const valNum = parseFloat(newStatItem.value);
     if (isNaN(valNum) || !newStatItem.label.trim()) {
       showToast('Dato inválido', 'Ingresa un valor numérico y etiqueta para la métrica', 'error');
       return;
     }
-    addStat({
-      value: valNum,
-      suffix: newStatItem.suffix || '',
-      label: newStatItem.label.trim(),
-    });
-    showToast('Métrica Agregada', `"${newStatItem.label}" se agregó a las cifras del inicio.`, 'success');
-    setNewStatItem({ value: '', suffix: '+', label: '' });
+    try {
+      await addStat({
+        value: valNum,
+        suffix: newStatItem.suffix || '',
+        label: newStatItem.label.trim(),
+      });
+      showToast('Métrica Agregada', `"${newStatItem.label}" se guardó en la base de datos.`, 'success');
+      setNewStatItem({ value: '', suffix: '+', label: '' });
+    } catch (err: any) {
+      showToast('Error', err.message || 'No se pudo guardar la métrica', 'error');
+    }
   };
 
   const handleDeleteStat = (id: string, label: string) => {
@@ -929,9 +1176,13 @@ export const AdminPanel: React.FC = () => {
           Esta acción removerá la cifra <strong className="text-white">"{label}"</strong> de los resultados mostrados en la página principal.
         </>
       ),
-      onConfirm: () => {
-        removeStat(id);
-        showToast('Métrica Eliminada', `"${label}" fue removida del inicio.`, 'info');
+      onConfirm: async () => {
+        try {
+          await removeStat(id);
+          showToast('Métrica Eliminada', `"${label}" fue removida de la base de datos.`, 'info');
+        } catch (err: any) {
+          showToast('Error', err.message || 'No se pudo eliminar la métrica', 'error');
+        }
       },
     });
   };
@@ -958,7 +1209,7 @@ export const AdminPanel: React.FC = () => {
     };
 
     const rows = [
-      ['ID', 'Cliente', 'Email', 'Empresa', 'Tipo', 'Estado', 'Plan', 'Servicios seleccionados', 'Presupuesto mínimo', 'Presupuesto máximo', 'Velocidad', 'Soporte', 'Fecha', 'Descripción'],
+      ['ID', 'Cliente', 'Email', 'Empresa', 'Tipo', 'Estado', 'Plan', 'Servicios seleccionados', 'Velocidad', 'Soporte', 'Fecha', 'Descripción'],
       ...solicitudes.map((r) => [
         r.id || '',
         `${r.usuario?.nombres || ''} ${r.usuario?.apellidos || ''}`.trim(),
@@ -968,8 +1219,6 @@ export const AdminPanel: React.FC = () => {
         r.estado || '',
         r.plan?.nombre || '',
         getSelectedServices(r.servicios_seleccionados),
-        r.presupuesto_min ?? '',
-        r.presupuesto_max ?? '',
         r.velocidad_entrega || '',
         r.nivel_soporte || '',
         r.created_at || r.fecha_solicitud || '',
@@ -991,15 +1240,16 @@ export const AdminPanel: React.FC = () => {
   };
 
   const kpis = [
-    (userPermisos === null || userPermisos.includes('solicitudes')) && { label: 'Total Solicitudes', val: solicitudes.length, color: 'text-white' },
-    (userPermisos === null || userPermisos.includes('solicitudes')) && { label: 'Pendientes', val: solicitudes.filter((s) => s.estado === 'pendiente').length, color: 'text-amber-400' },
-    (userPermisos === null || userPermisos.includes('solicitudes')) && { label: 'Aprobadas', val: solicitudes.filter((s) => s.estado === 'aprobada').length, color: 'text-emerald-400' },
+    (userPermisos === null || userPermisos.includes('solicitudes') || userPermisos.includes('solicitudes_servicio') || userPermisos.includes('solicitudes_cotizacion')) && { label: 'Total Solicitudes', val: solicitudes.length, color: 'text-white' },
+    (userPermisos === null || userPermisos.includes('solicitudes') || userPermisos.includes('solicitudes_servicio') || userPermisos.includes('solicitudes_cotizacion')) && { label: 'Pendientes', val: solicitudes.filter((s) => s.estado === 'pendiente').length, color: 'text-amber-400' },
+    (userPermisos === null || userPermisos.includes('solicitudes') || userPermisos.includes('solicitudes_servicio') || userPermisos.includes('solicitudes_cotizacion')) && { label: 'Aprobadas', val: solicitudes.filter((s) => s.estado === 'aprobada').length, color: 'text-emerald-400' },
     (userPermisos === null || userPermisos.includes('mensajes')) && { label: 'Mensajes Sin Leer', val: conversations.reduce((a, c) => a + c.unreadCount, 0), color: 'text-sky-400' },
     (userPermisos === null || userPermisos.includes('usuarios') || userPermisos.includes('permisos')) && { label: 'Usuarios Totales', val: allUsuarios.length, color: 'text-[#ffd56d]' },
   ].filter(Boolean) as { label: string; val: number; color: string }[];
 
   const allTabs: { id: AdminTabType; label: string; icon: any; count?: number }[] = [
-    { id: 'solicitudes', label: 'Solicitudes', icon: ClipboardList, count: solicitudes.length },
+    { id: 'solicitudes_servicio', label: 'Solicitudes de Servicio', icon: ClipboardList, count: solicitudes.filter((s) => s.tipo !== 'cotizacion').length },
+    { id: 'solicitudes_cotizacion', label: 'Cotizaciones', icon: FileText, count: solicitudes.filter((s) => s.tipo === 'cotizacion').length },
     { id: 'mensajes', label: 'Mensajes de Clientes', icon: MessageSquare, count: conversations.reduce((a, c) => a + c.unreadCount, 0) },
     { id: 'planes', label: 'Planes (Plantillas)', icon: CreditCard, count: planes.filter((p) => p.activo).length },
     { id: 'cotizador_admin', label: 'Opciones Cotizador', icon: Sliders, count: cotizadorOptions.length },
@@ -1010,8 +1260,13 @@ export const AdminPanel: React.FC = () => {
     { id: 'permisos', label: 'Control de Permisos', icon: KeyRound, count: allUsuarios.filter((u) => u.rol === 'admin' || u.rol === 'administrador').length },
   ];
 
+  const canViewRequestTab = (tab: AdminTabType) =>
+    userPermisos === null ||
+    userPermisos.includes(tab) ||
+    (userPermisos.includes('solicitudes') && (tab === 'solicitudes_servicio' || tab === 'solicitudes_cotizacion'));
+
   const visibleTabs = userPermisos !== null
-    ? allTabs.filter((tab) => userPermisos.includes(tab.id))
+    ? allTabs.filter((tab) => canViewRequestTab(tab.id))
     : allTabs;
 
   // Track animated tab ids: 'entering' | 'visible' | 'leaving'
@@ -1144,7 +1399,7 @@ export const AdminPanel: React.FC = () => {
     }
   }, [activeTab]);
 
-  const hasTabPermission = (tab: AdminTabType) => userPermisos === null || userPermisos.includes(tab);
+  const hasTabPermission = (tab: AdminTabType) => canViewRequestTab(tab);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -1161,7 +1416,7 @@ export const AdminPanel: React.FC = () => {
           </p>
         </div>
 
-        {(hasTabPermission('planes') || hasTabPermission('solicitudes')) && (
+        {(hasTabPermission('planes') || hasTabPermission('solicitudes_servicio') || hasTabPermission('solicitudes_cotizacion')) && (
           <div className="flex items-center gap-3">
             {hasTabPermission('planes') && (
               <button
@@ -1172,7 +1427,7 @@ export const AdminPanel: React.FC = () => {
                 <span>Crear Plan</span>
               </button>
             )}
-            {hasTabPermission('solicitudes') && (
+            {(hasTabPermission('solicitudes_servicio') || hasTabPermission('solicitudes_cotizacion')) && (
               <button
                 onClick={handleExportCSV}
                 className="px-4 py-2.5 rounded-xl bg-[#1c1b1d] hover:bg-[#201f21] text-zinc-300 hover:text-white border border-white/10 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
@@ -1304,7 +1559,8 @@ export const AdminPanel: React.FC = () => {
         </div>
       ) : (
         <div key={activeTab} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-          {activeTab === 'solicitudes' && hasTabPermission('solicitudes') && (
+          {(activeTab === 'solicitudes_servicio' || activeTab === 'solicitudes_cotizacion') &&
+            hasTabPermission(activeTab) && (
             <AdminSolicitudesTab
               solicitudes={solicitudes}
               searchTerm={searchTerm}
@@ -1313,6 +1569,17 @@ export const AdminPanel: React.FC = () => {
               onPageChange={setSolicitudesPage}
               itemsPerPage={SOLICITUDES_PER_PAGE}
               onStatusChange={handleStatusChange}
+              requestType={activeTab === 'solicitudes_cotizacion' ? 'cotizacion' : 'servicio'}
+              selectedRequestId={selectedRequestId}
+              selectedRequestIds={selectedRequestIds}
+              onSelectRequest={handleSelectRequest}
+              onAcceptRequest={handleAcceptRequest}
+              onApproveQuotation={(request) => requestQuotationDecision(request, 'aprobado')}
+              onRejectQuotation={(request) => requestQuotationDecision(request, 'rechazado')}
+              admins={allUsuarios.filter((user) => user.rol === 'admin' || user.rol === 'administrador')}
+              onAssignAdmins={handleAssignAdmins}
+              currentAdmin={currentUser}
+              serviceOptions={cotizadorOptions}
             />
           )}
 
@@ -1455,8 +1722,14 @@ export const AdminPanel: React.FC = () => {
       {deleteConfirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-md bg-[#1c1b1d] border border-white/10 rounded-2xl p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-400 flex items-center justify-center mx-auto">
-              <AlertTriangle className="w-6 h-6" />
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto ${
+              deleteConfirmModal.variant === 'approve'
+                ? 'bg-emerald-500/10 text-emerald-400'
+                : 'bg-red-500/10 text-red-400'
+            }`}>
+              {deleteConfirmModal.variant === 'approve'
+                ? <CheckCircle2 className="w-6 h-6" />
+                : <AlertTriangle className="w-6 h-6" />}
             </div>
 
             <div className="text-center space-y-2">
@@ -1489,7 +1762,11 @@ export const AdminPanel: React.FC = () => {
                     setDeletingItem(false);
                   }
                 }}
-                className="px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-xs uppercase tracking-wider transition cursor-pointer flex-1 disabled:opacity-50 shadow-lg shadow-red-500/10"
+                className={`px-4 py-2.5 rounded-xl text-white font-bold text-xs uppercase tracking-wider transition cursor-pointer flex-1 disabled:opacity-50 shadow-lg ${
+                  deleteConfirmModal.variant === 'approve'
+                    ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/10'
+                    : 'bg-red-500 hover:bg-red-600 shadow-red-500/10'
+                }`}
               >
                 {deletingItem ? 'Eliminando...' : deleteConfirmModal.confirmButtonText || 'Sí, Eliminar'}
               </button>

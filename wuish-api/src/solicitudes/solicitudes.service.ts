@@ -12,6 +12,7 @@ export class SolicitudesService {
       include: {
         plan: { include: { tipo_servicio: true } },
         admin_asignado: { select: { id: true, nombres: true, apellidos: true } },
+        administradores: { include: { admin: { select: { id: true, nombres: true, apellidos: true, correo: true } } } },
         historial: { orderBy: { changed_at: 'desc' } },
       },
       orderBy: { created_at: 'desc' },
@@ -28,6 +29,7 @@ export class SolicitudesService {
         usuario: { select: { id: true, nombres: true, apellidos: true, correo: true, telefono: true, empresa: true } },
         plan: { include: { tipo_servicio: true } },
         admin_asignado: { select: { id: true, nombres: true, apellidos: true } },
+        administradores: { include: { admin: { select: { id: true, nombres: true, apellidos: true, correo: true } } } },
         historial: { orderBy: { changed_at: 'desc' } },
       },
       orderBy: { created_at: 'desc' },
@@ -41,6 +43,7 @@ export class SolicitudesService {
         usuario: { select: { id: true, nombres: true, apellidos: true, correo: true, telefono: true, numero_cedula: true, empresa: true } },
         plan: { include: { tipo_servicio: true } },
         admin_asignado: { select: { id: true, nombres: true, apellidos: true } },
+        administradores: { include: { admin: { select: { id: true, nombres: true, apellidos: true, correo: true } } } },
         historial: { orderBy: { changed_at: 'desc' } },
         mensajes: { orderBy: { created_at: 'desc' } },
       },
@@ -60,8 +63,6 @@ export class SolicitudesService {
     empresa?: string;
     telefono_contacto?: string;
     servicios_seleccionados?: any;
-    presupuesto_min?: number;
-    presupuesto_max?: number;
     velocidad_entrega?: string;
     nivel_soporte?: string;
   }) {
@@ -75,8 +76,6 @@ export class SolicitudesService {
         empresa: data.empresa || null,
         telefono_contacto: data.telefono_contacto || null,
         servicios_seleccionados: data.servicios_seleccionados || null,
-        presupuesto_min: data.presupuesto_min != null ? data.presupuesto_min : null,
-        presupuesto_max: data.presupuesto_max != null ? data.presupuesto_max : null,
         velocidad_entrega: data.velocidad_entrega || null,
         nivel_soporte: data.nivel_soporte || null,
         fecha_solicitud: new Date(),
@@ -171,6 +170,34 @@ export class SolicitudesService {
     }
 
     return updated;
+  }
+
+  async assignAdmins(id: string, adminIds: string[]) {
+    const solicitud = await this.prisma.solicitud.findUnique({ where: { id } });
+    if (!solicitud) throw new NotFoundException('Solicitud no encontrada');
+    const uniqueIds: string[] = [...new Set(adminIds.filter((adminId): adminId is string => Boolean(adminId)))];
+    const admins = await this.prisma.usuario.findMany({
+      where: { id: { in: uniqueIds }, rol: { in: ['admin', 'administrador'] } },
+      select: { id: true },
+    });
+    if (admins.length !== uniqueIds.length) {
+      throw new BadRequestException('La lista contiene usuarios que no son administradores');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.solicitudAdmin.deleteMany({ where: { solicitud_id: id } }),
+      ...(uniqueIds.length
+        ? [this.prisma.solicitudAdmin.createMany({
+            data: uniqueIds.map((admin_id) => ({ solicitud_id: id, admin_id })),
+          })]
+        : []),
+      this.prisma.solicitud.update({
+        where: { id },
+        data: { admin_asignado_id: uniqueIds[0] || null },
+      }),
+    ]);
+
+    return this.findOne(id, undefined, true);
   }
 
   async delete(id: string) {

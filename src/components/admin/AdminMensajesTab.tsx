@@ -50,7 +50,7 @@ export const AdminMensajesTab: React.FC<AdminMensajesTabProps> = ({
         </div>
         <div className="space-y-1.5 max-h-[500px] overflow-y-auto">
           {filteredConversations.length === 0 ? (
-            <div className="py-8 text-center text-xs text-[#9a907c]">Sin mensajes.</div>
+            <div className="py-8 text-center text-xs text-[#9a907c]">Sin clientes con solicitudes aceptadas.</div>
           ) : (
             filteredConversations.map((conv) => (
               <div
@@ -155,7 +155,7 @@ export const AdminMensajesTab: React.FC<AdminMensajesTabProps> = ({
           </>
         ) : (
           <div className="flex items-center justify-center h-full text-[#9a907c] text-xs">
-            Selecciona una conversación para responder.
+            Selecciona una solicitud aceptada para abrir el chat del cliente.
           </div>
         )}
       </div>

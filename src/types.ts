@@ -21,9 +21,10 @@ export interface User {
 // wuish-api/src/solicitudes/estados.ts.
 export const ESTADOS_SOLICITUD = [
   'pendiente',
-  'en_revision',
   'en_proceso',
   'aprobada',
+  'aprobado',
+  'rechazado',
   'finalizada',
   'cancelada',
 ] as const;
@@ -32,9 +33,10 @@ export type EstadoSolicitud = (typeof ESTADOS_SOLICITUD)[number];
 
 export const ESTADO_SOLICITUD_LABELS: Record<EstadoSolicitud, string> = {
   pendiente: 'Pendiente',
-  en_revision: 'En Revisión',
   en_proceso: 'En Proceso',
   aprobada: 'Aprobada',
+  aprobado: 'Aprobado',
+  rechazado: 'Rechazado',
   finalizada: 'Finalizada',
   cancelada: 'Cancelada',
 };
@@ -117,4 +119,3 @@ export interface StatItem {
   suffix: string;
   label: string;
 }
-

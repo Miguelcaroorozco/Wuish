@@ -33,6 +33,7 @@ model Usuario {
   info_general_updates InfoGeneral[] @relation("UpdatedByUser")
   solicitudes          Solicitud[]   @relation("SolicitudUsuario")
   solicitudes_admin    Solicitud[]   @relation("SolicitudAdmin")
+  solicitudes_asignadas SolicitudAdmin[]
   mensajes             Mensaje[]
   comentarios          Comentario[]
   notificaciones       Notificacion[]
@@ -107,8 +108,6 @@ model Solicitud {
   empresa                 String?   @db.VarChar(150)
   telefono_contacto       String?   @db.VarChar(30)
   servicios_seleccionados Json?
-  presupuesto_min         Decimal?  @db.Decimal(12, 2)
-  presupuesto_max         Decimal?  @db.Decimal(12, 2)
   velocidad_entrega       String?   @db.VarChar(30)
   nivel_soporte           String?   @db.VarChar(30)
   descripcion             String?   @db.Text
@@ -121,10 +120,24 @@ model Solicitud {
   usuario        Usuario                    @relation("SolicitudUsuario", fields: [usuario_id], references: [id])
   plan           Plan?                      @relation(fields: [plan_id], references: [id])
   admin_asignado Usuario?                   @relation("SolicitudAdmin", fields: [admin_asignado_id], references: [id])
+  administradores SolicitudAdmin[]
   mensajes       Mensaje[]
   historial      SolicitudHistorialEstado[]
 
   @@map("solicitudes")
+}
+
+model SolicitudAdmin {
+  solicitud_id String @db.Uuid
+  admin_id     String @db.Uuid
+  assigned_at  DateTime @default(now())
+
+  solicitud Solicitud @relation(fields: [solicitud_id], references: [id], onDelete: Cascade)
+  admin     Usuario   @relation(fields: [admin_id], references: [id], onDelete: Cascade)
+
+  @@id([solicitud_id, admin_id])
+  @@index([admin_id])
+  @@map("solicitud_admines")
 }
 
 // 7. HISTORIAL DE ESTADOS (Auditoría de estados en solicitudes)
@@ -226,4 +239,3 @@ model Notificacion {
   @@index([leido])
   @@map("notificaciones")
 }
-

@@ -24,10 +24,18 @@ export class ComentariosService {
     });
   }
 
-  async create(data: { usuario_id?: string; contenido: string; calificacion?: number }) {
+  async create(data: {
+    usuario_id?: string;
+    contenido: string;
+    calificacion?: number;
+    nombre_autor?: string;
+    empresa_autor?: string;
+  }) {
     const comentario = await this.prisma.comentario.create({
       data: {
         usuario_id: data.usuario_id || null,
+        nombre_autor: data.nombre_autor || null,
+        empresa_autor: data.empresa_autor || null,
         contenido: data.contenido,
         calificacion: data.calificacion,
         mostrar_en_pagina: false,
