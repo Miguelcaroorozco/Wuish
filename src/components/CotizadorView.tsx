@@ -54,6 +54,10 @@ const getServiceIcon = (id: string, name: string) => {
   return Megaphone;
 };
 
+const isUuid = (value: unknown): value is string =>
+  typeof value === 'string' &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+
 export const CotizadorView: React.FC<CotizadorViewProps> = ({
   initialPlanId,
   activePlanRecord,
@@ -230,9 +234,10 @@ export const CotizadorView: React.FC<CotizadorViewProps> = ({
     try {
       const selectedNames = selectedServices.map((s) => s.name).join(', ');
       const userName = user ? `${user.nombres} ${user.apellidos || ''}`.trim() : '';
+      const planId = isUuid(activePlanTemplate?.id) ? activePlanTemplate.id : undefined;
       await solicitudesApi.create({
         tipo: 'cotizacion',
-        plan_id: activePlanTemplate?.id || undefined,
+        plan_id: planId,
         empresa: company.trim() || user?.empresa || undefined,
         telefono_contacto: user?.telefono || undefined,
         servicios_seleccionados: selectedServices.map((s) => ({
