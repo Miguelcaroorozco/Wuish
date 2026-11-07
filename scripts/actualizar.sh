@@ -55,9 +55,7 @@ log "Instalando dependencias del frontend"
 npm ci
 
 log "Instalando dependencias del backend"
-# Nest Schematics 12 declara TypeScript 6 como peer, mientras el proyecto
-# compila con TypeScript 5.8; el lockfile ya contiene la resolución validada.
-npm --prefix "$API_DIR" ci --legacy-peer-deps
+npm --prefix "$API_DIR" ci
 
 log "Generando Prisma Client"
 npx --prefix "$API_DIR" prisma generate --schema "$API_DIR/prisma/schema.prisma"
