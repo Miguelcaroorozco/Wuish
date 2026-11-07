@@ -58,6 +58,15 @@ const isUuid = (value: unknown): value is string =>
   typeof value === 'string' &&
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 
+const mapCotizadorOption = (module: any): CotizadorServiceItem => ({
+  id: module.id,
+  name: module.nombre,
+  category: module.categoria,
+  basePrice: Number(module.precio_base),
+  description: module.descripcion,
+  activo: module.activo,
+});
+
 const DEFAULT_COTIZADOR_SERVICES: CotizadorServiceItem[] = [
   { id: 'opt_1', name: 'Desarrollo Web & E-Commerce', category: 'tecnologia', basePrice: 2850, description: 'Plataformas headless de alta conversión, SSR y checkout global.' },
   { id: 'opt_2', name: 'Arquitectura Cloud & DevOps', category: 'tecnologia', basePrice: 3400, description: 'Infraestructura contenerizada en AWS/GCP con CI/CD automatizado.' },
@@ -369,13 +378,14 @@ export const AdminPanel: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [sol, info, tipos, com, msg, pls] = await Promise.allSettled([
+      const [sol, info, tipos, com, msg, pls, modules] = await Promise.allSettled([
         solicitudesApi.getAll(),
         infoGeneralApi.getAll(),
         tiposServicioApi.getAll(),
         comentariosApi.getAll(),
         mensajesApi.getAll(),
         planesApi.getAll(true),
+        cotizadorModulosApi.getAll(true),
       ]);
       await loadAllUsuarios();
 
@@ -404,20 +414,34 @@ export const AdminPanel: React.FC = () => {
         if (recId) setRecomendadoPlanId(recId);
       }
 
-      cotizadorModulosApi.getAll(true).then((dbModules) => {
-        if (Array.isArray(dbModules) && dbModules.length > 0) {
-          setCotizadorOptions(
-            dbModules.map((m: any) => ({
-              id: m.id,
-              name: m.nombre,
-              category: m.categoria,
-              basePrice: Number(m.precio_base),
-              description: m.descripcion,
-              activo: m.activo,
-            }))
-          );
+      if (modules.status === 'fulfilled' && Array.isArray(modules.value)) {
+        const options = modules.value.map(mapCotizadorOption);
+        setCotizadorOptions(options);
+
+        if (pls.status === 'fulfilled') {
+          const staleActivePlans = pls.value.filter((plan: any) => {
+            if (!plan.activo) return false;
+            const features = getPlanFeatures(plan);
+            return features.length === 0 || features.every((feature) => {
+              const option = options.find((item) => item.name.toLowerCase() === feature.toLowerCase());
+              return !option || option.activo === false;
+            });
+          });
+
+          if (staleActivePlans.length > 0) {
+            await Promise.all(
+              staleActivePlans.map((plan: any) => planesApi.update(plan.id, { activo: false }))
+            );
+            setPlanes((current) =>
+              current.map((plan) =>
+                staleActivePlans.some((stalePlan: any) => stalePlan.id === plan.id)
+                  ? { ...plan, activo: false }
+                  : plan
+              )
+            );
+          }
         }
-      }).catch(() => {});
+      }
     } catch (err) {
       console.error('Error cargando datos de administración:', err);
     }
@@ -907,17 +931,8 @@ export const AdminPanel: React.FC = () => {
       });
 
       const refreshed = await cotizadorModulosApi.getAll(true);
-      if (Array.isArray(refreshed) && refreshed.length > 0) {
-        setCotizadorOptions(
-          refreshed.map((m: any) => ({
-            id: m.id,
-            name: m.nombre,
-            category: m.categoria,
-            basePrice: Number(m.precio_base),
-            description: m.descripcion,
-            activo: m.activo,
-          }))
-        );
+      if (Array.isArray(refreshed)) {
+        setCotizadorOptions(refreshed.map(mapCotizadorOption));
       }
       setShowOptionModal(false);
       setEditingOption(null);
@@ -967,36 +982,49 @@ export const AdminPanel: React.FC = () => {
       confirmButtonText: nextActivo ? 'Sí, mostrar' : 'Sí, ocultar',
       onConfirm: async () => {
         try {
-      await cotizadorModulosApi.upsert({
-        id: target.id,
-        nombre: target.name,
-        categoria: target.category,
-        precio_base: target.basePrice,
-        descripcion: target.description,
-        activo: nextActivo,
-      });
-      for (const plan of plansToHide) {
-        await planesApi.update(plan.id, { activo: false });
-      }
+          await cotizadorModulosApi.upsert({
+            id: target.id,
+            nombre: target.name,
+            categoria: target.category,
+            precio_base: target.basePrice,
+            descripcion: target.description,
+            activo: nextActivo,
+          });
 
-      const refreshed = await cotizadorModulosApi.getAll(true);
-      if (Array.isArray(refreshed) && refreshed.length > 0) {
-        setCotizadorOptions(
-          refreshed.map((m: any) => ({
-            id: m.id,
-            name: m.nombre,
-            category: m.categoria,
-            basePrice: Number(m.precio_base),
-            description: m.descripcion,
-            activo: m.activo,
-          }))
-        );
-      }
-      showToast(
-        nextActivo ? 'Módulo Visible' : 'Módulo Ocultado',
-        `"${target?.name}" ahora está ${nextActivo ? 'visible' : 'oculto'} en el cotizador.`,
-        'success'
-      );
+          const refreshed = await cotizadorModulosApi.getAll(true);
+          const refreshedOptions = Array.isArray(refreshed)
+            ? refreshed.map(mapCotizadorOption)
+            : [];
+          setCotizadorOptions(refreshedOptions);
+
+          const plansToHideNow = nextActivo
+            ? []
+            : planes.filter((plan) => {
+                if (!plan.activo) return false;
+                const features = getPlanFeatures(plan);
+                return features.length === 0 || features.every((feature) => {
+                  const option = refreshedOptions.find(
+                    (item) => item.name.toLowerCase() === feature.toLowerCase()
+                  );
+                  return !option || option.activo === false;
+                });
+              });
+
+          await Promise.all(
+            plansToHideNow.map((plan) => planesApi.update(plan.id, { activo: false }))
+          );
+          setPlanes((current) =>
+            current.map((plan) =>
+              plansToHideNow.some((hiddenPlan) => hiddenPlan.id === plan.id)
+                ? { ...plan, activo: false }
+                : plan
+            )
+          );
+          showToast(
+            nextActivo ? 'Módulo Visible' : 'Módulo Ocultado',
+            `"${target?.name}" ahora está ${nextActivo ? 'visible' : 'oculto'} en el cotizador.`,
+            'success'
+          );
         } catch (err: any) {
           showToast('Error', err.message || 'No se pudo cambiar la visibilidad', 'error');
         }
@@ -1025,27 +1053,49 @@ export const AdminPanel: React.FC = () => {
       onConfirm: async () => {
         try {
           await cotizadorModulosApi.delete(id);
-          for (const plan of affectedPlans) {
-            const remainingFeatures = getPlanFeatures(plan).filter(
-              (feature: string) => feature.toLowerCase() !== name.toLowerCase()
-            );
-            await planesApi.update(plan.id, {
-              caracteristicas: remainingFeatures,
-              ...(remainingFeatures.length === 0 ? { activo: false } : {}),
-            });
-          }
           const refreshed = await cotizadorModulosApi.getAll(true);
-          setCotizadorOptions(
-            refreshed.map((m: any) => ({
-              id: m.id,
-              name: m.nombre,
-              category: m.categoria,
-              basePrice: Number(m.precio_base),
-              description: m.descripcion,
-              activo: m.activo,
-            }))
+          const refreshedOptions = Array.isArray(refreshed)
+            ? refreshed.map(mapCotizadorOption)
+            : [];
+          setCotizadorOptions(refreshedOptions);
+
+          const plansToUpdate = planes.filter((plan) => {
+            const features = getPlanFeatures(plan);
+            return features.some((feature) => feature.toLowerCase() === name.toLowerCase()) ||
+              (plan.activo && (features.length === 0 || features.every((feature) => {
+                const option = refreshedOptions.find(
+                  (item) => item.name.toLowerCase() === feature.toLowerCase()
+                );
+                return !option || option.activo === false;
+              })));
+          });
+          const updatedPlanValues = new Map<string, any>();
+          await Promise.all(
+            plansToUpdate.map(async (plan) => {
+              const remainingFeatures = getPlanFeatures(plan).filter(
+                (feature) => feature.toLowerCase() !== name.toLowerCase()
+              );
+              const shouldHide = remainingFeatures.length === 0 ||
+                remainingFeatures.every((feature) => {
+                  const option = refreshedOptions.find(
+                    (item) => item.name.toLowerCase() === feature.toLowerCase()
+                  );
+                  return !option || option.activo === false;
+                });
+              await planesApi.update(plan.id, {
+                caracteristicas: remainingFeatures,
+                ...(shouldHide ? { activo: false } : {}),
+              });
+              updatedPlanValues.set(plan.id, {
+                ...plan,
+                caracteristicas: remainingFeatures,
+                ...(shouldHide ? { activo: false } : {}),
+              });
+            })
           );
-          await reloadPlanes();
+          setPlanes((current) =>
+            current.map((plan) => updatedPlanValues.get(plan.id) || plan)
+          );
           showToast('Módulo Eliminado', `"${name}" fue eliminado del cotizador.`, 'success');
         } catch (err: any) {
           showToast('Error', err.message || 'No se pudo eliminar el módulo', 'error');
