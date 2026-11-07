@@ -10,7 +10,6 @@ class LoginDto {
   correo: string;
 
   @IsString()
-  @MinLength(8)
   password: string;
 }
 
