@@ -37,6 +37,9 @@ import { AdminResultadosTab } from './AdminResultadosTab';
 import { AdminComentariosTab } from './AdminComentariosTab';
 import { AdminPlanModal } from './AdminPlanModal';
 import { AdminCotizadorOptionModal } from './AdminCotizadorOptionModal';
+import { AdminEditProjectModal } from './AdminEditProjectModal';
+import { AdminUsuariosTab } from './AdminUsuariosTab';
+import { AdminPermisosTab, ADMIN_VIEWS } from './AdminPermisosTab';
 
 const getPlanFeatures = (plan: any): string[] => {
   if (Array.isArray(plan.caracteristicas)) return plan.caracteristicas.filter(Boolean);
@@ -50,9 +53,10 @@ const getPlanFeatures = (plan: any): string[] => {
   }
   return [];
 };
-import { AdminEditProjectModal } from './AdminEditProjectModal';
-import { AdminUsuariosTab } from './AdminUsuariosTab';
-import { AdminPermisosTab, ADMIN_VIEWS } from './AdminPermisosTab';
+
+const isUuid = (value: unknown): value is string =>
+  typeof value === 'string' &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
 const DEFAULT_COTIZADOR_SERVICES: CotizadorServiceItem[] = [
   { id: 'opt_1', name: 'Desarrollo Web & E-Commerce', category: 'tecnologia', basePrice: 2850, description: 'Plataformas headless de alta conversión, SSR y checkout global.' },
@@ -822,7 +826,7 @@ export const AdminPanel: React.FC = () => {
     setNewPlan({
       nombre: plan.nombre,
       precio: plan.precio != null ? String(plan.precio) : '',
-      tipo_id: plan.tipo_id || tiposServicio[0]?.id || '',
+      tipo_id: plan.tipo_servicio_id || plan.tipo_id || plan.tipo_servicio?.id || tiposServicio[0]?.id || '',
       desc: plan.descripcion || '',
       features: featText,
     });
@@ -843,6 +847,10 @@ export const AdminPanel: React.FC = () => {
   const handleSavePlan = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      if (!isUuid(newPlan.tipo_id)) {
+        showToast('Tipo de servicio inválido', 'Selecciona un tipo de servicio válido antes de guardar el plan.', 'error');
+        return;
+      }
       const payload = {
         nombre: newPlan.nombre.trim(),
         precio: parseFloat(newPlan.precio),
