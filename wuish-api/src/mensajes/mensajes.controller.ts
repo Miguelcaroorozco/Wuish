@@ -1,15 +1,17 @@
 import { Controller, Get, Post, Put, Body, Param, UseGuards, Request, ValidationPipe, UsePipes } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID, Length } from 'class-validator';
+import { IsOptional, IsString, Length, Matches } from 'class-validator';
 import { MensajesService } from './mensajes.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 class CreateMensajeDto {
-  @IsOptional() @IsUUID() solicitud_id?: string;
+  @IsOptional() @Matches(UUID_PATTERN) solicitud_id?: string;
   @IsOptional() @IsString() @Length(1, 150) asunto?: string;
   @IsString() @Length(1, 5000) contenido: string;
-  @IsOptional() @IsUUID() usuario_id?: string;
+  @IsOptional() @Matches(UUID_PATTERN) usuario_id?: string;
 }
 
 @ApiTags('Mensajes')

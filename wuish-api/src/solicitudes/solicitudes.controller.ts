@@ -1,14 +1,16 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request, Query, ValidationPipe, UsePipes } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { Allow, IsArray, IsIn, IsOptional, IsString, IsUUID, Length } from 'class-validator';
+import { Allow, IsArray, IsIn, IsOptional, IsString, Length, Matches } from 'class-validator';
 import { SolicitudesService } from './solicitudes.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 class CreateSolicitudDto {
   @IsOptional() @IsIn(['servicio', 'cotizacion']) tipo?: string;
   @IsOptional() @IsString() @Length(1, 5000) descripcion?: string;
-  @IsOptional() @IsUUID() plan_id?: string;
+  @IsOptional() @Matches(UUID_PATTERN) plan_id?: string;
   @IsOptional() @IsString() @Length(1, 150) empresa?: string;
   @IsOptional() @IsString() @Length(7, 30) telefono_contacto?: string;
   @IsOptional() @Allow() servicios_seleccionados?: unknown;
@@ -19,11 +21,11 @@ class CreateSolicitudDto {
 class UpdateEstadoDto {
   @IsString() estado: string;
   @IsOptional() @IsString() @Length(1, 255) motivo?: string;
-  @IsOptional() @IsUUID() admin_asignado_id?: string;
+  @IsOptional() @Matches(UUID_PATTERN) admin_asignado_id?: string;
 }
 
 class AssignAdminsDto {
-  @IsArray() @IsUUID('4', { each: true }) admin_ids: string[];
+  @IsArray() @Matches(UUID_PATTERN, { each: true }) admin_ids: string[];
 }
 
 @ApiTags('Solicitudes')

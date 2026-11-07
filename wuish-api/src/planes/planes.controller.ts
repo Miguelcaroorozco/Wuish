@@ -1,10 +1,12 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Query, ValidationPipe, UsePipes } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { Allow, IsBoolean, IsNumber, IsObject, IsOptional, IsString, IsUUID, Length } from 'class-validator';
+import { Allow, IsBoolean, IsNumber, IsObject, IsOptional, IsString, Length, Matches } from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
 import { PlanesService } from './planes.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 class TipoServicioDto {
   @IsString() @Length(1, 100) nombre: string;
@@ -12,7 +14,7 @@ class TipoServicioDto {
 }
 
 class PlanDto {
-  @IsUUID() tipo_servicio_id: string;
+  @Matches(UUID_PATTERN) tipo_servicio_id: string;
   @IsString() @Length(1, 100) nombre: string;
   @IsOptional() @IsString() @Length(1, 10000) descripcion?: string;
   @IsOptional() @IsNumber() precio?: number;
