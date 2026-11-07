@@ -4,6 +4,7 @@ import { AdminPagination } from './AdminPagination';
 
 interface AdminPlanesTabProps {
   planes: any[];
+  cotizadorOptions: any[];
   recomendadoPlanId: string;
   planesPage: number;
   itemsPerPage: number;
@@ -16,6 +17,7 @@ interface AdminPlanesTabProps {
 
 export const AdminPlanesTab: React.FC<AdminPlanesTabProps> = ({
   planes,
+  cotizadorOptions,
   recomendadoPlanId,
   planesPage,
   itemsPerPage,
@@ -70,6 +72,12 @@ export const AdminPlanesTab: React.FC<AdminPlanesTabProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {paginatedPlanes.map((plan) => {
               const features = getPlanFeatures(plan);
+              const featureStates = features.map((feature: string) => {
+                const option = cotizadorOptions.find(
+                  (item) => item.name.toLowerCase() === feature.toLowerCase()
+                );
+                return { name: feature, active: option?.activo !== false, exists: Boolean(option) };
+              });
               const isRec = plan.id === recomendadoPlanId;
               return (
                 <div
@@ -120,10 +128,26 @@ export const AdminPlanesTab: React.FC<AdminPlanesTabProps> = ({
                   <p className="text-xs text-[#9a907c] line-clamp-2 min-h-[32px]">
                     {plan.descripcion || 'Sin descripción'}
                   </p>
-                  <span className="text-[11px] text-[#d1c5af]">
-                    {features.length}{' '}
-                    {features.length === 1 ? 'característica' : 'características'}
-                  </span>
+                  <div className="space-y-1">
+                    <span className="text-[11px] text-[#d1c5af]">
+                      {features.length}{' '}
+                      {features.length === 1 ? 'característica' : 'características'}
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {featureStates.map((feature) => (
+                        <span
+                          key={feature.name}
+                          className={`px-1.5 py-0.5 rounded text-[9px] border ${
+                            feature.active && feature.exists
+                              ? 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20'
+                              : 'text-amber-300 bg-amber-500/10 border-amber-500/20'
+                          }`}
+                        >
+                          {feature.name}: {feature.exists ? (feature.active ? 'Activa' : 'Inactiva') : 'Eliminada'}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
 
                   <div className="space-y-2 pt-3 mt-auto border-t border-white/5">
                     <button

@@ -37,6 +37,19 @@ import { AdminResultadosTab } from './AdminResultadosTab';
 import { AdminComentariosTab } from './AdminComentariosTab';
 import { AdminPlanModal } from './AdminPlanModal';
 import { AdminCotizadorOptionModal } from './AdminCotizadorOptionModal';
+
+const getPlanFeatures = (plan: any): string[] => {
+  if (Array.isArray(plan.caracteristicas)) return plan.caracteristicas.filter(Boolean);
+  if (typeof plan.caracteristicas === 'string') {
+    try {
+      const parsed = JSON.parse(plan.caracteristicas);
+      if (Array.isArray(parsed)) return parsed.filter(Boolean);
+    } catch {
+      return plan.caracteristicas.split('\n').map((feature: string) => feature.trim()).filter(Boolean);
+    }
+  }
+  return [];
+};
 import { AdminEditProjectModal } from './AdminEditProjectModal';
 import { AdminUsuariosTab } from './AdminUsuariosTab';
 import { AdminPermisosTab, ADMIN_VIEWS } from './AdminPermisosTab';
@@ -914,10 +927,37 @@ export const AdminPanel: React.FC = () => {
   };
 
   const handleToggleOptionVisibility = async (id: string) => {
-    try {
-      const target = cotizadorOptions.find((o) => o.id === id);
-      if (!target) return;
-      const nextActivo = target.activo === false;
+    const target = cotizadorOptions.find((o) => o.id === id);
+    if (!target) return;
+    const nextActivo = target.activo === false;
+    const affectedPlans = planes.filter((plan) =>
+      getPlanFeatures(plan).some((feature: string) => feature.toLowerCase() === target.name.toLowerCase())
+    );
+    const plansToHide = nextActivo
+      ? []
+      : affectedPlans.filter((plan) => {
+          const features = getPlanFeatures(plan);
+          return features.length > 0 && features.every((feature: string) => {
+            const option = cotizadorOptions.find((item) => item.name.toLowerCase() === feature.toLowerCase());
+            return !option || option.activo === false || option.id === target.id;
+          });
+        });
+
+    setDeleteConfirmModal({
+      title: nextActivo ? '¿Activar módulo del cotizador?' : '¿Inactivar módulo del cotizador?',
+      description: (
+        <>
+          <strong className="text-white">"{target.name}"</strong> quedará {nextActivo ? 'activa' : 'inactiva'}.
+          {plansToHide.length > 0 && (
+            <p className="mt-2 text-amber-300">
+              Esta es la última opción activa de {plansToHide.map((plan) => `"${plan.nombre}"`).join(', ')}.
+              Esos planes también quedarán inactivos.
+            </p>
+          )}
+        </>
+      ),
+      onConfirm: async () => {
+        try {
       await cotizadorModulosApi.upsert({
         id: target.id,
         nombre: target.name,
@@ -926,6 +966,9 @@ export const AdminPanel: React.FC = () => {
         descripcion: target.description,
         activo: nextActivo,
       });
+      for (const plan of plansToHide) {
+        await planesApi.update(plan.id, { activo: false });
+      }
 
       const refreshed = await cotizadorModulosApi.getAll(true);
       if (Array.isArray(refreshed) && refreshed.length > 0) {
@@ -945,23 +988,43 @@ export const AdminPanel: React.FC = () => {
         `"${target?.name}" ahora está ${nextActivo ? 'visible' : 'oculto'} en el cotizador.`,
         'success'
       );
-    } catch (err: any) {
-      showToast('Error', err.message || 'No se pudo cambiar la visibilidad', 'error');
-    }
+        } catch (err: any) {
+          showToast('Error', err.message || 'No se pudo cambiar la visibilidad', 'error');
+        }
+      },
+    });
   };
 
   const handleDeleteOption = (id: string, name: string) => {
+    const affectedPlans = planes.filter((plan) =>
+      getPlanFeatures(plan).some((feature: string) => feature.toLowerCase() === name.toLowerCase())
+    );
     setDeleteConfirmModal({
       title: '¿Eliminar módulo del cotizador?',
       description: (
         <>
           Esta acción eliminará permanentemente el módulo{' '}
           <strong className="text-white">"{name}"</strong> de las opciones activas del cotizador.
+          {affectedPlans.length > 0 && (
+            <p className="mt-2 text-amber-300">
+              También desaparecerá de {affectedPlans.map((plan) => `"${plan.nombre}"`).join(', ')}.
+              Los planes que queden sin opciones serán inactivados.
+            </p>
+          )}
         </>
       ),
       onConfirm: async () => {
         try {
           await cotizadorModulosApi.delete(id);
+          for (const plan of affectedPlans) {
+            const remainingFeatures = getPlanFeatures(plan).filter(
+              (feature: string) => feature.toLowerCase() !== name.toLowerCase()
+            );
+            await planesApi.update(plan.id, {
+              caracteristicas: remainingFeatures,
+              ...(remainingFeatures.length === 0 ? { activo: false } : {}),
+            });
+          }
           const refreshed = await cotizadorModulosApi.getAll(true);
           setCotizadorOptions(
             refreshed.map((m: any) => ({
@@ -973,6 +1036,7 @@ export const AdminPanel: React.FC = () => {
               activo: m.activo,
             }))
           );
+          await reloadPlanes();
           showToast('Módulo Eliminado', `"${name}" fue eliminado del cotizador.`, 'success');
         } catch (err: any) {
           showToast('Error', err.message || 'No se pudo eliminar el módulo', 'error');
@@ -1663,6 +1727,7 @@ export const AdminPanel: React.FC = () => {
           {activeTab === 'planes' && hasTabPermission('planes') && (
             <AdminPlanesTab
               planes={planes}
+              cotizadorOptions={cotizadorOptions}
               recomendadoPlanId={recomendadoPlanId}
               planesPage={planesPage}
               itemsPerPage={PLANES_PER_PAGE}
