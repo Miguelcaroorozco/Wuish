@@ -952,18 +952,19 @@ export const AdminPanel: React.FC = () => {
         });
 
     setDeleteConfirmModal({
-      title: nextActivo ? '¿Activar módulo del cotizador?' : '¿Inactivar módulo del cotizador?',
+      title: nextActivo ? '¿Mostrar módulo del cotizador?' : '¿Ocultar módulo del cotizador?',
       description: (
         <>
-          <strong className="text-white">"{target.name}"</strong> quedará {nextActivo ? 'activa' : 'inactiva'}.
+          <strong className="text-white">"{target.name}"</strong> quedará {nextActivo ? 'visible' : 'oculto'}.
           {plansToHide.length > 0 && (
             <p className="mt-2 text-amber-300">
               Esta es la última opción activa de {plansToHide.map((plan) => `"${plan.nombre}"`).join(', ')}.
-              Esos planes también quedarán inactivos.
+              Esos planes también quedarán ocultos.
             </p>
           )}
         </>
       ),
+      confirmButtonText: nextActivo ? 'Sí, mostrar' : 'Sí, ocultar',
       onConfirm: async () => {
         try {
       await cotizadorModulosApi.upsert({
@@ -1016,7 +1017,7 @@ export const AdminPanel: React.FC = () => {
           {affectedPlans.length > 0 && (
             <p className="mt-2 text-amber-300">
               También desaparecerá de {affectedPlans.map((plan) => `"${plan.nombre}"`).join(', ')}.
-              Los planes que queden sin opciones serán inactivados.
+              Los planes que queden sin opciones serán ocultados.
             </p>
           )}
         </>
