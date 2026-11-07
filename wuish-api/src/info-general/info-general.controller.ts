@@ -1,11 +1,50 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request, ValidationPipe, UsePipes } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { Allow, IsBoolean, IsInt, IsNumber, IsObject, IsOptional, IsString, Length, Max, Min } from 'class-validator';
+import { PartialType } from '@nestjs/mapped-types';
 import { InfoGeneralService } from './info-general.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 
+class InfoDto {
+  @IsString() @Length(1, 100) seccion: string;
+  @IsString() @Length(1, 10000) contenido: string;
+}
+
+class ModuloDto {
+  @IsString() @Length(1, 60) id: string;
+  @IsString() @Length(1, 150) nombre: string;
+  @IsString() @Length(1, 50) categoria: string;
+  @IsNumber() precio_base: number;
+  @IsString() @Length(1, 10000) descripcion: string;
+  @IsOptional() @IsBoolean() activo?: boolean;
+  @IsOptional() @IsInt() orden?: number;
+}
+
+class ProyectoDto {
+  @IsString() @Length(1, 150) titulo: string;
+  @IsOptional() @IsString() @Length(1, 150) cliente?: string;
+  @IsString() @Length(1, 50) categoria: string;
+  @IsOptional() @IsString() @Length(1, 10) anio?: string;
+  @IsOptional() @IsString() @Length(1, 10000) descripcion?: string;
+  @IsOptional() @IsString() @Length(1, 2000) imagen_url?: string;
+  @IsOptional() @Allow() tags?: unknown;
+  @IsOptional() @IsInt() orden?: number;
+}
+
+class MetricaDto {
+  @IsNumber() valor: number;
+  @IsOptional() @IsString() @Length(1, 20) sufijo?: string;
+  @IsString() @Length(1, 150) etiqueta: string;
+  @IsOptional() @IsInt() orden?: number;
+}
+
+class UpdateProyectoDto extends PartialType(ProyectoDto) {}
+class UpdateMetricaDto extends PartialType(MetricaDto) {}
+
 @ApiTags('Info General & Contenido')
 @Controller()
+@UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))
 export class InfoGeneralController {
   constructor(private infoService: InfoGeneralService) {}
 
@@ -26,7 +65,7 @@ export class InfoGeneralController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Crear o actualizar sección de info (admin)' })
-  upsertInfo(@Request() req, @Body() data: { seccion: string; contenido: string }) {
+  upsertInfo(@Request() req, @Body() data: InfoDto) {
     return this.infoService.upsertInfo(data.seccion, data.contenido, req.user.sub);
   }
 
@@ -44,15 +83,7 @@ export class InfoGeneralController {
   @ApiOperation({ summary: 'Crear o actualizar módulo del cotizador (admin)' })
   upsertCotizadorModulo(
     @Body()
-    data: {
-      id: string;
-      nombre: string;
-      categoria: string;
-      precio_base: number;
-      descripcion: string;
-      activo?: boolean;
-      orden?: number;
-    },
+    data: ModuloDto,
   ) {
     return this.infoService.upsertCotizadorModulo(data);
   }
@@ -77,7 +108,7 @@ export class InfoGeneralController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Crear proyecto en el portafolio (admin)' })
-  createProyecto(@Body() data: any) {
+  createProyecto(@Body() data: ProyectoDto) {
     return this.infoService.createProyecto(data);
   }
 
@@ -85,7 +116,7 @@ export class InfoGeneralController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Actualizar proyecto en el portafolio (admin)' })
-  updateProyecto(@Param('id') id: string, @Body() data: any) {
+  updateProyecto(@Param('id') id: string, @Body() data: UpdateProyectoDto) {
     return this.infoService.updateProyecto(id, data);
   }
 
@@ -106,14 +137,14 @@ export class InfoGeneralController {
   @Post('resultados')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
-  createResultadoLegacy(@Body() data: any) {
+  createResultadoLegacy(@Body() data: ProyectoDto) {
     return this.createProyecto(data);
   }
 
   @Put('resultados/:id')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
-  updateResultadoLegacy(@Param('id') id: string, @Body() data: any) {
+  updateResultadoLegacy(@Param('id') id: string, @Body() data: UpdateProyectoDto) {
     return this.updateProyecto(id, data);
   }
 
@@ -136,7 +167,7 @@ export class InfoGeneralController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Crear métrica (admin)' })
-  createMetrica(@Body() data: { valor: number; sufijo?: string; etiqueta: string; orden?: number }) {
+  createMetrica(@Body() data: MetricaDto) {
     return this.infoService.createMetrica(data);
   }
 
@@ -144,7 +175,7 @@ export class InfoGeneralController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Actualizar métrica (admin)' })
-  updateMetrica(@Param('id') id: string, @Body() data: any) {
+  updateMetrica(@Param('id') id: string, @Body() data: UpdateMetricaDto) {
     return this.infoService.updateMetrica(id, data);
   }
 

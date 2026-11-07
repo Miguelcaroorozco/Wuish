@@ -1,16 +1,21 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.use(helmet());
 
-  // Enable CORS for frontend
+  const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: true,
+    origin: allowedOrigins,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    credentials: true,
+    credentials: false,
   });
 
   // Global validation pipe
@@ -24,19 +29,9 @@ async function bootstrap() {
   // Global prefix
   app.setGlobalPrefix('api');
 
-  // Swagger documentation
-  const config = new DocumentBuilder()
-    .setTitle('Wuish API')
-    .setDescription('API Backend para la plataforma Wuish')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, document);
-
   const port = process.env.PORT || 3001;
   await app.listen(port);
   console.log(`🚀 Wuish API corriendo en http://localhost:${port}`);
-  console.log(`📖 Swagger Docs en http://localhost:${port}/docs`);
+  console.log(`🌐 Frontend disponible en ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
 }
 bootstrap();

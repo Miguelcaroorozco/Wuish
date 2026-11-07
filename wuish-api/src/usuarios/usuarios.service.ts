@@ -33,9 +33,19 @@ export class UsuariosService {
       permisos?: string[];
     },
   ) {
+    const updateData = {
+      ...(data.nombres !== undefined ? { nombres: data.nombres } : {}),
+      ...(data.apellidos !== undefined ? { apellidos: data.apellidos } : {}),
+      ...(data.telefono !== undefined ? { telefono: data.telefono } : {}),
+      ...(data.correo !== undefined ? { correo: data.correo } : {}),
+      ...(data.empresa !== undefined ? { empresa: data.empresa } : {}),
+      ...(data.cargo !== undefined ? { cargo: data.cargo } : {}),
+      ...(data.preferencias !== undefined ? { preferencias: data.preferencias } : {}),
+      ...(data.permisos !== undefined ? { permisos: data.permisos } : {}),
+    };
     const user = await this.prisma.usuario.update({
       where: { id },
-      data: { ...data, updated_at: new Date() },
+      data: { ...updateData, updated_at: new Date() },
     });
     const { password_hash, ...sanitized } = user;
     return sanitized;
@@ -78,6 +88,10 @@ export class UsuariosService {
     permisos?: any;
     fecha_nacimiento?: string | Date;
   }) {
+    if (!data.password?.trim()) {
+      throw new BadRequestException('La contraseña es obligatoria al crear un usuario');
+    }
+
     const existing = await this.prisma.usuario.findFirst({
       where: {
         OR: [
@@ -92,7 +106,7 @@ export class UsuariosService {
     }
 
     const salt = await bcrypt.genSalt(10);
-    const password_hash = await bcrypt.hash(data.password || 'wuish2026', salt);
+    const password_hash = await bcrypt.hash(data.password, salt);
 
     const user = await this.prisma.usuario.create({
       data: {

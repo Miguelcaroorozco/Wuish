@@ -1,11 +1,20 @@
-import { Controller, Get, Post, Put, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Param, UseGuards, Request, ValidationPipe, UsePipes } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { IsOptional, IsString, IsUUID, Length } from 'class-validator';
 import { MensajesService } from './mensajes.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 
+class CreateMensajeDto {
+  @IsOptional() @IsUUID() solicitud_id?: string;
+  @IsOptional() @IsString() @Length(1, 150) asunto?: string;
+  @IsString() @Length(1, 5000) contenido: string;
+  @IsOptional() @IsUUID() usuario_id?: string;
+}
+
 @ApiTags('Mensajes')
 @Controller('mensajes')
+@UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))
 export class MensajesController {
   constructor(private mensajesService: MensajesService) {}
 
@@ -39,7 +48,7 @@ export class MensajesController {
   @ApiOperation({ summary: 'Enviar mensaje o responder como admin' })
   create(
     @Request() req,
-    @Body() data: { solicitud_id?: string; asunto?: string; contenido: string; usuario_id?: string },
+    @Body() data: CreateMensajeDto,
   ) {
     const isAdmin = req.user.rol === 'admin' || req.user.rol === 'administrador';
     const targetUserId = (isAdmin && data.usuario_id) ? data.usuario_id : req.user.sub;

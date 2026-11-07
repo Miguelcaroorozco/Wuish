@@ -1,11 +1,34 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request, Query } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request, Query, ValidationPipe, UsePipes } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { Allow, IsArray, IsIn, IsOptional, IsString, IsUUID, Length } from 'class-validator';
 import { SolicitudesService } from './solicitudes.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 
+class CreateSolicitudDto {
+  @IsOptional() @IsIn(['servicio', 'cotizacion']) tipo?: string;
+  @IsOptional() @IsString() @Length(1, 5000) descripcion?: string;
+  @IsOptional() @IsUUID() plan_id?: string;
+  @IsOptional() @IsString() @Length(1, 150) empresa?: string;
+  @IsOptional() @IsString() @Length(7, 30) telefono_contacto?: string;
+  @IsOptional() @Allow() servicios_seleccionados?: unknown;
+  @IsOptional() @IsString() @Length(1, 30) velocidad_entrega?: string;
+  @IsOptional() @IsString() @Length(1, 30) nivel_soporte?: string;
+}
+
+class UpdateEstadoDto {
+  @IsString() estado: string;
+  @IsOptional() @IsString() @Length(1, 255) motivo?: string;
+  @IsOptional() @IsUUID() admin_asignado_id?: string;
+}
+
+class AssignAdminsDto {
+  @IsArray() @IsUUID('4', { each: true }) admin_ids: string[];
+}
+
 @ApiTags('Solicitudes')
 @Controller('solicitudes')
+@UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))
 export class SolicitudesController {
   constructor(private solicitudesService: SolicitudesService) {}
 
@@ -40,17 +63,7 @@ export class SolicitudesController {
   @ApiOperation({ summary: 'Crear nueva solicitud / cotización' })
   create(
     @Request() req,
-    @Body()
-    data: {
-      tipo?: string;
-      descripcion?: string;
-      plan_id?: string;
-      empresa?: string;
-      telefono_contacto?: string;
-      servicios_seleccionados?: any;
-      velocidad_entrega?: string;
-      nivel_soporte?: string;
-    },
+    @Body() data: CreateSolicitudDto,
   ) {
     return this.solicitudesService.create({
       usuario_id: req.user.sub,
@@ -64,7 +77,7 @@ export class SolicitudesController {
   @ApiOperation({ summary: 'Actualizar estado de solicitud (admin)' })
   updateEstado(
     @Param('id') id: string,
-    @Body() data: { estado: string; motivo?: string; admin_asignado_id?: string },
+    @Body() data: UpdateEstadoDto,
   ) {
     return this.solicitudesService.updateEstado(id, data);
   }
@@ -73,7 +86,7 @@ export class SolicitudesController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Asignar administradores a una solicitud' })
-  assignAdmins(@Param('id') id: string, @Body() data: { admin_ids: string[] }) {
+  assignAdmins(@Param('id') id: string, @Body() data: AssignAdminsDto) {
     return this.solicitudesService.assignAdmins(id, data.admin_ids);
   }
 

@@ -1,11 +1,30 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Query, ValidationPipe, UsePipes } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { Allow, IsBoolean, IsNumber, IsObject, IsOptional, IsString, IsUUID, Length } from 'class-validator';
+import { PartialType } from '@nestjs/mapped-types';
 import { PlanesService } from './planes.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 
+class TipoServicioDto {
+  @IsString() @Length(1, 100) nombre: string;
+  @IsOptional() @IsString() @Length(1, 10000) descripcion?: string;
+}
+
+class PlanDto {
+  @IsUUID() tipo_servicio_id: string;
+  @IsString() @Length(1, 100) nombre: string;
+  @IsOptional() @IsString() @Length(1, 10000) descripcion?: string;
+  @IsOptional() @IsNumber() precio?: number;
+  @IsOptional() @Allow() caracteristicas?: unknown;
+  @IsOptional() @IsBoolean() activo?: boolean;
+}
+class UpdateTipoServicioDto extends PartialType(TipoServicioDto) {}
+class UpdatePlanDto extends PartialType(PlanDto) {}
+
 @ApiTags('Planes')
 @Controller()
+@UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))
 export class PlanesController {
   constructor(private planesService: PlanesService) {}
 
@@ -20,7 +39,7 @@ export class PlanesController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Crear tipo de servicio (admin)' })
-  createTipo(@Body() data: { nombre: string; descripcion?: string }) {
+  createTipo(@Body() data: TipoServicioDto) {
     return this.planesService.createTipoServicio(data);
   }
 
@@ -28,7 +47,7 @@ export class PlanesController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Actualizar tipo de servicio (admin)' })
-  updateTipo(@Param('id') id: string, @Body() data: { nombre?: string; descripcion?: string }) {
+  updateTipo(@Param('id') id: string, @Body() data: UpdateTipoServicioDto) {
     return this.planesService.updateTipoServicio(id, data);
   }
 
@@ -57,13 +76,7 @@ export class PlanesController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Crear plan (admin)' })
-  create(@Body() data: {
-    tipo_servicio_id: string;
-    nombre: string;
-    descripcion?: string;
-    precio?: number;
-    caracteristicas?: any;
-  }) {
+  create(@Body() data: PlanDto) {
     return this.planesService.createPlan(data);
   }
 
@@ -71,7 +84,7 @@ export class PlanesController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Actualizar plan (admin)' })
-  update(@Param('id') id: string, @Body() data: any) {
+  update(@Param('id') id: string, @Body() data: UpdatePlanDto) {
     return this.planesService.updatePlan(id, data);
   }
 
