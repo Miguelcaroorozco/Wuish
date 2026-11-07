@@ -126,7 +126,8 @@ El script:
 
 1. Verifica que el repositorio no tenga cambios locales.
 2. Descarga y aplica únicamente los cambios de `origin/main`.
-3. Instala las dependencias con `npm ci`.
+3. Instala las dependencias con `npm ci`; para el backend aplica la resolución
+   compatible con TypeScript 5.8 mediante `--legacy-peer-deps`.
 4. Regenera Prisma Client.
 5. Crea un backup de PostgreSQL en `.backups/`.
 6. Ejecuta `prisma db push` para crear o actualizar las tablas.

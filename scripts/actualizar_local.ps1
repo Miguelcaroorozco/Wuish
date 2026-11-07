@@ -47,7 +47,7 @@ Write-Host 'Instalando dependencias del frontend...'
 Invoke-Step 'npm' @('ci')
 
 Write-Host 'Instalando dependencias del backend...'
-Invoke-Step 'npm' @('--prefix', $apiDir, 'ci')
+Invoke-Step 'npm' @('--prefix', $apiDir, 'ci', '--legacy-peer-deps')
 
 Write-Host 'Generando Prisma Client...'
 Push-Location $apiDir
