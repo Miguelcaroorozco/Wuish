@@ -56,7 +56,7 @@ const getPlanFeatures = (plan: any): string[] => {
 
 const isUuid = (value: unknown): value is string =>
   typeof value === 'string' &&
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 
 const DEFAULT_COTIZADOR_SERVICES: CotizadorServiceItem[] = [
   { id: 'opt_1', name: 'Desarrollo Web & E-Commerce', category: 'tecnologia', basePrice: 2850, description: 'Plataformas headless de alta conversión, SSR y checkout global.' },
